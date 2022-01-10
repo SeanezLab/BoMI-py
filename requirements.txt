@@ -1,0 +1,7 @@
+numpy
+scipy
+pyserial>=3.5
+pyside6
+PyOpenGL
+PyOpenGL_accelerate
+pyqtgraph
