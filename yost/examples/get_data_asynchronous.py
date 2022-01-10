@@ -45,8 +45,8 @@ if dng_device is not None:
         wl_device.startStreaming()
         ## We can also record the data
         wl_device.startRecordingData()
-        start_time = time.clock()
-        while time.clock() - start_time < 5:
+        start_time = time.time()
+        while time.time() - start_time < 5:
             print(wl_device.stream_last_data)
             print("=======================================\n")
         

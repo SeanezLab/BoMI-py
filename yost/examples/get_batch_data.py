@@ -50,8 +50,8 @@ if device is not None:
     ## Now we can start getting the streaming batch data from the device.
     print("==================================================")
     print("Getting the streaming batch data.")
-    start_time = time.clock()
-    while time.clock() - start_time < 1:
+    start_time = time.time()
+    while time.time() - start_time < 1:
         print(device.getStreamingBatch())
         print("=======================================\n")
     ## Now close the port.
@@ -84,8 +84,8 @@ if dng_device is not None:
     ## Now we can start getting the streaming batch data from the device.
     print("==================================================")
     print("Getting the streaming batch data.")
-    start_time = time.clock()
-    while time.clock() - start_time < 1:
+    start_time = time.time()
+    while time.time() - start_time < 1:
         print(wl_device.getStreamingBatch())
         print("=======================================\n")
     

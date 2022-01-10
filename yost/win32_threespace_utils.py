@@ -14,6 +14,7 @@ __authors__ = [
     '"Dan Morrison" <dmorrison@yeitechnology.com>',
 ]
 
+from typing import List
 from threespace_utils import *
 import struct
 # import serial
@@ -572,7 +573,7 @@ def _yeiComPorts():
         SetupDiDestroyDeviceInfoList(g_hdi)
 
 
-def getComPorts(filter=TSS_FIND_ALL):
+def getComPorts(filter=TSS_FIND_ALL) -> List[ComInfo]:
     """ Queries the system for all available serial COM ports and returns a list
         of them.
         
