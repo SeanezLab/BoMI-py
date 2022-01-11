@@ -15,10 +15,8 @@ __authors__ = [
 ]
 
 from typing import List
-from threespace_utils import *
+from .threespace_utils import *
 import struct
-# import serial
-# from serial.win32 import ULONG_PTR, is_64bit
 
 import re
 import sys

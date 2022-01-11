@@ -1,5 +1,5 @@
 #!/usr/bin/env python2.7
-from __future__ import print_function
+from __future__ import print_function, annotations
 
 """ This module is an API module for ThreeSpace devices.
     
@@ -26,9 +26,9 @@ import os
 
 # chose an implementation, depending on os
 if os.name == 'nt':  # sys.platform == 'win32':
-    from win32_threespace_utils import *
+    from .win32_threespace_utils import *
 else:
-    from threespace_utils import *
+    from .threespace_utils import *
 
     print("WARNING: No additional utils are loaded!!!!!!")
 
@@ -38,7 +38,7 @@ global_error = None
 global_counter = 0
 global_donglist = {}
 global_sensorlist = {}
-global_broadcaster = None
+# global_broadcaster = None  # declared at the very end
 
 TSS_TIMESTAMP_SENSOR = 0
 TSS_TIMESTAMP_SYSTEM = 1
@@ -988,7 +988,7 @@ class _TSSensor(_TSBase):
         if self.stream_slot_cmds is None:
             self.getStreamingSlots()
         for slot_cmd in self.stream_slot_cmds:
-            if slot_cmd is not 'null':
+            if slot_cmd != 'null':
                 out_struct = self.command_dict[slot_cmd][2]
                 stream_string += out_struct[1:]  # stripping the >
         self.stream_parse = struct.Struct(stream_string)
@@ -1048,7 +1048,7 @@ class _TSSensor(_TSBase):
                 header_list = padProtocolHeader69(header_data, None)
             fail_byte, timestamp, cmd_echo, ck_sum, rtn_log_id, sn, data_size = header_list
             output_data = _serial_port.read(data_size)
-            if cmd_echo is 0xff:
+            if cmd_echo != 0xff:
                 if data_size:
                     self._parseStreamData(timestamp, output_data)
                 return
@@ -3098,7 +3098,7 @@ class TSDongle(_TSBase):
             # _print("!!!!fail_byte={0}, cmd_echo={1}, rtn_log_id={2}, data_size={3}".format(fail_byte, cmd_echo, rtn_log_id, data_size))
             output_data = _serial_port.read(data_size)
 
-            if cmd_echo is 0xff:
+            if cmd_echo != 0xff:
                 if data_size:
                     self[rtn_log_id]._parseStreamData(timestamp, output_data)
                 return
