@@ -60,6 +60,10 @@ def discover_all_devices() -> Tuple[DeviceList, DeviceList]:
     return all_list, sensor_list
 
 
+class DeviceStatus:
+    battery: int
+
+
 class DeviceManager:
     """
     Manage the discovery, initialization, and data acquisition of all yost body sensors.
@@ -69,43 +73,52 @@ class DeviceManager:
         self._all_list: DeviceList = []
         self._sensor_list: DeviceList = []
 
+    def status(self) -> str:
+        return f"Discovered {len(self._all_list)} devices, {len(self._sensor_list)} sensors"
+
     def discover_devices(self):
+        "Walk COM ports to discover Yost devices"
         self._close_devices()
         all_list, sensor_list = discover_all_devices()
-        print(f"Discovered {len(all_list)} devices, {len(sensor_list)} sensors")
-        self._all_list: DeviceList = all_list
-        self._sensor_list: DeviceList = sensor_list
+        self._all_list = all_list
+        self._sensor_list = sensor_list
 
-    def _setup_devices(self):
+    def setup_devices(self):
         """Setup devices"""
+        print("Setup_devices")
         sensor_list = self._sensor_list
+        duration_s = 10
         ts_api.global_broadcaster.setStreamingTiming(
             interval=0,
-            duration=110_000_000,
+            duration=duration_s * 1_000_000,
             delay=1_000_000,
             delay_offset=12_000,
             filter=sensor_list,
         )
         ts_api.global_broadcaster.setStreamingSlots(
-            slot0="getTaredOrientationAsQuaternion",
-            slot1="getAllRawComponentSensorData",
-            slot2="getButtonState",
+            slot0="getTaredOrientationAsAxisAngle",
             filter=sensor_list,
         )
 
-        ### Stream data
+        ### Async Stream data
+        print("Start streaming")
         ts_api.global_broadcaster.startStreaming(filter=sensor_list)
+        print("Start recording data")
         ts_api.global_broadcaster.startRecordingData(filter=sensor_list)
-        time.sleep(5)
+        time.sleep(1)
         ts_api.global_broadcaster.stopRecordingData(filter=sensor_list)
         ts_api.global_broadcaster.stopStreaming(filter=sensor_list)
         for sensor in sensor_list:
-            sensor.getStreamingBatch
             print(
                 "Sensor({0}) stream_data len={1}".format(
                     sensor.serial_number_hex, len(sensor.stream_data)
                 )
             )
+
+    # def get_battery(self):
+    # # this doesn't work for some reason. returns list of None
+    # b = [d.getBatteryStatus() for d in self._sensor_list]
+    # return b
 
     def _close_devices(self):
         # close all ports
