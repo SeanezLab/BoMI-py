@@ -1,4 +1,5 @@
 import sys
+import os
 from typing import NamedTuple
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
@@ -7,6 +8,8 @@ import pyqtgraph as pg
 import numpy as np
 
 from bomi.device_manager import DeviceManager
+from bomi.sample_3d_window import Sample3DWindow
+from bomi.sample_plot_window import SamplePlotWindow
 
 
 __appname__ = "BoMI"
@@ -50,16 +53,20 @@ class MainWindow(qw.QMainWindow):
         button1.clicked.connect(self.discover_devices)
         layout.addWidget(button1)
 
-        button2 = qw.QPushButton(text="Show plot", parent=self)
-        button2.clicked.connect(self.show_plot)
+        button2 = qw.QPushButton(text="Show sample plot", parent=self)
+        button2.clicked.connect(self.show_sample_plot)
         layout.addWidget(button2)
+
+        button3 = qw.QPushButton(text="Show sample 3D plot", parent=self)
+        button3.clicked.connect(self.show_sample_3d_plot)
+        layout.addWidget(button3)
 
     def _create_actions(self):
         newAct = qg.QAction("New", self)
 
         quitAct = qg.QAction("Quit", self)
-        quitAct.setShortcut("ctrl+Q")
-        quitAct.toggled.connect(self.close)
+        quitAct.setShortcut("ctrl+q")
+        quitAct.triggered.connect(self.quit)
 
         self.actions = self.Actions(newAct=newAct, quitAct=quitAct)
 
@@ -71,40 +78,27 @@ class MainWindow(qw.QMainWindow):
     @qc.Slot()
     def discover_devices(self):
         self._set_status("Discovering devices . . .")
-        self._device_manager.discover_devices()
+        with pg.BusyCursor():
+            self._device_manager.discover_devices()
         self._set_status(self._device_manager.status())
         # self._device_manager.setup_devices()
 
     @qc.Slot()
-    def show_plot(self):
+    def show_sample_plot(self):
         if not hasattr(self, "_plot_window"):
             self._plot_window = SamplePlotWindow()
         self._plot_window.show()
 
+    @qc.Slot()
+    def show_sample_3d_plot(self):
+        if not hasattr(self, "_plot_3d_window"):
+            self._plot_3d_window = Sample3DWindow()
+        self._plot_3d_window.show()
 
-class SamplePlotWindow(qw.QWidget):
-    def __init__(self):
-        super().__init__()
-        self.resize(300, 200)
-        layout = qw.QVBoxLayout()
-        self.setLayout(layout)
-
-        self.label = qw.QLabel("Plot Window")
-        layout.addWidget(self.label)
-
-        w = pg.GraphicsLayoutWidget(self)
-        layout.addWidget(w)
-        p1 = w.addPlot(row=0, col=0)
-        p2 = w.addPlot(row=0, col=1)
-
-        n = 300
-        s1 = pg.ScatterPlotItem(
-            size=10, pen=pg.mkPen(None), brush=pg.mkBrush(255, 255, 255, 120)
-        )
-        pos = np.random.normal(size=(2, n), scale=1e-5)
-        spots = [{"pos": pos[:, i], "data": 1} for i in range(n)]
-        s1.addPoints(spots)
-        p1.addItem(s1)
+    @qc.Slot()
+    def quit(self):
+        self.close()
+        # qw.QApplication.quit()
 
 
 if __name__ == "__main__":
