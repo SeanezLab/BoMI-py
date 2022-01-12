@@ -9,7 +9,6 @@ class SamplePlotWindow(qw.QWidget):
     def __init__(self):
         super().__init__()
         self.resize(300, 200)
-        self.setWindowTitle("pyqtgraph example")
 
         layout = qw.QVBoxLayout()
         self.setLayout(layout)

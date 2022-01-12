@@ -8,6 +8,8 @@ import pyqtgraph as pg
 import numpy as np
 
 from bomi.device_manager import DeviceManager
+from bomi.painter_widget import PainterWindow
+from bomi.reaching_widget import ReachingWidget
 from bomi.sample_3d_window import Sample3DWindow
 from bomi.sample_plot_window import SamplePlotWindow
 
@@ -46,7 +48,7 @@ class MainWindow(qw.QMainWindow):
         layout = qw.QGridLayout()
         cw.setLayout(layout)
 
-        l = qw.QLabel(self, text="Hello", alignment=qc.Qt.AlignCenter)
+        l = qw.QLabel(self, text="BoMi!", alignment=qc.Qt.AlignCenter)
         layout.addWidget(l, 0, 0)
 
         button1 = qw.QPushButton(text="Discover devices", parent=self)
@@ -60,6 +62,14 @@ class MainWindow(qw.QMainWindow):
         button3 = qw.QPushButton(text="Show sample 3D plot", parent=self)
         button3.clicked.connect(self.show_sample_3d_plot)
         layout.addWidget(button3)
+
+        button4 = qw.QPushButton(text="Reaching", parent=self)
+        button4.clicked.connect(self.show_reaching)
+        layout.addWidget(button4)
+
+        button5 = qw.QPushButton(text="Painter", parent=self)
+        button5.clicked.connect(self.show_painter)
+        layout.addWidget(button5)
 
     def _create_actions(self):
         newAct = qg.QAction("New", self)
@@ -94,6 +104,19 @@ class MainWindow(qw.QMainWindow):
         if not hasattr(self, "_plot_3d_window"):
             self._plot_3d_window = Sample3DWindow()
         self._plot_3d_window.show()
+
+    @qc.Slot()
+    def show_reaching(self):
+        if not hasattr(self, "_reaching_w"):
+            self._reaching_w = ReachingWidget()
+        self._reaching_w.show()
+
+    @qc.Slot()
+    def show_painter(self):
+        if not hasattr(self, "_painter_w"):
+            self._painter_w = PainterWindow()
+            self._painter_w.setWindowTitle("Painter")
+        self._painter_w.show()
 
     @qc.Slot()
     def quit(self):

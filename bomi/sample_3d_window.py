@@ -12,7 +12,6 @@ class Sample3DWindow(qw.QWidget):
         self.resize(300, 200)
         layout = qw.QVBoxLayout()
         self.setLayout(layout)
-        self.setWindowTitle("pyqtgraph example: GLSurfacePlot")
 
         ## Create a GL View widget to display data
         w = gl.GLViewWidget(self)
