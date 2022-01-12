@@ -109,7 +109,11 @@ class MainWindow(qw.QMainWindow):
     def show_reaching(self):
         if not hasattr(self, "_reaching_w"):
             self._reaching_w = ReachingWidget()
-        self._reaching_w.show()
+            def closeEvent(event: qg.QCloseEvent):
+                event.accept()
+                delattr(self, "_reaching_w")
+            self._reaching_w.closeEvent = closeEvent
+            self._reaching_w.showMaximized()
 
     @qc.Slot()
     def show_painter(self):
