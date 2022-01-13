@@ -13,21 +13,93 @@ def _print(*args):
     print("[Reaching]", *args)
 
 
-class ReachingWidget(qw.QWidget):
-    GREEN = qg.QColor(0, 255, 0)
-    RED = qg.QColor(255, 0, 0)
-    BLUE = qg.QColor(0, 0, 255)
-
-    CURSOR_COLOR = Qt.white
-
-    INF = np.inf
-
+class ReachingParams:
     # Reaching task params
     HOLD_TIME = 0.5
     TIME_LIMIT = 1.0
     TARGET_RADIUS = 40
     N_TARGETS = 8
     N_REPS = 3
+
+
+def create_spin_box(
+    SpinBoxType: qw.QAbstractSpinBox,
+    value: float,
+    step_size: float,
+    range: Tuple[float, float],
+):
+    spin_box = SpinBoxType()
+    spin_box.setSingleStep(step_size)
+    spin_box.setRange(*range)
+    spin_box.setValue(value)
+    return spin_box
+
+
+class ReachingConfig(qw.QDialog):
+    def __init__(self):
+        super().__init__()
+
+        self.create_menu()
+        self.create_form_group_box()
+
+        main_layout = qw.QVBoxLayout()
+        main_layout.setMenuBar(self._menu_bar)
+        main_layout.addWidget(self._form_group_box)
+        self.setLayout(main_layout)
+
+        button_box = qw.QDialogButtonBox(
+            qw.QDialogButtonBox.Ok | qw.QDialogButtonBox.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+
+        main_layout.addWidget(button_box)
+
+    def create_menu(self):
+        self._menu_bar = qw.QMenuBar()
+        self._file_menu = qw.QMenu("&File", self)
+        self._exit_action = self._file_menu.addAction("E&xit")
+        self._menu_bar.addMenu(self._file_menu)
+        self._exit_action.triggered.connect(self.accept)
+
+    def create_form_group_box(self):
+        self._form_group_box = qw.QGroupBox("Form layout")
+        layout = qw.QFormLayout()
+
+        self.hold_time = create_spin_box(
+            qw.QDoubleSpinBox, ReachingParams.HOLD_TIME, 0.1, (0, 1)
+        )
+        self.time_limit = create_spin_box(
+            qw.QDoubleSpinBox, ReachingParams.TIME_LIMIT, 0.1, (0, 2)
+        )
+        self.n_targets = create_spin_box(
+            qw.QSpinBox, ReachingParams.N_TARGETS, 1, (1, 10)
+        )
+        self.n_reps = create_spin_box(
+            qw.QSpinBox, ReachingParams.N_REPS, 1, (1, 5)
+        )
+
+        layout.addRow(qw.QLabel("Hold time"), self.hold_time)
+        layout.addRow(qw.QLabel("Time limit"), self.time_limit)
+        layout.addRow(qw.QLabel("No. targets"), self.n_targets)
+        layout.addRow(qw.QLabel("No. reps"), self.n_reps)
+        self._form_group_box.setLayout(layout)
+
+    def accept(self):
+        ReachingParams.HOLD_TIME = self.hold_time.value()
+        ReachingParams.TIME_LIMIT = self.time_limit.value()
+        ReachingParams.N_TARGETS = self.n_targets.value()
+        ReachingParams.N_REPS = self.n_reps.value()
+        return super().accept()
+
+
+class ReachingWidget(qw.QWidget, ReachingParams):
+    GREEN = qg.QColor(0, 255, 0)
+    RED = qg.QColor(255, 0, 0)
+    BLUE = qg.QColor(0, 0, 255)
+    CURSOR_COLOR = Qt.white
+    INF = np.inf
+    Config = ReachingConfig
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -69,7 +141,9 @@ class ReachingWidget(qw.QWidget):
         self._target_created_time = self.INF
 
         ### Generate targets
-        center, targets = self.generate_targets(n_targets=self.N_TARGETS, n_reps=self.N_REPS)
+        center, targets = self.generate_targets(
+            n_targets=self.N_TARGETS, n_reps=self.N_REPS
+        )
         self._target_base: qc.QPoint = center
         self._targets: List[qc.QPoint] = targets
 

@@ -83,42 +83,40 @@ class DeviceManager:
         self._all_list = all_list
         self._sensor_list = sensor_list
 
-    def setup_devices(self):
-        """Setup devices"""
-        print("Setup_devices")
+    def stream_data(self):
+        print("Setting up stream")
+
         sensor_list = self._sensor_list
+        broadcaster = ts_api.global_broadcaster
+
         duration_s = 10
-        ts_api.global_broadcaster.setStreamingTiming(
+
+        broadcaster.setStreamingTiming(
             interval=0,
             duration=duration_s * 1_000_000,
             delay=1_000_000,
             delay_offset=12_000,
             filter=sensor_list,
         )
-        ts_api.global_broadcaster.setStreamingSlots(
+
+        broadcaster.setStreamingSlots(
             slot0="getTaredOrientationAsAxisAngle",
             filter=sensor_list,
         )
 
-        ### Async Stream data
+        ### Stream data
         print("Start streaming")
-        ts_api.global_broadcaster.startStreaming(filter=sensor_list)
-        print("Start recording data")
-        ts_api.global_broadcaster.startRecordingData(filter=sensor_list)
-        time.sleep(1)
-        ts_api.global_broadcaster.stopRecordingData(filter=sensor_list)
-        ts_api.global_broadcaster.stopStreaming(filter=sensor_list)
-        for sensor in sensor_list:
-            print(
-                "Sensor({0}) stream_data len={1}".format(
-                    sensor.serial_number_hex, len(sensor.stream_data)
-                )
-            )
+        broadcaster.startStreaming(filter=sensor_list)
 
-    # def get_battery(self):
-    # # this doesn't work for some reason. returns list of None
-    # b = [d.getBatteryStatus() for d in self._sensor_list]
-    # return b
+        for i in range(10):
+            b = broadcaster.broadcastMethod("getStreamingBatch")
+            print(b)
+
+        broadcaster.stopStreaming(filter=sensor_list)
+
+    def get_battery(self):
+        b = [d.getBatteryPercentRemaining() for d in self._sensor_list]
+        return b
 
     def _close_devices(self):
         # close all ports
