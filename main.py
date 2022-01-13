@@ -1,6 +1,6 @@
 import sys
-import os
 from typing import NamedTuple
+from functools import partial
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
@@ -19,7 +19,6 @@ __appname__ = "BoMI"
 
 class MainWindow(qw.QMainWindow):
     class Actions(NamedTuple):
-        newAct: qg.QAction
         quitAct: qg.QAction
 
     fileMenu: qw.QMenu
@@ -29,7 +28,7 @@ class MainWindow(qw.QMainWindow):
         super().__init__()
         self._device_manager = DeviceManager()
 
-        self._init_window()
+        self._init_ui()
         self._create_actions()
         self._create_menus()
 
@@ -42,43 +41,61 @@ class MainWindow(qw.QMainWindow):
         self.statusBar().showMessage(msg)
         self.statusBar().show()
 
-    def _init_window(self):
+    def _init_ui(self):
         cw = qw.QWidget()
         self.setCentralWidget(cw)
         layout = qw.QGridLayout()
         cw.setLayout(layout)
 
-        l = qw.QLabel(self, text="BoMi!", alignment=qc.Qt.AlignCenter)
+        l = qw.QLabel(self, text="BoMI :)", alignment=qc.Qt.AlignCenter)
+        l.setFont(qg.QFont("Arial", 16))
         layout.addWidget(l, 0, 0)
 
-        button1 = qw.QPushButton(text="Discover devices", parent=self)
-        button1.clicked.connect(self.discover_devices)
-        layout.addWidget(button1)
+        ### Calibration group
+        cal_group = qw.QGroupBox("Calibration")
+        layout.addWidget(cal_group)
+        cal_group_layout = qw.QVBoxLayout()
+        cal_group.setLayout(cal_group_layout)
 
-        button2 = qw.QPushButton(text="Show sample plot", parent=self)
-        button2.clicked.connect(self.show_sample_plot)
-        layout.addWidget(button2)
+        btn1 = qw.QPushButton(text="Discover devices")
+        btn1.clicked.connect(self.discover_devices)
+        cal_group_layout.addWidget(btn1)
 
-        button3 = qw.QPushButton(text="Show sample 3D plot", parent=self)
-        button3.clicked.connect(self.show_sample_3d_plot)
-        layout.addWidget(button3)
 
-        button4 = qw.QPushButton(text="Reaching", parent=self)
-        button4.clicked.connect(self.show_reaching)
-        layout.addWidget(button4)
+        ### Task group
+        task_group = qw.QGroupBox("Tasks")
+        layout.addWidget(task_group)
+        task_group_layout = qw.QVBoxLayout()
+        task_group.setLayout(task_group_layout)
 
-        button5 = qw.QPushButton(text="Painter", parent=self)
-        button5.clicked.connect(self.show_painter)
-        layout.addWidget(button5)
+        btn_reach = qw.QPushButton(text="Reaching")
+        btn_reach.clicked.connect(partial(self._start_widget, ReachingWidget))
+        task_group_layout.addWidget(btn_reach)
+
+        btn_paint = qw.QPushButton(text="Painter")
+        btn_paint.clicked.connect(partial(self._start_widget, PainterWindow))
+        task_group_layout.addWidget(btn_paint)
+
+        ### Misc group
+        misc_group = qw.QGroupBox("Others")
+        layout.addWidget(misc_group)
+        misc_group_layout = qw.QVBoxLayout()
+        misc_group.setLayout(misc_group_layout)
+
+        btn2 = qw.QPushButton(text="Show sample plot")
+        btn2.clicked.connect(partial(self._start_widget, SamplePlotWindow))
+        misc_group_layout.addWidget(btn2)
+
+        btn3 = qw.QPushButton(text="Show sample 3D plot")
+        btn3.clicked.connect(partial(self._start_widget, Sample3DWindow))
+        misc_group_layout.addWidget(btn3)
 
     def _create_actions(self):
-        newAct = qg.QAction("New", self)
-
-        quitAct = qg.QAction("Quit", self)
+        quitAct = qg.QAction("Exit", self)
         quitAct.setShortcut("ctrl+q")
-        quitAct.triggered.connect(self.quit)
+        quitAct.triggered.connect(self.close)
 
-        self.actions = self.Actions(newAct=newAct, quitAct=quitAct)
+        self.actions = self.Actions(quitAct=quitAct)
 
     def _create_menus(self):
         menu_bar = qw.QMenuBar(self)
@@ -94,38 +111,18 @@ class MainWindow(qw.QMainWindow):
         # self._device_manager.setup_devices()
 
     @qc.Slot()
-    def show_sample_plot(self):
-        if not hasattr(self, "_plot_window"):
-            self._plot_window = SamplePlotWindow()
-        self._plot_window.show()
+    def _start_widget(self, _cls: qw.QWidget):
+        _attr = str(_cls)
+        if not hasattr(self, _attr):
+            _app = _cls()
+            setattr(self, _attr, _app)
 
-    @qc.Slot()
-    def show_sample_3d_plot(self):
-        if not hasattr(self, "_plot_3d_window"):
-            self._plot_3d_window = Sample3DWindow()
-        self._plot_3d_window.show()
-
-    @qc.Slot()
-    def show_reaching(self):
-        if not hasattr(self, "_reaching_w"):
-            self._reaching_w = ReachingWidget()
             def closeEvent(event: qg.QCloseEvent):
                 event.accept()
-                delattr(self, "_reaching_w")
-            self._reaching_w.closeEvent = closeEvent
-            self._reaching_w.showMaximized()
+                delattr(self, _attr)
 
-    @qc.Slot()
-    def show_painter(self):
-        if not hasattr(self, "_painter_w"):
-            self._painter_w = PainterWindow()
-            self._painter_w.setWindowTitle("Painter")
-        self._painter_w.show()
-
-    @qc.Slot()
-    def quit(self):
-        self.close()
-        # qw.QApplication.quit()
+            _app.closeEvent = closeEvent
+            _app.showMaximized()
 
 
 if __name__ == "__main__":
