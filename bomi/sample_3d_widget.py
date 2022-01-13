@@ -6,7 +6,7 @@ import pyqtgraph.opengl as gl
 import numpy as np
 
 
-class Sample3DWindow(qw.QWidget):
+class Sample3DWidget(qw.QWidget):
     def __init__(self):
         super().__init__()
         self.resize(300, 200)

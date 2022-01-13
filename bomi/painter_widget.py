@@ -72,7 +72,7 @@ class GLPainterItem(pg.opengl.GLGraphicsItem.GLGraphicsItem):
 
 
 
-class PainterWindow(pg.opengl.GLViewWidget):
+class PainterWidget(pg.opengl.GLViewWidget):
 
     def __init__(self):
         super().__init__()

@@ -5,7 +5,7 @@ import pyqtgraph as pg
 import numpy as np
 
 
-class SamplePlotWindow(qw.QWidget):
+class SamplePlotWidget(qw.QWidget):
     def __init__(self):
         super().__init__()
         self.resize(300, 200)
