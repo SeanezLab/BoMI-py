@@ -16,6 +16,9 @@ def _print(*args):
 class ReachingWidget(qw.QWidget):
     GREEN = qg.QColor(0, 255, 0)
     RED = qg.QColor(255, 0, 0)
+    BLUE = qg.QColor(0, 0, 255)
+
+    CURSOR_COLOR = Qt.white
 
     INF = np.inf
 
@@ -23,6 +26,8 @@ class ReachingWidget(qw.QWidget):
     HOLD_TIME = 0.5
     TIME_LIMIT = 1.0
     TARGET_RADIUS = 40
+    N_TARGETS = 8
+    N_REPS = 3
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -64,7 +69,7 @@ class ReachingWidget(qw.QWidget):
         self._target_created_time = self.INF
 
         ### Generate targets
-        center, targets = self.generate_targets(n_targets=8, n_reps=3)
+        center, targets = self.generate_targets(n_targets=self.N_TARGETS, n_reps=self.N_REPS)
         self._target_base: qc.QPoint = center
         self._targets: List[qc.QPoint] = targets
 
@@ -108,10 +113,10 @@ class ReachingWidget(qw.QWidget):
             popup.close()
             self._begin_task()
 
-        qc.QTimer.singleShot(2000, lambda: l1.setText("Starting in 3 s"))
-        qc.QTimer.singleShot(3000, lambda: l1.setText("Starting in 2 s"))
-        qc.QTimer.singleShot(4000, lambda: l1.setText("Starting in 1 s"))
-        qc.QTimer.singleShot(5000, begin)
+        qc.QTimer.singleShot(1000, lambda: l1.setText("Starting in 3 s"))
+        qc.QTimer.singleShot(2000, lambda: l1.setText("Starting in 2 s"))
+        qc.QTimer.singleShot(3000, lambda: l1.setText("Starting in 1 s"))
+        qc.QTimer.singleShot(4000, begin)
 
     def _begin_task(self):
         _print("Begin task")
@@ -159,29 +164,27 @@ class ReachingWidget(qw.QWidget):
         random.shuffle(targets)
         return center, targets
 
-    def _move_target(self, random_target=False):
+    def _move_target(self):
         self._target_created_time = time.time()
-        if random_target:
-            # Generate random target
-            geo = self.geometry()
-            r = self.TARGET_RADIUS
-            y = np.random.randint(r, geo.height() - r)
-            x = np.random.randint(r, geo.width() - r)
-            self._target_center = qc.QPoint(x, y)
+        if self._target_center == self._target_base:
+            self._target_center = self._targets.pop()
         else:
-            if self._target_center == self._target_base:
-                self._target_center = self._targets.pop()
-            else:
-                self._target_center = self._target_base
-            _print(len(self._targets), "targets left")
+            self._target_center = self._target_base
+        # _print(len(self._targets), "targets left")
 
     def paintEvent(self, event: qg.QPaintEvent):
         if self._running:
-            # Paint target
             painter = qg.QPainter(self)
             painter.setRenderHint(qg.QPainter.Antialiasing)
+            # Paint target
             painter.setBrush(self._target_color)
-            painter.drawEllipse(self._target_center, self.TARGET_RADIUS, self.TARGET_RADIUS)
+            painter.drawEllipse(
+                self._target_center, self.TARGET_RADIUS, self.TARGET_RADIUS
+            )
+            # # Paint cursor
+            # painter.setBrush(self.CURSOR_COLOR)
+            # painter.drawEllipse(self._cursor_pos, 5, 5)
+
         return super().paintEvent(event)
 
     def _update_task_state(self):
@@ -189,7 +192,7 @@ class ReachingWidget(qw.QWidget):
         now = time.time()
         if now - self._target_acquired_time > self.HOLD_TIME:
             # Cursor has been held inside target for enough time.
-            _print(f"Held for long enough ({self.HOLD_TIME}s). Moving target")
+            # _print(f"Held for long enough ({self.HOLD_TIME}s). Moving target")
 
             # Save task history
             self._task_history.append(
@@ -214,11 +217,11 @@ class ReachingWidget(qw.QWidget):
             self.update()
         elif now - self._target_created_time > self.TIME_LIMIT:
             if self._target_color != self.RED and not self._last_cursor_inside:
-                _print(f"Failed to reach target within time limit ({self.TIME_LIMIT}s)")
+                # _print(f"Failed to reach target within time limit ({self.TIME_LIMIT}s)")
                 self._target_color = self.RED
                 self.update()
 
-    def _update_cursor_state(self):
+    def update(self):
         now = time.time()
         # save cursor history
         self._cursor_history.append(
@@ -235,17 +238,11 @@ class ReachingWidget(qw.QWidget):
             self._target_acquired_time = self.INF
 
         self._last_cursor_inside = cursor_inside
-
-    def _update_top_msg(self):
         self.top_label.setText(f"Reaching. Targets to reach: {len(self._targets)}")
-
-    def update(self):
-        self._update_cursor_state()
-        self._update_top_msg()
         return super().update()
 
     def mouseMoveEvent(self, event: qg.QMouseEvent) -> None:
         "Callback for any cursor movement inside the widget"
-        self._cursor_pos = pos = event.pos()
+        self._cursor_pos = event.pos()
         self.update()
         return super().mouseMoveEvent(event)
