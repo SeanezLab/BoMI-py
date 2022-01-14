@@ -604,7 +604,7 @@ class _TSBase(object):
         cmd_byte, out_len, out_struct, in_len, in_struct, compatibility = command_args
         packed_data = None
         if in_struct:
-            if type(input_list) in (list, tuple):
+            if isinstance(input_list, (list, tuple)):
                 packed_data = struct.pack(in_struct, *input_list)
             else:
                 packed_data = struct.pack(in_struct, input_list)
@@ -627,7 +627,7 @@ class _TSBase(object):
             raise Exception("Firmware for device on ( %s ) is out of date for this function. Recommend updating to latest firmware." % self.serial_port.name)
         packed_data = None
         if in_struct:
-            if type(input_list) in (list, tuple):
+            if isinstance(input_list, (list, tuple)):
                 packed_data = struct.pack(in_struct, *input_list)
             else:
                 packed_data = struct.pack(in_struct, input_list)
@@ -923,9 +923,9 @@ class _TSSensor(_TSBase):
 
     def __new__(cls, com_port=None, baudrate=_baudrate, timestamp_mode=TSS_TIMESTAMP_SENSOR):
         if com_port:
-            if type(com_port) is str:
+            if isinstance(com_port, str):
                 port_name = com_port
-            elif type(com_port) is ComInfo:
+            elif isinstance(com_port, ComInfo):
                 port_name = com_port.com_port
             else:
                 _print("An erronous parameter was passed in")
@@ -991,7 +991,7 @@ class _TSSensor(_TSBase):
         if self.stream_slot_cmds is None:
             self.getStreamingSlots()
         for slot_cmd in self.stream_slot_cmds:
-            if slot_cmd is not 'null':
+            if slot_cmd != 'null':
                 out_struct = self.command_dict[slot_cmd][2]
                 stream_string += out_struct[1:]  # stripping the >
         self.stream_parse = struct.Struct(stream_string)
@@ -1051,7 +1051,7 @@ class _TSSensor(_TSBase):
                 header_list = padProtocolHeader69(header_data, None)
             fail_byte, timestamp, cmd_echo, ck_sum, rtn_log_id, sn, data_size = header_list
             output_data = _serial_port.read(data_size)
-            if cmd_echo is 0xff:
+            if cmd_echo == 0xff:
                 if data_size:
                     self._parseStreamData(timestamp, output_data)
                 return
@@ -2449,9 +2449,10 @@ class TSUSBSensor(_TSSensor):
         if com_port is None:
             return None
         if com_port:
-            if type(com_port) is str:
+            
+            if isinstance(com_port, str):
                 port_name = com_port
-            elif type(com_port) is ComInfo:
+            elif isinstance(com_port, ComInfo):
                 port_name = com_port.com_port
             else:
                 _print("An erronous parameter was passed in")
@@ -2519,9 +2520,9 @@ class TSWLSensor(_TSSensor):
         if com_port is None and logical_id is None and dongle is None:
             return None
         if com_port:
-            if type(com_port) is str:
+            if isinstance(com_port, str):
                 port_name = com_port
-            elif type(com_port) is ComInfo:
+            elif isinstance(com_port, ComInfo):
                 port_name = com_port.com_port
             else:
                 _print("An erronous parameter was passed in")
@@ -2758,9 +2759,9 @@ class TSDongle(_TSBase):
 
     def __new__(cls, com_port=None, baudrate=_baudrate, timestamp_mode=TSS_TIMESTAMP_SENSOR):
         if com_port:
-            if type(com_port) is str:
+            if isinstance(com_port, str):
                 port_name = com_port
-            elif type(com_port) is ComInfo:
+            elif isinstance(com_port, ComInfo):
                 port_name = com_port.com_port
             else:
                 _print("An erronous parameter was passed in")
@@ -2900,7 +2901,7 @@ class TSDongle(_TSBase):
         cmd_byte, out_len, out_struct, in_len, in_struct, compatibility = command_args
         packed_data = None
         if in_struct:
-            if type(input_list) in (list, tuple):
+            if isinstance(input_list, (list, tuple)):
                 packed_data = struct.pack(in_struct, *input_list)
             else:
                 packed_data = struct.pack(in_struct, input_list)
@@ -2933,7 +2934,7 @@ class TSDongle(_TSBase):
             raise Exception("Firmware for device on ( %s ) is out of date for this function. Recommend updating to latest firmware." % self.serial_port.name)
         packed_data = None
         if in_struct:
-            if type(input_list) in (list, tuple):
+            if isinstance(input_list, (list, tuple)):
                 packed_data = struct.pack(in_struct, *input_list)
             else:
                 packed_data = struct.pack(in_struct, input_list)
@@ -3101,7 +3102,7 @@ class TSDongle(_TSBase):
             # _print("!!!!fail_byte={0}, cmd_echo={1}, rtn_log_id={2}, data_size={3}".format(fail_byte, cmd_echo, rtn_log_id, data_size))
             output_data = _serial_port.read(data_size)
 
-            if cmd_echo is 0xff:
+            if cmd_echo == 0xff:
                 if data_size:
                     self[rtn_log_id]._parseStreamData(timestamp, output_data)
                 return
@@ -3326,9 +3327,9 @@ class TSEMSensor(_TSSensor):
         if com_port is None:
             return None
         if com_port:
-            if type(com_port) is str:
+            if isinstance(com_port, str):
                 port_name = com_port
-            elif type(com_port) is ComInfo:
+            elif isinstance(com_port, ComInfo):
                 port_name = com_port.com_port
             else:
                 _print("An erronous parameter was passed in")
@@ -3412,9 +3413,9 @@ class TSDLSensor(_TSSensor):
         if com_port is None:
             return None
         if com_port:
-            if type(com_port) is str:
+            if isinstance(com_port, str):
                 port_name = com_port
-            elif type(com_port) is ComInfo:
+            elif isinstance(com_port, ComInfo):
                 port_name = com_port.com_port
             else:
                 _print("An erronous parameter was passed in")
@@ -3533,9 +3534,9 @@ class TSBTSensor(_TSSensor):
         if com_port is None:
             return None
         if com_port:
-            if type(com_port) is str:
+            if isinstance(com_port, str):
                 port_name = com_port
-            elif type(com_port) is ComInfo:
+            elif isinstance(com_port, ComInfo):
                 port_name = com_port.com_port
             else:
                 _print("An erronous parameter was passed in")
@@ -3618,9 +3619,9 @@ class TSLXSensor(_TSSensor):
         if com_port is None:
             return None
         if com_port:
-            if type(com_port) is str:
+            if isinstance(com_port, str):
                 port_name = com_port
-            elif type(com_port) is ComInfo:
+            elif isinstance(com_port, ComInfo):
                 port_name = com_port.com_port
             else:
                 _print("An erronous parameter was passed in")
@@ -3696,9 +3697,9 @@ class TSNANOSensor(_TSSensor):
         if com_port is None:
             return None
         if com_port:
-            if type(com_port) is str:
+            if isinstance(com_port, str):
                 port_name = com_port
-            elif type(com_port) is ComInfo:
+            elif isinstance(com_port, ComInfo):
                 port_name = com_port.com_port
             else:
                 _print("An erronous parameter was passed in")
