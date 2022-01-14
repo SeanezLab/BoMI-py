@@ -82,7 +82,6 @@ class ScopeWidget(qw.QWidget):
         q = self._queue
         qsize = q.qsize()
         try:
-            _print("qsize", qsize)
             for _ in range(qsize):
                 data = self.data
                 ts = self.timestamp
@@ -108,6 +107,8 @@ class ScopeWidget(qw.QWidget):
                 curves2[i].setData(
                     x=self.timestamp[: self.ptr], y=self.data[: self.ptr, i]
                 )
+        if len(self.data) > 1000:
+            breakpoint()
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         _print("Close event")

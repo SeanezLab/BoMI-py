@@ -1,3 +1,4 @@
+from email.policy import default
 from typing import List, Optional, Tuple
 from queue import Queue
 from timeit import default_timer
@@ -135,12 +136,25 @@ class DeviceManager:
 
         _print("Start streaming")
         broadcaster.startStreaming(filter=sensor_list)
+        
+        sensor = self._sensor_list[0]
+        sensor.getStreamingBatch()
 
         def handle_stream():
             args = (True,)
+            # i = 0
+            # n = 100
+            # last_time = default_timer()
             while self._streaming:
                 b = broadcaster.broadcastMethod("getStreamingBatch", args=args)
                 queue.put([b[d] for d in sensor_list])
+                # i+= 1
+                # if i % n:
+                #     t = default_timer()
+                #     d = t - last_time
+                #     fps = n / d
+                #     # _print("fps: ", fps)
+                #     last_time = t
 
         self._thread = threading.Thread(target=handle_stream)
         self._streaming = True

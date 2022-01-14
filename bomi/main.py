@@ -19,6 +19,9 @@ from bomi.scope_widget import ScopeWidget
 
 
 __appname__ = "BoMI"
+__version__ = "0.1.0"
+
+__all__ = ["MainWindow", "main"]
 
 
 class MainWindow(qw.QMainWindow):
@@ -159,8 +162,7 @@ class MainWindow(qw.QMainWindow):
             else:
                 _app.show()
 
-
-if __name__ == "__main__":
+def main():
     app = qw.QApplication()
     win = MainWindow()
     win.show()

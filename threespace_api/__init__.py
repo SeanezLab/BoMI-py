@@ -6,9 +6,11 @@ from __future__ import print_function
     The ThreeSpace API module is a collection of classes, functions, structures,
     and static variables use exclusivly for ThreeSpace devices. This module can
     be used with a system running Python 2.5 and newer (including Python 3.x).
+
+    Tiger Nie - Modified for compatibility with python 3.8>
 """
 
-__version__ = "2.0.2.3"
+__version__ = "2.0.2.3bomi"  
 
 __authors__ = [
     '"Chris George" <cgeorge@yeitechnology.com>',
