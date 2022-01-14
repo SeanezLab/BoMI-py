@@ -1,14 +1,17 @@
-from typing import List, Tuple
-import time
+from typing import List, Optional, Tuple
+from queue import Queue
+from timeit import default_timer
+import threading
 from serial.serialutil import SerialException
 
 import threespace_api as ts_api
 
-# 1. Import API Module
-# 2. Scan for available 3-space hardware
-# 3. Construct interface class instances
-
+get_time = default_timer
 DeviceList = List[ts_api._TSSensor]
+
+
+def _print(*args):
+    print("[Device Manager]", *args)
 
 
 def discover_all_devices() -> Tuple[DeviceList, DeviceList]:
@@ -64,6 +67,12 @@ class DeviceStatus:
     battery: int
 
 
+class Packet:
+    device_name: str
+    timestamp: int
+    data: list
+
+
 class DeviceManager:
     """
     Manage the discovery, initialization, and data acquisition of all yost body sensors.
@@ -72,6 +81,11 @@ class DeviceManager:
     def __init__(self):
         self._all_list: DeviceList = []
         self._sensor_list: DeviceList = []
+        self._streaming: bool = False
+        self._save_file: Optional[str] = None
+
+    def __del__(self):
+        self.stop_stream()
 
     def status(self) -> str:
         return f"Discovered {len(self._all_list)} devices, {len(self._sensor_list)} sensors"
@@ -83,19 +97,19 @@ class DeviceManager:
         self._all_list = all_list
         self._sensor_list = sensor_list
 
-    def stream_data(self):
-        print("Setting up stream")
-
+    def start_stream(self, queue: Queue, save_file: Optional[str] = None):
+        if len(self._sensor_list) == 0:
+            return
+        _print("Setting up stream")
+        self._queue = queue
         sensor_list = self._sensor_list
         broadcaster = ts_api.global_broadcaster
 
-        duration_s = 10
-
         broadcaster.setStreamingTiming(
             interval=0,
-            duration=duration_s * 1_000_000,
+            duration=0xFFFFFFFF,
             delay=1_000_000,
-            delay_offset=12_000,
+            delay_offset=2_000,
             filter=sensor_list,
         )
 
@@ -104,19 +118,48 @@ class DeviceManager:
             filter=sensor_list,
         )
 
-        ### Stream data
-        print("Start streaming")
+        # Setup streaming
+        sensor_list = self._sensor_list
+        broadcaster = ts_api.global_broadcaster
+        broadcaster.setStreamingTiming(
+            interval=0,
+            duration=0xFFFFFFFF,  # run indefinitely
+            delay=1_000_000,
+            delay_offset=0,
+            filter=sensor_list,
+        )
+        broadcaster.setStreamingSlots(
+            slot0="getTaredOrientationAsAxisAngle",
+            filter=sensor_list,
+        )
+
+        _print("Start streaming")
         broadcaster.startStreaming(filter=sensor_list)
 
-        for i in range(10):
-            b = broadcaster.broadcastMethod("getStreamingBatch")
-            print(b)
+        def handle_stream():
+            args = (True,)
+            while self._streaming:
+                b = broadcaster.broadcastMethod("getStreamingBatch", args=args)
+                queue.put([b[d] for d in sensor_list])
 
-        broadcaster.stopStreaming(filter=sensor_list)
+        self._thread = threading.Thread(target=handle_stream)
+        self._streaming = True
+        self._thread.start()
+
+    def stop_stream(self):
+        _print("Stopping stream")
+        if self._streaming:
+            self._streaming = False
+            ts_api.global_broadcaster.stopStreaming(filter=self._sensor_list)
+            self._thread.join(timeout=1)
+        _print("Stream stopped")
 
     def get_battery(self):
         b = [d.getBatteryPercentRemaining() for d in self._sensor_list]
         return b
+
+    def has_sensors(self) -> bool:
+        return len(self._sensor_list) > 0
 
     def _close_devices(self):
         # close all ports
