@@ -1,7 +1,7 @@
 import math
 import time
 import random
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
@@ -58,7 +58,7 @@ class ReachingConfig(qw.QDialog):
     def create_menu(self):
         self._menu_bar = qw.QMenuBar()
         self._file_menu = qw.QMenu("&File", self)
-        self._exit_action = self._file_menu.addAction("E&xit")
+        self._exit_action = self._file_menu.addAction("&Exit")
         self._menu_bar.addMenu(self._file_menu)
         self._exit_action.triggered.connect(self.accept)
 
@@ -102,6 +102,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Reaching Task")
+        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
 
         self._init_ui()  # Inititialize user interface
         self._init_states()  # Initialize all states
@@ -318,3 +319,8 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         self._cursor_pos = event.pos()
         self.update()
         return super().mouseMoveEvent(event)
+
+    def keyPressEvent(self, event: qg.QKeyEvent) -> None:
+        if event.key() in (Qt.Key.Key_Escape, Qt.Key.Key_Q):
+            self.close()
+        return super().keyPressEvent(event)

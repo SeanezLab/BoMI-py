@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from queue import Queue
 from timeit import default_timer
 import threading
@@ -7,14 +7,16 @@ from serial.serialutil import SerialException
 import threespace_api as ts_api
 
 get_time = default_timer
-DeviceList = List[ts_api._TSSensor]
+DeviceT = ts_api.TSDongle | ts_api._TSSensor
+DeviceList = List[DeviceT]
+SensorList = List[ts_api._TSSensor]
 
 
 def _print(*args):
     print("[Device Manager]", *args)
 
 
-def discover_all_devices() -> Tuple[DeviceList, DeviceList]:
+def discover_all_devices() -> Tuple[DeviceList, SensorList]:
     """
     Discover all Yost sensors and dongles by checking all COM ports.
 
@@ -23,10 +25,10 @@ def discover_all_devices() -> Tuple[DeviceList, DeviceList]:
     all_list: List of all devices (sensors + dongles)
     sensor_list: List of all sensors (all wired + wireless sensors)
     """
-    device_list = ts_api.getComPorts()
-    all_list: DeviceList = []
-    sensor_list: DeviceList = []
-    for device_port in device_list:
+    ports = ts_api.getComPorts()
+    all_list: SensorList = []
+    sensor_list: SensorList = []
+    for device_port in ports:
         com_port, _, device_type = device_port
         device = None
 
@@ -55,7 +57,7 @@ def discover_all_devices() -> Tuple[DeviceList, DeviceList]:
             if device_type != "DNG":
                 sensor_list.append(device)
             else:
-                for i in range(14):  # check all 14 logical indexes
+                for i in range(4):  # check logical indexes of dongle for WL device
                     sens = device[i]
                     if sens is not None:
                         sensor_list.append(sens)
@@ -77,7 +79,7 @@ class DeviceManager:
 
     def __init__(self):
         self.all_list: DeviceList = []
-        self.sensor_list: DeviceList = []
+        self.sensor_list: SensorList = []
         self._streaming: bool = False
         self._save_file: Optional[str] = None
 
@@ -101,45 +103,26 @@ class DeviceManager:
         self._queue = queue
         sensor_list = self.sensor_list
         broadcaster = ts_api.global_broadcaster
-
         broadcaster.setStreamingTiming(
-            interval=0,
-            duration=0xFFFFFFFF,
-            delay=1_000_000,
-            delay_offset=2_000,
-            filter=sensor_list,
-        )
-
-        broadcaster.setStreamingSlots(
-            slot0="getTaredOrientationAsAxisAngle",
-            filter=sensor_list,
-        )
-
-        # Setup streaming
-        sensor_list = self.sensor_list
-        broadcaster = ts_api.global_broadcaster
-        broadcaster.setStreamingTiming(
-            interval=0,
-            duration=0xFFFFFFFF,  # run indefinitely
-            delay=1_000_000,
-            delay_offset=0,
-            filter=sensor_list,
-        )
-        broadcaster.setStreamingSlots(
-            slot0="getTaredOrientationAsAxisAngle",
+            interval=0,  # output data as quickly as possible
+            duration=0xFFFFFFFF,  # run indefinitely until stop command is issued
+            delay=1_000_000,  # session starts after 1s delay
+            delay_offset=0,  # delay between devices
             filter=sensor_list,
         )
 
         _print("Start streaming")
         broadcaster.startStreaming(filter=sensor_list)
 
-        sensor = self.sensor_list[0]
-        sensor.getStreamingBatch()
-
         def handle_stream():
             args = (True,)
             while self._streaming:
-                b = broadcaster.broadcastMethod("getStreamingBatch", args=args)
+                b: Dict[ts_api._TSSensor, list] = broadcaster.broadcastMethod(
+                    "getStreamingBatch", args=args
+                )
+                # returned batch has the type
+                # Dict[Device]
+                # list type
                 queue.put([b[d] for d in sensor_list])
 
         self._thread = threading.Thread(target=handle_stream)
@@ -153,6 +136,11 @@ class DeviceManager:
             ts_api.global_broadcaster.stopStreaming(filter=self.sensor_list)
             self._thread.join(timeout=1)
         _print("Stream stopped")
+
+    def tare_all_devices(self):
+        for dev in self.sensor_list:
+            success = dev.tareWithCurrentOrientation()
+            _print(dev.serial_number_hex, "Tared:", success)
 
     def get_battery(self) -> List[int]:
         b = [d.getBatteryPercentRemaining() for d in self.sensor_list]

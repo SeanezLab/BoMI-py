@@ -1,12 +1,14 @@
+from __future__ import annotations
+from dataclasses import dataclass, field
 from queue import Queue
-from typing import List, NamedTuple
+from typing import Callable, Dict, List, NamedTuple, Optional, TypeVar
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
 import pyqtgraph as pg
 
-from bomi.device_manager import DeviceManager
+from bomi.device_manager import DeviceManager, DeviceT
 from bomi.scope_widget import ScopeWidget
 from bomi.window_mixin import WindowMixin
 
@@ -15,13 +17,85 @@ def _print(*args):
     print("[DeviceManagerWidget]", *args)
 
 
+T = TypeVar("T")
+
+
+@dataclass
+class ColumnProps:
+    name: str
+    get: Optional[Callable[[DeviceT], T]] = None
+    set: Optional[Callable[[DeviceT, T], T]] = None
+    editable: bool = False
+    _val: Dict[DeviceT, T] = field(default_factory=dict)
+
+    def use_getter(self, getter: Callable[[DeviceT], T]) -> ColumnProps:
+        def _getter(dev: DeviceT):
+            if dev in self._val:
+                return self._val[dev]
+            self._val[dev] = getter(dev)
+            return self._val[dev]
+
+        self.get = _getter
+        return self
+
+    def use_setter(self, setter: Callable[[DeviceT, T], T]) -> ColumnProps:
+        def _setter(dev: DeviceT, val: T):
+            setter(dev, val)
+            del self._val[dev]
+
+        self.editable = True
+        self.set = _setter
+        return self
+
+
+def make_getter(attr: str, default=None):
+    def _getter(dev: DeviceT):
+        if hasattr(dev, attr):
+            return getattr(dev, attr)()
+        return default
+
+    return _getter
+
+
+def make_setter(attr: str):
+    def _setter(dev: DeviceT, val: T):
+        if hasattr(dev, attr):
+            success = getattr(dev, attr)(val)
+            _print(dev.serial_number_hex, attr, val, "success" if success else "failed")
+            breakpoint()
+
+    return _setter
+
+
+COL_PROPS: List[ColumnProps] = [
+    ColumnProps("Serial Number").use_getter(lambda dev: dev.serial_number_hex),
+    ColumnProps("Device Type").use_getter(lambda dev: dev.device_type),
+    ColumnProps(
+        "Battery",
+    ).use_getter(make_getter("getBatteryPercentRemaining")),
+    ColumnProps(
+        "Serial Port",
+    ).use_getter(lambda dev: dev.serial_port.port if dev.serial_port else None),
+    ColumnProps(
+        "WL Channel",
+    )
+    .use_getter(make_getter("getWirelessChannel"))
+    .use_setter(make_setter("setWirelessChannel")),
+    ColumnProps(
+        "WL Pan ID",
+    )
+    .use_getter(make_getter("getWirelessPanID"))
+    .use_setter(make_setter("setWirelessPanID")),
+]
+
+
 class DeviceItem(NamedTuple):
     serial_hex: str
     type: str
     battery: int
-
-
-HEADERS = ["Serial Number", "Device Type", "Battery"]
+    serial_port: str
+    wl_channel: int
+    wl_pan_id: int
 
 
 class DeviceManagerWidget(qw.QWidget, WindowMixin):
@@ -39,6 +113,10 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
         btn1 = qw.QPushButton(text="Discover devices")
         btn1.clicked.connect(self.s_discover_devices)
+        layout.addWidget(btn1)
+
+        btn1 = qw.QPushButton(text="Tare all devices")
+        btn1.clicked.connect(self.s_tare_all)
         layout.addWidget(btn1)
 
         btn1 = qw.QPushButton(text="Stream data")
@@ -63,31 +141,24 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
         main_layout.addWidget(tv)
 
-        self.devices: List[DeviceItem] = [
-            DeviceItem(serial_hex="device1", type="WL", battery=99),
-            DeviceItem(serial_hex="device2", type="WL", battery=98),
-        ]
-
     @qc.Slot()
     def s_discover_devices(self):
         with pg.BusyCursor():
             self._dm.discover_devices()
-
-            bat = self._dm.get_battery()
-
-            devs = []
-            for sensor, b in zip(self._dm.sensor_list, bat):
-                d = DeviceItem(
-                    serial_hex=sensor.serial_number_hex,
-                    type=sensor.device_type,
-                    battery=b,
-                )
-                devs.append(d)
-
-            self.table_model.set_devices(devs)
+            self.table_model.set_devices(self._dm.sensor_list + self._dm.all_list)
             self.proxy_model.invalidate()
 
         _print(self._dm.status())
+
+    @qc.Slot()
+    def s_tare_all(self):
+        dm = self._dm
+        if not dm.has_sensors():
+            return self.error_dialog(
+                "No sensors available. Plug in the devices, then click on 'Discover devices'"
+            )
+
+        dm.tare_all_devices()
 
     @qc.Slot()
     def s_stream_data(self):
@@ -109,18 +180,18 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
 class TableModel(qc.QAbstractTableModel):
     """TableModel handles data for the device table
-    This class simply uses the definition of `DeviceItem` and `HEADERS` to render data.
-    Modify those two definitions to change the table structure.
+    This class simply uses the definition of `DeviceItem` and `COL_PROPS` to render data.
+    Modify the definitions of `COL_PROPS` to change the table structure.
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.devices: List[DeviceItem] = []
-        self._n_cols = len(HEADERS)
+        self.devices: List = []
+        self._n_cols = len(COL_PROPS)
 
-    def set_devices(self, devs: List[DeviceItem]):
-        self.devices: List[DeviceItem] = devs
+    def set_devices(self, devs: List):
+        self.devices: List = devs
 
     def rowCount(self, index=qc.QModelIndex()):
         """Returns the number of rows the model holds."""
@@ -135,54 +206,53 @@ class TableModel(qc.QAbstractTableModel):
         returning data, return None (PySide equivalent of QT's
         "invalid QVariant").
         """
+        col, row = index.column(), index.row()
         if (
             index.isValid()
-            and 0 <= index.row() < len(self.devices)
+            and 0 <= row < len(self.devices)
             and role == Qt.DisplayRole
-            and index.column() < len(HEADERS)
+            and col < len(COL_PROPS)
         ):
-            dev = self.devices[index.row()]
-            return dev[index.column()]
+            return COL_PROPS[col].get(self.devices[row])
 
         return None
+
+    def setData(self, index, value, role=Qt.EditRole):
+        """Adjust the data (set it to <value>) depending on the given
+        index and role.
+        """
+        col, row = index.column(), index.row()
+        if (
+            role == Qt.EditRole
+            and index.isValid()
+            and 0 <= row < len(self.devices)
+            and col < len(COL_PROPS)
+        ):
+            COL_PROPS[col].set(self.devices[row], value)
+            self.dataChanged.emit(index, index, 0)
+            return True
+
+        return False
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         """Set the headers to be displayed."""
         if (
             role == Qt.DisplayRole
             and orientation == Qt.Horizontal
-            and section < len(HEADERS)
+            and section < len(COL_PROPS)
         ):
-            return HEADERS[section]
+            return COL_PROPS[section].name
 
         return None
-
-    def insertRows(self, position, rows=1, index=qc.QModelIndex()):
-        """Insert a row into the model."""
-        self.beginInsertRows(qc.QModelIndex(), position, position + rows - 1)
-
-        for row in range(rows):
-            self.devices.insert(
-                position + row,
-                DeviceItem(serial_hex="New device", type="Unknown", battery=-1),
-            )
-
-        self.endInsertRows()
-        return True
-
-    def removeRows(self, position, rows=1, index=qc.QModelIndex()):
-        """Remove a row from the model."""
-        self.beginRemoveRows(qc.QModelIndex(), position, position + rows - 1)
-
-        del self.devices[position : position + rows]
-
-        self.endRemoveRows()
-        return True
 
     def flags(self, index):
         """Set the item flags at the given index."""
         if not index.isValid():
             return Qt.ItemIsEnabled
+        if COL_PROPS[index.column()].editable:
+            return Qt.ItemFlags(
+                qc.QAbstractTableModel.flags(self, index) | Qt.ItemIsEditable
+            )
         return Qt.ItemFlags(qc.QAbstractTableModel.flags(self, index))
 
 

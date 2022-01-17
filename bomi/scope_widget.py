@@ -1,3 +1,4 @@
+from multiprocessing.pool import INIT
 from time import perf_counter
 from queue import Queue
 from typing import Callable, List, Optional
@@ -67,8 +68,9 @@ class ScopeWidget(qw.QWidget):
         pens = ["r", "g", "b", "w"]
         self.curves2 = [self.p2.plot(pen=p) for p in pens[:dims]]
 
-        self.timestamp = np.empty(100)
-        self.data = np.empty((100, dims))
+        INIT_BUF_SIZE = 100
+        self.timestamp = np.empty(INIT_BUF_SIZE)
+        self.data = np.empty((INIT_BUF_SIZE, dims))
         self.ptr = 0
 
         self._running = False
@@ -82,16 +84,15 @@ class ScopeWidget(qw.QWidget):
         q = self._queue
         qsize = q.qsize()
         try:
-            for _ in range(qsize):
-                data = self.data
-                ts = self.timestamp
+            for _ in range(qsize):  # process current imtes in queue
+                data, ts = self.data, self.timestamp
                 arr = q.get()  # arr holds a list of tuples (each tuple is one device)
                 dev1 = arr[0]  # Only read first device for now
                 data[self.ptr, :dims] = dev1[0][:dims]
                 ts[self.ptr] = dev1[1]
                 self.ptr += 1
 
-                # check for resize
+                # Double buffer size if full
                 l = data.shape[0]
                 if self.ptr >= l:
                     self.data = np.empty((l * 2, dims))
@@ -101,7 +102,7 @@ class ScopeWidget(qw.QWidget):
                 q.task_done()
         except Exception as e:
             _print("[Update Exception]", e)
-        else:
+        else:  # On successful read from queue, update curves
             curves2 = self.curves2
             for i in range(dims):
                 curves2[i].setData(
