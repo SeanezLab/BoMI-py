@@ -69,9 +69,26 @@ def make_setter(attr: str) -> Callable[[DeviceT, T], bool]:
     return _setter
 
 
+DEVICE_TYPE = {
+    "???": "Unknown",
+    "BTL": "Bootloader (No Firmware)",
+    "USB": "USB",
+    "DNG": "Dongle",
+    "WL": "Wireless",
+    "EM": "Embedded",
+    "DL": "Data-logging",
+    "BT": "Bluetooth",
+}
+
+
+def get_device_type(dev: DeviceT) -> str:
+    return DEVICE_TYPE[dev.device_type]
+
+
+# COL_PROPS is a list of column props for rendering the device manager table
 COL_PROPS: List[ColumnProps] = [
     ColumnProps("Serial Number", int).use_getter(lambda dev: dev.serial_number_hex),
-    ColumnProps("Device Type", str).use_getter(lambda dev: dev.device_type),
+    ColumnProps("Device Type", str).use_getter(get_device_type),
     ColumnProps("Battery", int).use_getter(make_getter("getBatteryPercentRemaining")),
     ColumnProps("Serial Port", str).use_getter(
         lambda dev: dev.serial_port.port if dev.serial_port else None
@@ -83,15 +100,6 @@ COL_PROPS: List[ColumnProps] = [
     .use_getter(make_getter("getWirelessPanID"))
     .use_setter(make_setter("setWirelessPanID")),
 ]
-
-
-class DeviceItem(NamedTuple):
-    serial_hex: str
-    type: str
-    battery: int
-    serial_port: str
-    wl_channel: int
-    wl_pan_id: int
 
 
 class DeviceManagerWidget(qw.QWidget, WindowMixin):
@@ -176,7 +184,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
 class TableModel(qc.QAbstractTableModel):
     """TableModel handles data for the device table
-    This class simply uses the definition of `DeviceItem` and `COL_PROPS` to render data.
+    This class simply uses the definition of `COL_PROPS` to render data.
     Modify the definitions of `COL_PROPS` to change the table structure.
     """
 
@@ -223,6 +231,7 @@ class TableModel(qc.QAbstractTableModel):
             and index.isValid()
             and 0 <= row < len(self.devices)
             and col < len(COL_PROPS)
+            and value
         ):
             COL_PROPS[col].set(self.devices[row], value)
             self.dataChanged.emit(index, index, 0)
