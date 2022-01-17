@@ -75,9 +75,7 @@ class ReachingConfig(qw.QDialog):
         self.n_targets = create_spin_box(
             qw.QSpinBox, ReachingParams.N_TARGETS, 1, (1, 10)
         )
-        self.n_reps = create_spin_box(
-            qw.QSpinBox, ReachingParams.N_REPS, 1, (1, 5)
-        )
+        self.n_reps = create_spin_box(qw.QSpinBox, ReachingParams.N_REPS, 1, (1, 5))
 
         layout.addRow(qw.QLabel("Hold time"), self.hold_time)
         layout.addRow(qw.QLabel("Time limit"), self.time_limit)
@@ -112,7 +110,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         _print("Initialized")
 
     def __del__(self):
-        _print("Bye bye")
+        _print("Task ended")
 
     def _init_ui(self):
         layout = qw.QGridLayout(self)

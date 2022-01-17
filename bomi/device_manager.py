@@ -1,4 +1,3 @@
-from email.policy import default
 from typing import List, Optional, Tuple
 from queue import Queue
 from timeit import default_timer
@@ -64,10 +63,6 @@ def discover_all_devices() -> Tuple[DeviceList, DeviceList]:
     return all_list, sensor_list
 
 
-class DeviceStatus:
-    battery: int
-
-
 class Packet:
     device_name: str
     timestamp: int
@@ -77,11 +72,12 @@ class Packet:
 class DeviceManager:
     """
     Manage the discovery, initialization, and data acquisition of all yost body sensors.
+    Should only be instantiated once and used as a singleton, though this is not enforced.
     """
 
     def __init__(self):
-        self._all_list: DeviceList = []
-        self._sensor_list: DeviceList = []
+        self.all_list: DeviceList = []
+        self.sensor_list: DeviceList = []
         self._streaming: bool = False
         self._save_file: Optional[str] = None
 
@@ -89,21 +85,21 @@ class DeviceManager:
         self.stop_stream()
 
     def status(self) -> str:
-        return f"Discovered {len(self._all_list)} devices, {len(self._sensor_list)} sensors"
+        return (
+            f"Discovered {len(self.all_list)} devices, {len(self.sensor_list)} sensors"
+        )
 
     def discover_devices(self):
         "Walk COM ports to discover Yost devices"
-        self._close_devices()
-        all_list, sensor_list = discover_all_devices()
-        self._all_list = all_list
-        self._sensor_list = sensor_list
+        self.close_devices()
+        self.all_list, self.sensor_list = discover_all_devices()
 
     def start_stream(self, queue: Queue, save_file: Optional[str] = None):
-        if len(self._sensor_list) == 0:
+        if len(self.sensor_list) == 0:
             return
         _print("Setting up stream")
         self._queue = queue
-        sensor_list = self._sensor_list
+        sensor_list = self.sensor_list
         broadcaster = ts_api.global_broadcaster
 
         broadcaster.setStreamingTiming(
@@ -120,7 +116,7 @@ class DeviceManager:
         )
 
         # Setup streaming
-        sensor_list = self._sensor_list
+        sensor_list = self.sensor_list
         broadcaster = ts_api.global_broadcaster
         broadcaster.setStreamingTiming(
             interval=0,
@@ -136,25 +132,15 @@ class DeviceManager:
 
         _print("Start streaming")
         broadcaster.startStreaming(filter=sensor_list)
-        
-        sensor = self._sensor_list[0]
+
+        sensor = self.sensor_list[0]
         sensor.getStreamingBatch()
 
         def handle_stream():
             args = (True,)
-            # i = 0
-            # n = 100
-            # last_time = default_timer()
             while self._streaming:
                 b = broadcaster.broadcastMethod("getStreamingBatch", args=args)
                 queue.put([b[d] for d in sensor_list])
-                # i+= 1
-                # if i % n:
-                #     t = default_timer()
-                #     d = t - last_time
-                #     fps = n / d
-                #     # _print("fps: ", fps)
-                #     last_time = t
 
         self._thread = threading.Thread(target=handle_stream)
         self._streaming = True
@@ -164,24 +150,24 @@ class DeviceManager:
         _print("Stopping stream")
         if self._streaming:
             self._streaming = False
-            ts_api.global_broadcaster.stopStreaming(filter=self._sensor_list)
+            ts_api.global_broadcaster.stopStreaming(filter=self.sensor_list)
             self._thread.join(timeout=1)
         _print("Stream stopped")
 
-    def get_battery(self):
-        b = [d.getBatteryPercentRemaining() for d in self._sensor_list]
+    def get_battery(self) -> List[int]:
+        b = [d.getBatteryPercentRemaining() for d in self.sensor_list]
         return b
 
     def has_sensors(self) -> bool:
-        return len(self._sensor_list) > 0
+        return len(self.sensor_list) > 0
 
-    def _close_devices(self):
-        # close all ports
-        for device in self._all_list:
+    def close_devices(self):
+        "close all ports"
+        for device in self.all_list:
             device.close()
 
     def __del__(self):
-        self._close_devices()
+        self.close_devices()
 
 
 if __name__ == "__main__":

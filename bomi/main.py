@@ -1,6 +1,4 @@
-from os import close
 from queue import Queue
-import sys
 from typing import NamedTuple
 from functools import partial
 import PySide6.QtGui as qg
@@ -8,14 +6,15 @@ import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
 import pyqtgraph as pg
-import numpy as np
 
 from bomi.device_manager import DeviceManager
+from bomi.device_manager_widget import DeviceManagerWidget
 from bomi.painter_widget import PainterWidget
 from bomi.reaching_widget import ReachingWidget
 from bomi.sample_3d_widget import Sample3DWidget
 from bomi.sample_plot_widget import SamplePlotWidget
 from bomi.scope_widget import ScopeWidget
+from bomi.window_mixin import WindowMixin
 
 
 __appname__ = "BoMI"
@@ -24,7 +23,7 @@ __version__ = "0.1.0"
 __all__ = ["MainWindow", "main"]
 
 
-class MainWindow(qw.QMainWindow):
+class MainWindow(qw.QMainWindow, WindowMixin):
     class Actions(NamedTuple):
         quitAct: qg.QAction
 
@@ -41,8 +40,7 @@ class MainWindow(qw.QMainWindow):
 
         self._status_msg("Welcome to Seanez Lab")
         self.setWindowTitle(__appname__)
-        self.setMinimumSize(160, 160)
-        self.resize(480, 380)
+        self.setMinimumSize(480, 400)
 
     def _status_msg(self, msg: str):
         self.statusBar().showMessage(msg)
@@ -57,19 +55,22 @@ class MainWindow(qw.QMainWindow):
         l.setFont(qg.QFont("Arial", 16))
         main_layout.addWidget(l, 0, 0)
 
-        ### Body sensors group
-        cal_group = qw.QGroupBox("Body sensors")
+        ### Device manager group
+        cal_group = qw.QGroupBox("Device manager")
         main_layout.addWidget(cal_group)
         cal_group_layout = qw.QVBoxLayout()
         cal_group.setLayout(cal_group_layout)
 
-        btn1 = qw.QPushButton(text="Discover devices")
-        btn1.clicked.connect(self.discover_devices)
-        cal_group_layout.addWidget(btn1)
+        dm_widget = DeviceManagerWidget(self._device_manager)
+        cal_group_layout.addWidget(dm_widget)
 
-        btn1 = qw.QPushButton(text="Stream data")
-        btn1.clicked.connect(self.stream_data)
-        cal_group_layout.addWidget(btn1)
+        # btn1 = qw.QPushButton(text="Discover devices")
+        # btn1.clicked.connect(self.discover_devices)
+        # cal_group_layout.addWidget(btn1)
+
+        # btn1 = qw.QPushButton(text="Stream data")
+        # btn1.clicked.connect(self.stream_data)
+        # cal_group_layout.addWidget(btn1)
 
         ### Task group
         task_group = qw.QGroupBox("Tasks")
@@ -123,17 +124,12 @@ class MainWindow(qw.QMainWindow):
             self._device_manager.discover_devices()
         self._status_msg(self._device_manager.status())
 
-    def error_dialog(self, msg: str):
-        if not hasattr(self, "_popup_window"):
-            self._popup_window = popup = qw.QErrorMessage()
-            popup.setWindowTitle(f"BoMI Error")
-
-        self._popup_window.showMessage(msg)
-
     @qc.Slot()
     def stream_data(self):
         if not self._device_manager.has_sensors():
-            return self.error_dialog("No sensors available. Plug in the devices, then click on 'Discover devices'")
+            return self.error_dialog(
+                "No sensors available. Plug in the devices, then click on 'Discover devices'"
+            )
 
         queue = Queue()
         self._device_manager.start_stream(queue)
@@ -162,8 +158,9 @@ class MainWindow(qw.QMainWindow):
             else:
                 _app.show()
 
+
 def main():
     app = qw.QApplication()
     win = MainWindow()
     win.show()
-    sys.exit(app.exec())
+    app.exec()

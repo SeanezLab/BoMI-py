@@ -107,8 +107,6 @@ class ScopeWidget(qw.QWidget):
                 curves2[i].setData(
                     x=self.timestamp[: self.ptr], y=self.data[: self.ptr, i]
                 )
-        if len(self.data) > 1000:
-            breakpoint()
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         _print("Close event")
@@ -116,10 +114,3 @@ class ScopeWidget(qw.QWidget):
         [cb() for cb in self._close_callbacks]
         _print("Close event done")
         return super().closeEvent(event)
-
-
-if __name__ == "__main__":
-    app = pg.mkQApp("Plot Speed Test")
-    p = Plot()
-    p.show()
-    pg.exec()

@@ -27,7 +27,9 @@ class Sample3DWidget(qw.QWidget):
         ## Simple surface plot example
         ## x, y values are not specified, so assumed to be 0:50
         z = pg.gaussianFilter(np.random.normal(size=(50, 50)), (1, 1))
-        self.p1 = p1 = gl.GLSurfacePlotItem(z=z, shader="shaded", color=(0.5, 0.5, 1, 1))
+        self.p1 = p1 = gl.GLSurfacePlotItem(
+            z=z, shader="shaded", color=(0.5, 0.5, 1, 1)
+        )
         p1.scale(16.0 / 49.0, 16.0 / 49.0, 1.0)
         p1.translate(-18, 2, 0)
         w.addItem(p1)
@@ -92,8 +94,7 @@ class Sample3DWidget(qw.QWidget):
         self.timer = qc.QTimer()
         self.timer.timeout.connect(self.update)
         self.timer.start(30)
-    
+
     def update(self):
         self.index -= 1
         self.p4.setData(z=self._z[self.index % self._z.shape[0]])
-        
