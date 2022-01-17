@@ -138,7 +138,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
             self._device_manager.stop_stream()
 
         ## Start scope here.
-        self._sw = sw = ScopeWidget(queue=queue, dims=4, close_callbacks=[cb])
+        self._sw = sw = ScopeWidget(queue=queue, dims=3, close_callbacks=[cb])
         sw.show()
 
     @qc.Slot()

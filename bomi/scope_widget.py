@@ -33,7 +33,7 @@ class ScopeWidget(qw.QWidget):
     def __init__(
         self,
         queue: Optional[Queue] = None,
-        dims=4,
+        dims=3,
         close_callbacks: List[Callable] = [],
     ):
         assert all(
@@ -102,6 +102,7 @@ class ScopeWidget(qw.QWidget):
                 q.task_done()
         except Exception as e:
             _print("[Update Exception]", e)
+            breakpoint()
         else:  # On successful read from queue, update curves
             curves2 = self.curves2
             for i in range(dims):

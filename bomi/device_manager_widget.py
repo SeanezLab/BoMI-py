@@ -23,6 +23,7 @@ T = TypeVar("T")
 @dataclass
 class ColumnProps:
     name: str
+    type: Callable
     get: Optional[Callable[[DeviceT], T]] = None
     set: Optional[Callable[[DeviceT, T], T]] = None
     editable: bool = False
@@ -40,7 +41,7 @@ class ColumnProps:
 
     def use_setter(self, setter: Callable[[DeviceT, T], T]) -> ColumnProps:
         def _setter(dev: DeviceT, val: T):
-            setter(dev, val)
+            setter(dev, self.type(val))
             del self._val[dev]
 
         self.editable = True
@@ -48,8 +49,8 @@ class ColumnProps:
         return self
 
 
-def make_getter(attr: str, default=None):
-    def _getter(dev: DeviceT):
+def make_getter(attr: str, default=None) -> Callable[[DeviceT], T]:
+    def _getter(dev: DeviceT) -> T:
         if hasattr(dev, attr):
             return getattr(dev, attr)()
         return default
@@ -57,33 +58,28 @@ def make_getter(attr: str, default=None):
     return _getter
 
 
-def make_setter(attr: str):
+def make_setter(attr: str) -> Callable[[DeviceT, T], bool]:
     def _setter(dev: DeviceT, val: T):
         if hasattr(dev, attr):
             success = getattr(dev, attr)(val)
             _print(dev.serial_number_hex, attr, val, "success" if success else "failed")
-            breakpoint()
+            return success
+        return False
 
     return _setter
 
 
 COL_PROPS: List[ColumnProps] = [
-    ColumnProps("Serial Number").use_getter(lambda dev: dev.serial_number_hex),
-    ColumnProps("Device Type").use_getter(lambda dev: dev.device_type),
-    ColumnProps(
-        "Battery",
-    ).use_getter(make_getter("getBatteryPercentRemaining")),
-    ColumnProps(
-        "Serial Port",
-    ).use_getter(lambda dev: dev.serial_port.port if dev.serial_port else None),
-    ColumnProps(
-        "WL Channel",
-    )
+    ColumnProps("Serial Number", int).use_getter(lambda dev: dev.serial_number_hex),
+    ColumnProps("Device Type", str).use_getter(lambda dev: dev.device_type),
+    ColumnProps("Battery", int).use_getter(make_getter("getBatteryPercentRemaining")),
+    ColumnProps("Serial Port", str).use_getter(
+        lambda dev: dev.serial_port.port if dev.serial_port else None
+    ),
+    ColumnProps("WL Channel", int)
     .use_getter(make_getter("getWirelessChannel"))
     .use_setter(make_setter("setWirelessChannel")),
-    ColumnProps(
-        "WL Pan ID",
-    )
+    ColumnProps("WL Pan ID", int)
     .use_getter(make_getter("getWirelessPanID"))
     .use_setter(make_setter("setWirelessPanID")),
 ]
@@ -173,7 +169,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
         ## Start scope here.
         self._sw = sw = ScopeWidget(
-            queue=queue, dims=4, close_callbacks=[dm.stop_stream]
+            queue=queue, dims=3, close_callbacks=[dm.stop_stream]
         )
         sw.show()
 
@@ -191,7 +187,7 @@ class TableModel(qc.QAbstractTableModel):
         self._n_cols = len(COL_PROPS)
 
     def set_devices(self, devs: List):
-        self.devices: List = devs
+        self.devices: List = list(set(devs))
 
     def rowCount(self, index=qc.QModelIndex()):
         """Returns the number of rows the model holds."""

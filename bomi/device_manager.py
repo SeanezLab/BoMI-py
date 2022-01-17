@@ -110,6 +110,10 @@ class DeviceManager:
             delay_offset=0,  # delay between devices
             filter=sensor_list,
         )
+        broadcaster.setStreamingSlots(
+            slot0="getTaredOrientationAsEulerAngles",
+            filter=sensor_list,
+        )
 
         _print("Start streaming")
         broadcaster.startStreaming(filter=sensor_list)
