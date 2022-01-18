@@ -1,4 +1,3 @@
-from queue import Queue
 from typing import NamedTuple
 from functools import partial
 import PySide6.QtGui as qg
@@ -13,12 +12,11 @@ from bomi.painter_widget import PainterWidget
 from bomi.reaching_widget import ReachingWidget
 from bomi.sample_3d_widget import Sample3DWidget
 from bomi.sample_plot_widget import SamplePlotWidget
-from bomi.scope_widget import ScopeWidget
 from bomi.window_mixin import WindowMixin
+from bomi.version import __version__
 
 
 __appname__ = "BoMI"
-__version__ = "0.1.0"
 
 __all__ = ["MainWindow", "main"]
 
@@ -40,7 +38,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
         self._status_msg("Welcome to Seanez Lab")
         self.setWindowTitle(__appname__)
-        self.setMinimumSize(480, 400)
+        self.setMinimumSize(650, 400)
 
     def _status_msg(self, msg: str):
         self.statusBar().showMessage(msg)
@@ -63,14 +61,6 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
         dm_widget = DeviceManagerWidget(self._device_manager)
         cal_group_layout.addWidget(dm_widget)
-
-        # btn1 = qw.QPushButton(text="Discover devices")
-        # btn1.clicked.connect(self.discover_devices)
-        # cal_group_layout.addWidget(btn1)
-
-        # btn1 = qw.QPushButton(text="Stream data")
-        # btn1.clicked.connect(self.stream_data)
-        # cal_group_layout.addWidget(btn1)
 
         ### Task group
         task_group = qw.QGroupBox("Tasks")
@@ -117,29 +107,6 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         self.file_menu = menu_bar.addMenu("File")
         self.file_menu.addActions(self.actions)
 
-    @qc.Slot()
-    def discover_devices(self):
-        self._status_msg("Discovering devices . . .")
-        with pg.BusyCursor():
-            self._device_manager.discover_devices()
-        self._status_msg(self._device_manager.status())
-
-    @qc.Slot()
-    def stream_data(self):
-        if not self._device_manager.has_sensors():
-            return self.error_dialog(
-                "No sensors available. Plug in the devices, then click on 'Discover devices'"
-            )
-
-        queue = Queue()
-        self._device_manager.start_stream(queue)
-
-        def cb():
-            self._device_manager.stop_stream()
-
-        ## Start scope here.
-        self._sw = sw = ScopeWidget(queue=queue, dims=3, close_callbacks=[cb])
-        sw.show()
 
     @qc.Slot()
     def start_widget(self, _cls: qw.QWidget, maximize=True):

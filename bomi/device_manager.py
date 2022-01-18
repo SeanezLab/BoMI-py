@@ -78,8 +78,8 @@ class DeviceManager:
     """
 
     def __init__(self):
-        self.all_list: DeviceList = []
-        self.sensor_list: SensorList = []
+        self.all_list: DeviceList = []  # all wired devices (sensors + dongles)
+        self.sensor_list: SensorList = [] # all sensors (wired + wireless)
         self._streaming: bool = False
         self._save_file: Optional[str] = None
 
@@ -87,14 +87,16 @@ class DeviceManager:
         self.stop_stream()
 
     def status(self) -> str:
+        n_dongles = sum([1 for d in self.all_list if d.device_type == "DNG"])
         return (
-            f"Discovered {len(self.all_list)} devices, {len(self.sensor_list)} sensors"
+            f"Discovered {n_dongles} dongles, {len(self.sensor_list)} sensors"
         )
 
     def discover_devices(self):
         "Walk COM ports to discover Yost devices"
         self.close_devices()
         self.all_list, self.sensor_list = discover_all_devices()
+        _print(self.status())
 
     def start_stream(self, queue: Queue, save_file: Optional[str] = None):
         if len(self.sensor_list) == 0:

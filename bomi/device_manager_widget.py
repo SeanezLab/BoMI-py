@@ -23,7 +23,7 @@ T = TypeVar("T")
 @dataclass
 class ColumnProps:
     name: str
-    type: Callable
+    dtype: Callable
     get: Optional[Callable[[DeviceT], T]] = None
     set: Optional[Callable[[DeviceT, T], T]] = None
     editable: bool = False
@@ -41,7 +41,7 @@ class ColumnProps:
 
     def use_setter(self, setter: Callable[[DeviceT, T], T]) -> ColumnProps:
         def _setter(dev: DeviceT, val: T):
-            setter(dev, self.type(val))
+            setter(dev, self.dtype(val))
             del self._val[dev]
 
         self.editable = True
@@ -54,6 +54,13 @@ def make_getter(attr: str, default=None) -> Callable[[DeviceT], T]:
         if hasattr(dev, attr):
             return getattr(dev, attr)()
         return default
+
+    return _getter
+
+
+def prop_getter(attr: str, default=None):
+    def _getter(dev: DeviceT) -> T:
+        return getattr(dev, attr, default)
 
     return _getter
 
@@ -85,18 +92,29 @@ def get_device_type(dev: DeviceT) -> str:
     return DEVICE_TYPE[dev.device_type]
 
 
+def get_wl_table(dongle: DeviceT):
+    return dongle.wireless_table
+
+
+def set_wl_table(dongle: DeviceT, idx: int, serial_hex: str):
+    try:
+        assert 0 <= 15 < idx, "Idx must be between 0 and 14"
+        hw_id = int(serial_hex, 16)
+        dongle.setSensorToDongle(idx, hw_id)
+    except:
+        ...
+
+
 # COL_PROPS is a list of column props for rendering the device manager table
 COL_PROPS: List[ColumnProps] = [
-    ColumnProps("Serial Number", int).use_getter(lambda dev: dev.serial_number_hex),
+    ColumnProps("Serial Number", int).use_getter(prop_getter("serial_number_hex")),
     ColumnProps("Device Type", str).use_getter(get_device_type),
     ColumnProps("Battery", int).use_getter(make_getter("getBatteryPercentRemaining")),
-    ColumnProps("Serial Port", str).use_getter(
-        lambda dev: dev.serial_port.port if dev.serial_port else None
-    ),
-    ColumnProps("WL Channel", int)
+    ColumnProps("Serial Port", str).use_getter(prop_getter("port_name")),
+    ColumnProps("Channel", int)
     .use_getter(make_getter("getWirelessChannel"))
     .use_setter(make_setter("setWirelessChannel")),
-    ColumnProps("WL Pan ID", int)
+    ColumnProps("Pan ID", int)
     .use_getter(make_getter("getWirelessPanID"))
     .use_setter(make_setter("setWirelessPanID")),
 ]
@@ -106,7 +124,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
     def __init__(self, device_manager: DeviceManager):
         super().__init__()
         self._dm = device_manager
-        self.setMinimumSize(400, 70)
+        self.setMinimumSize(300, 70)
 
         main_layout = qw.QHBoxLayout()
         self.setLayout(main_layout)
@@ -127,6 +145,14 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
         btn1.clicked.connect(self.s_stream_data)
         layout.addWidget(btn1)
 
+        btn1 = qw.QPushButton(text="Commit all settings")
+        btn1.clicked.connect(self.s_commit_all)
+        layout.addWidget(btn1)
+
+        btn1 = qw.QPushButton(text="Disconnect All")
+        btn1.clicked.connect(self.s_disconnect_all)
+        layout.addWidget(btn1)
+
         # Show device status
         self.table_model = TableModel()
         self.proxy_model = qc.QSortFilterProxyModel()
@@ -138,8 +164,9 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
         tv.setSortingEnabled(True)
         tv.setSelectionBehavior(qw.QAbstractItemView.SelectRows)
         tv.setSelectionMode(qw.QAbstractItemView.SingleSelection)
-        tv.horizontalHeader().setStretchLastSection(True)
-        # tv.resizeColumnsToContents()
+        # tv.horizontalHeader().setStretchLastSection(True)
+        tv.horizontalHeader().setSectionResizeMode(qw.QHeaderView.Stretch)
+        tv.resizeColumnsToContents()
         tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         tv.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Expanding)
 
@@ -147,12 +174,17 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_discover_devices(self):
+        self.s_disconnect_all()
         with pg.BusyCursor():
             self._dm.discover_devices()
-            self.table_model.set_devices(self._dm.sensor_list + self._dm.all_list)
-            self.proxy_model.invalidate()
-
-        _print(self._dm.status())
+        if not self._dm.all_list:
+            self.error_dialog(
+                "No devices found. Make sure wired dongle/sensors are plugged in, "
+                "and make sure wireless sensors are turned on, and use the same "
+                "Channel and Pan ID as the dongle."
+            )
+        self.table_model.set_devices(self._dm.sensor_list + self._dm.all_list)
+        self.proxy_model.invalidate()
 
     @qc.Slot()
     def s_tare_all(self):
@@ -163,6 +195,11 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
             )
 
         dm.tare_all_devices()
+
+    @qc.Slot()
+    def s_commit_all(self):
+        for dev in self._dm.all_list:
+            dev.commitSettings()
 
     @qc.Slot()
     def s_stream_data(self):
@@ -180,6 +217,12 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
             queue=queue, dims=3, close_callbacks=[dm.stop_stream]
         )
         sw.show()
+
+    @qc.Slot()
+    def s_disconnect_all(self):
+        self._dm.close_devices()
+        self.table_model.set_devices([])
+        self.proxy_model.invalidate()
 
 
 class TableModel(qc.QAbstractTableModel):
@@ -254,11 +297,11 @@ class TableModel(qc.QAbstractTableModel):
         """Set the item flags at the given index."""
         if not index.isValid():
             return Qt.ItemIsEnabled
+        flags = qc.QAbstractTableModel.flags(self, index)
         if COL_PROPS[index.column()].editable:
-            return Qt.ItemFlags(
-                qc.QAbstractTableModel.flags(self, index) | Qt.ItemIsEditable
-            )
-        return Qt.ItemFlags(qc.QAbstractTableModel.flags(self, index))
+            flags |= Qt.ItemIsEditable
+
+        return Qt.ItemFlags(flags)
 
 
 if __name__ == "__main__":
