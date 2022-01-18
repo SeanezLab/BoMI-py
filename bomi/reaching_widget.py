@@ -1,5 +1,5 @@
 import math
-import time
+from timeit import default_timer
 import random
 from typing import List, Optional, Tuple
 import PySide6.QtGui as qg
@@ -102,7 +102,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Reaching Task")
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.FramelessWindowHint)
 
         self._init_ui()  # Inititialize user interface
         self._init_states()  # Initialize all states
@@ -130,6 +130,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
 
     def _init_states(self):
         self._running = False
+        self._task_begin_time = 0
 
         ### Cursor states
         # This is updated only by `mouseMoveEvent`,
@@ -166,12 +167,23 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         self.timer = qc.QTimer()
         self.timer.timeout.connect(self._update_task_state)
 
+        self._popup: Optional[qw.QWidget] = None
+
     def begin_task(self):
         """Start the task"""
         # Show popup window with instructions and countdown
         popup = qw.QWidget(self, Qt.SplashScreen | Qt.WindowStaysOnTopHint)
+        self._popup = popup
         layout = qw.QVBoxLayout()
         popup.setLayout(layout)
+
+        instructions = qw.QLabel(
+            "A target will be randomly generated on screen. "
+            "Move the cursor inside the target as quickly as possible. "
+        )
+        instructions.setFont(qg.QFont("Arial", 14))
+        instructions.setWordWrap(True)
+        layout.addWidget(instructions)
 
         l1 = qw.QLabel("Get Ready")
         layout.addWidget(l1)
@@ -179,22 +191,41 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         l1.setFrameStyle(qw.QLabel.Panel)
         l1.setAlignment(Qt.AlignCenter)
 
-        popup.setFixedSize(200, 100)
-        popup.show()
+        btn_layout = qw.QHBoxLayout()
+        layout.addLayout(btn_layout)
+        start_btn = qw.QPushButton("Start")
+        start_btn.setFont(qg.QFont("Arial", 18))
+        btn_layout.addWidget(start_btn)
 
-        def begin():
-            popup.close()
+        exit_btn = qw.QPushButton("Exit")
+        exit_btn.setFont(qg.QFont("Arial", 18))
+        btn_layout.addWidget(exit_btn)
+
+        def _exit():
+            self._popup.close()
+            self.close()
+
+        def _begin_task():
+            self._popup.close()
             self._begin_task()
 
-        qc.QTimer.singleShot(1000, lambda: l1.setText("Starting in 3 s"))
-        qc.QTimer.singleShot(2000, lambda: l1.setText("Starting in 2 s"))
-        qc.QTimer.singleShot(3000, lambda: l1.setText("Starting in 1 s"))
-        qc.QTimer.singleShot(4000, begin)
+        def _begin_countdown():
+            start_btn.setEnabled(False)
+            l1.setText("Starting in 3 s")
+            qc.QTimer.singleShot(1000, lambda: l1.setText("Starting in 2 s"))
+            qc.QTimer.singleShot(2000, lambda: l1.setText("Starting in 1 s"))
+            qc.QTimer.singleShot(3000, _begin_task)
+
+        start_btn.clicked.connect(_begin_countdown)
+        exit_btn.clicked.connect(_exit)
+
+        popup.setFixedSize(400, 300)
+        popup.show()
 
     def _begin_task(self):
         _print("Begin task")
         self._running = True
-        self._task_begin_time = time.time()
+        self._task_begin_time = default_timer()
         self.setMouseTracking(True)
         self.timer.start(1000 / 50)  # 50 Hz update rate
         self._move_target()
@@ -211,6 +242,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         h = self._task_history
 
         popup = qw.QWidget(self, Qt.SplashScreen | Qt.WindowStaysOnTopHint)
+        popup.installEventFilter(self)
         layout = qw.QVBoxLayout()
         popup.setLayout(layout)
 
@@ -233,17 +265,19 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         for i in range(n_targets):
             alpha = 2 * np.pi * i / n_targets
             c = center + qc.QPoint(dist * np.cos(alpha), dist * np.sin(alpha))
-            targets.extend([c] * n_reps)
-        random.shuffle(targets)
-        return center, targets
+            targets.append(c)
+
+        target_n = []
+        for _ in range(n_reps):
+            random.shuffle(targets)
+            target_n += targets
+        return center, target_n
 
     def _move_target(self):
-        self._target_created_time = time.time()
-        if self._target_center == self._target_base:
-            self._target_center = self._targets.pop()
-        else:
-            self._target_center = self._target_base
-        # _print(len(self._targets), "targets left")
+        self._target_created_time = default_timer()
+        self._target_center = self._targets.pop()
+
+        qg.QCursor.setPos(self._target_base)  # move mouse to the base
 
     def paintEvent(self, event: qg.QPaintEvent):
         if self._running:
@@ -262,7 +296,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
 
     def _update_task_state(self):
         """Check cursor states and decide whether to update the target"""
-        now = time.time()
+        now = default_timer()
         if now - self._target_acquired_time > self.HOLD_TIME:
             # Cursor has been held inside target for enough time.
             # _print(f"Held for long enough ({self.HOLD_TIME}s). Moving target")
@@ -295,22 +329,24 @@ class ReachingWidget(qw.QWidget, ReachingParams):
                 self.update()
 
     def update(self):
-        now = time.time()
-        # save cursor history
-        self._cursor_history.append(
-            (now - self._task_begin_time, self._cursor_pos.toTuple())
-        )
+        now = default_timer()
 
-        # update cursor states
-        d = self._target_center - self._cursor_pos
-        cursor_inside = math.hypot(d.x(), d.y()) < self.TARGET_RADIUS
-        if cursor_inside:
-            if not self._last_cursor_inside:
-                self._target_acquired_time = now
-        else:
-            self._target_acquired_time = self.INF
+        if self._running:
+            # save cursor history
+            self._cursor_history.append(
+                (now - self._task_begin_time, self._cursor_pos.toTuple())
+            )
 
-        self._last_cursor_inside = cursor_inside
+            # update cursor states
+            d = self._target_center - self._cursor_pos
+            cursor_inside = math.hypot(d.x(), d.y()) < self.TARGET_RADIUS
+            if cursor_inside:
+                if not self._last_cursor_inside:
+                    self._target_acquired_time = now
+            else:
+                self._target_acquired_time = self.INF
+
+            self._last_cursor_inside = cursor_inside
         self.top_label.setText(f"Reaching. Targets to reach: {len(self._targets)}")
         return super().update()
 
@@ -322,5 +358,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
 
     def keyPressEvent(self, event: qg.QKeyEvent) -> None:
         if event.key() in (Qt.Key.Key_Escape, Qt.Key.Key_Q):
+            if self._popup:
+                self._popup.close()
             self.close()
         return super().keyPressEvent(event)
