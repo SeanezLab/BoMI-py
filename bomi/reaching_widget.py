@@ -38,6 +38,7 @@ def create_spin_box(
 class ReachingConfig(qw.QDialog):
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("Reaching Config")
 
         self.create_menu()
         self.create_form_group_box()
@@ -128,6 +129,11 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         l1.setFont(qg.QFont("Arial", 18))
         layout.addWidget(l1, 0, 0, alignment=Qt.AlignTop | Qt.AlignLeft)
 
+        self.bottom_label = l1 = qw.QLabel("Press Esc to exit", self)
+        l1.setStyleSheet("QLabel { background-color: black; color: white; }")
+        l1.setFont(qg.QFont("Arial", 18))
+        layout.addWidget(l1, 0, 0, alignment=Qt.AlignBottom | Qt.AlignLeft)
+
     def _init_states(self):
         self._running = False
         self._task_begin_time = 0
@@ -169,7 +175,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
 
         self._popup: Optional[qw.QWidget] = None
 
-    def begin_task(self):
+    def begin_task(self, msg: str = ""):
         """Start the task"""
         # Show popup window with instructions and countdown
         popup = qw.QWidget(self, Qt.SplashScreen | Qt.WindowStaysOnTopHint)
@@ -185,7 +191,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         instructions.setWordWrap(True)
         layout.addWidget(instructions)
 
-        l1 = qw.QLabel("Get Ready")
+        l1 = qw.QLabel("Get Ready" if not msg else msg)
         layout.addWidget(l1)
         l1.setFont(qg.QFont("Arial", 18))
         l1.setFrameStyle(qw.QLabel.Panel)
@@ -193,13 +199,17 @@ class ReachingWidget(qw.QWidget, ReachingParams):
 
         btn_layout = qw.QHBoxLayout()
         layout.addLayout(btn_layout)
-        start_btn = qw.QPushButton("Start")
-        start_btn.setFont(qg.QFont("Arial", 18))
-        btn_layout.addWidget(start_btn)
 
         exit_btn = qw.QPushButton("Exit")
         exit_btn.setFont(qg.QFont("Arial", 18))
         btn_layout.addWidget(exit_btn)
+
+        start_btn = qw.QPushButton("Start")
+        start_btn.setFont(qg.QFont("Arial", 18))
+        qp = start_btn.palette()
+        start_btn.setStyleSheet("QPushButton {background-color: rgb(0,255,0);}")
+        btn_layout.addWidget(start_btn)
+
 
         def _exit():
             self._popup.close()
@@ -219,7 +229,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         start_btn.clicked.connect(_begin_countdown)
         exit_btn.clicked.connect(_exit)
 
-        popup.setFixedSize(400, 300)
+        popup.setFixedSize(480, 250)
         popup.show()
 
     def _begin_task(self):
@@ -241,19 +251,26 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         # TODO: save task history
         h = self._task_history
 
-        popup = qw.QWidget(self, Qt.SplashScreen | Qt.WindowStaysOnTopHint)
-        popup.installEventFilter(self)
-        layout = qw.QVBoxLayout()
-        popup.setLayout(layout)
+        self.begin_task("Good job! Restart?")
+        # popup = qw.QWidget(self, Qt.SplashScreen | Qt.WindowStaysOnTopHint)
+        # popup.installEventFilter(self)
+        # layout = qw.QVBoxLayout()
+        # popup.setLayout(layout)
 
-        l1 = qw.QLabel("Task Finished!")
-        layout.addWidget(l1)
-        l1.setFont(qg.QFont("Arial", 18))
-        l1.setFrameStyle(qw.QLabel.Panel)
-        l1.setAlignment(Qt.AlignCenter)
+        # l1 = qw.QLabel("Task Finished!")
+        # layout.addWidget(l1)
+        # l1.setFont(qg.QFont("Arial", 18))
+        # l1.setFrameStyle(qw.QLabel.Panel)
+        # l1.setAlignment(Qt.AlignCenter)
 
-        popup.setFixedSize(200, 100)
-        popup.show()
+        # def restart():
+            # popup.close()
+            # self.begin_task()
+
+        # qc.QTimer.singleShot(3000, restart)
+
+        # popup.setFixedSize(200, 100)
+        # popup.show()
 
     @staticmethod
     def generate_targets(n_targets=8, n_reps=3) -> Tuple[qc.QPoint, List[qc.QPoint]]:
