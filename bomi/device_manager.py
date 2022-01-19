@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Tuple
 from queue import Queue
 from timeit import default_timer
 import threading
@@ -70,6 +70,12 @@ class Packet:
     timestamp: int
     data: list
 
+    
+class Packet(NamedTuple):
+    roll: float
+    pitch: float
+    yaw: float
+    t: float
 
 class DeviceManager:
     """
@@ -104,6 +110,7 @@ class DeviceManager:
         _print("Setting up stream")
         self._queue = queue
         sensor_list = self.sensor_list
+        [d.broadcastSynchronizationPulse() for d in self.all_list if d.device_type == "DNG"]
         broadcaster = ts_api.global_broadcaster
         broadcaster.setStreamingTiming(
             interval=0,  # output data as quickly as possible
@@ -122,14 +129,24 @@ class DeviceManager:
 
         def handle_stream():
             args = (True,)
+            i = 0
+            start_time = default_timer()
             while self._streaming:
                 b: Dict[ts_api._TSSensor, list] = broadcaster.broadcastMethod(
                     "getStreamingBatch", args=args
                 )
                 # returned batch has the type
-                # Dict[Device]
-                # list type
-                queue.put([b[d] for d in sensor_list])
+                # List[Tuple[euler_angles, timestamp]]
+                res = [b[s] for s in sensor_list]
+                # print([r[1] for r in res])
+                queue.put(res)
+                i += 1
+                if i % 100 == 0:
+                    now = default_timer()
+                    fps = i / (now - start_time)
+                    start_time = now
+                    i = 0
+                    print("fps", fps)
 
         self._thread = threading.Thread(target=handle_stream)
         self._streaming = True

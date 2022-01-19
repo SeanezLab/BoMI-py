@@ -1,13 +1,14 @@
-from multiprocessing.pool import INIT
 from time import perf_counter
 from queue import Queue
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 import pyqtgraph.parametertree as ptree
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 import pyqtgraph as pg
 import numpy as np
+
+from bomi.device_manager import Packet
 
 
 children = [
@@ -42,6 +43,7 @@ class ScopeWidget(qw.QWidget):
         ### data
         self.n_dims = dims
         self._queue = queue
+        self._devs: List[str] = []  # List[serial_hex, serial_hex, ...]
         self._close_callbacks = close_callbacks
 
         super().__init__()
@@ -86,10 +88,12 @@ class ScopeWidget(qw.QWidget):
         try:
             for _ in range(qsize):  # process current imtes in queue
                 data, ts = self.data, self.timestamp
-                arr = q.get()  # arr holds a list of tuples (each tuple is one device)
-                dev1 = arr[0]  # Only read first device for now
-                data[self.ptr, :dims] = dev1[0][:dims]
-                ts[self.ptr] = dev1[1]
+                d = q.get()  # arr holds a list of tuples (each tuple is one device)
+
+                packet = d[0]
+                
+                data[self.ptr, :dims] = packet[0]
+                ts[self.ptr] = packet[1]
                 self.ptr += 1
 
                 # Double buffer size if full
@@ -102,7 +106,6 @@ class ScopeWidget(qw.QWidget):
                 q.task_done()
         except Exception as e:
             _print("[Update Exception]", e)
-            breakpoint()
         else:  # On successful read from queue, update curves
             curves2 = self.curves2
             for i in range(dims):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from queue import Queue
-from typing import Callable, Dict, List, NamedTuple, Optional, TypeVar
+from typing import Callable, Dict, List, Optional, TypeVar
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
@@ -134,6 +134,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
         main_layout.addLayout(layout)
 
         btn1 = qw.QPushButton(text="Discover devices")
+        btn1.setStyleSheet("QPushButton { background-color: rgb(0,255,0); }")
         btn1.clicked.connect(self.s_discover_devices)
         layout.addWidget(btn1)
 
