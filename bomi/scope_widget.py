@@ -34,7 +34,7 @@ class ScopeWidget(qw.QWidget):
     def __init__(
         self,
         queue: Optional[Queue] = None,
-        dims=3,
+        dims=2,
         close_callbacks: List[Callable] = [],
     ):
         assert all(
@@ -88,22 +88,21 @@ class ScopeWidget(qw.QWidget):
         try:
             for _ in range(qsize):  # process current imtes in queue
                 data, ts = self.data, self.timestamp
-                d = q.get()  # arr holds a list of tuples (each tuple is one device)
-
-                packet = d[0]
-                
-                data[self.ptr, :dims] = packet[0]
-                ts[self.ptr] = packet[1]
-                self.ptr += 1
-
-                # Double buffer size if full
-                l = data.shape[0]
-                if self.ptr >= l:
-                    self.data = np.empty((l * 2, dims))
-                    self.data[:l] = data
-                    self.timestamp = np.empty(l * 2)
-                    self.timestamp[:l] = ts
+                d: List[Packet] = q.get()  # arr holds a list of tuples (each tuple is one device)
                 q.task_done()
+
+                for packet in d:
+                    data[self.ptr, :2] = (packet.roll, packet.pitch)
+                    ts[self.ptr] = packet.t
+                    self.ptr += 1
+
+                    # Double buffer size if full
+                    l = data.shape[0]
+                    if self.ptr >= l:
+                        self.data = np.empty((l * 2, dims))
+                        self.data[:l] = data
+                        self.timestamp = np.empty(l * 2)
+                        self.timestamp[:l] = ts
         except Exception as e:
             _print("[Update Exception]", e)
         else:  # On successful read from queue, update curves

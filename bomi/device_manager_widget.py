@@ -178,13 +178,13 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
         self.s_disconnect_all()
         with pg.BusyCursor():
             self._dm.discover_devices()
-        if not self._dm.all_list:
+        if not self._dm.all_sensors:
             self.error_dialog(
                 "No devices found. Make sure wired dongle/sensors are plugged in, "
                 "and make sure wireless sensors are turned on, and use the same "
                 "Channel and Pan ID as the dongle."
             )
-        self.table_model.set_devices(self._dm.sensor_list + self._dm.all_list)
+        self.table_model.set_devices(self._dm.dongles + self._dm.all_sensors)
         self.proxy_model.invalidate()
 
     @qc.Slot()
@@ -199,7 +199,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_commit_all(self):
-        for dev in self._dm.all_list:
+        for dev in self._dm.wired_sensors:
             dev.commitSettings()
 
     @qc.Slot()
@@ -215,7 +215,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
         ## Start scope here.
         self._sw = sw = ScopeWidget(
-            queue=queue, dims=3, close_callbacks=[dm.stop_stream]
+            queue=queue, close_callbacks=[dm.stop_stream]
         )
         sw.show()
 

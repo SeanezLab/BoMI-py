@@ -18,6 +18,7 @@ import os
 import sys
 import subprocess
 import collections
+from typing import NamedTuple
 import serial
 import multiprocessing
 import time
@@ -74,12 +75,8 @@ ComPortListing = collections.namedtuple(
 )
 
 ### Functions ###
-if sys.version_info >= (3, 0):
-    def convertString(string):
-        return string.decode('utf-8')
-else:
-    def convertString(string):
-        return string
+def convertString(string):
+    return string.decode('utf-8')
 
 
 def pyTryPort(port_name, conn):
