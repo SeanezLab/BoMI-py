@@ -93,10 +93,11 @@ class ReachingConfig(qw.QDialog):
 
 
 class ReachingWidget(qw.QWidget, ReachingParams):
-    GREEN = qg.QColor(0, 255, 0)
-    RED = qg.QColor(255, 0, 0)
-    BLUE = qg.QColor(0, 0, 255)
-    CURSOR_COLOR = Qt.white
+    GREEN = Qt.green
+    RED = Qt.red
+    YELLOW = qg.QColor(0xFA, 0xDA, 0x5E)
+    BLACK = Qt.black
+
     INF = np.inf
     Config = ReachingConfig
 
@@ -156,7 +157,8 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         ### Current target states
         # updated only by `_update_reaching_state` and `_move_target`
         self._target_center: qc.QPoint = qc.QPoint(0, 0)
-        self._target_color = self.GREEN
+        self._target_line_color = self.GREEN
+        self._target_fill_color = Qt.black
 
         ### Task history
         # Every new cursor event is recorded in cursor_history as
@@ -209,7 +211,6 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         qp = start_btn.palette()
         start_btn.setStyleSheet("QPushButton {background-color: rgb(0,255,0);}")
         btn_layout.addWidget(start_btn)
-
 
         def _exit():
             self._popup.close()
@@ -264,8 +265,8 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         # l1.setAlignment(Qt.AlignCenter)
 
         # def restart():
-            # popup.close()
-            # self.begin_task()
+        # popup.close()
+        # self.begin_task()
 
         # qc.QTimer.singleShot(3000, restart)
 
@@ -292,16 +293,20 @@ class ReachingWidget(qw.QWidget, ReachingParams):
 
     def _move_target(self):
         self._target_created_time = default_timer()
-        self._target_center = self._targets.pop()
+        if self._target_center == self._target_base:
+            self._target_center = self._targets.pop()
+        else:
+            self._target_center = self._target_base
 
-        qg.QCursor.setPos(self._target_base)  # move mouse to the base
+        # qg.QCursor.setPos(self._target_base)  # move mouse to the base
 
     def paintEvent(self, event: qg.QPaintEvent):
         if self._running:
             painter = qg.QPainter(self)
             painter.setRenderHint(qg.QPainter.Antialiasing)
             # Paint target
-            painter.setBrush(self._target_color)
+            painter.setPen(qg.QPen(self._target_line_color, 3))
+            painter.setBrush(self._target_fill_color)
             painter.drawEllipse(
                 self._target_center, self.TARGET_RADIUS, self.TARGET_RADIUS
             )
@@ -314,6 +319,11 @@ class ReachingWidget(qw.QWidget, ReachingParams):
     def _update_task_state(self):
         """Check cursor states and decide whether to update the target"""
         now = default_timer()
+        if now - self._target_acquired_time > 0:  # inside target
+            self._target_fill_color = self.YELLOW
+        else:
+            self._target_fill_color = self.BLACK
+
         if now - self._target_acquired_time > self.HOLD_TIME:
             # Cursor has been held inside target for enough time.
             # _print(f"Held for long enough ({self.HOLD_TIME}s). Moving target")
@@ -334,15 +344,15 @@ class ReachingWidget(qw.QWidget, ReachingParams):
                 return
 
             # Create a new target
-            self._target_color = self.GREEN
+            self._target_line_color, self._target_fill_color = self.GREEN, self.BLACK
             self._last_cursor_inside = False
             self._target_acquired_time = self.INF
             self._move_target()
             self.update()
         elif now - self._target_created_time > self.TIME_LIMIT:
-            if self._target_color != self.RED and not self._last_cursor_inside:
+            if self._target_line_color != self.RED and not self._last_cursor_inside:
                 # _print(f"Failed to reach target within time limit ({self.TIME_LIMIT}s)")
-                self._target_color = self.RED
+                self._target_line_color = self.RED
                 self.update()
 
     def update(self):
