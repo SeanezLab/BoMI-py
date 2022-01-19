@@ -1,3 +1,8 @@
+"""
+Communicate directly to a Yost dongle through USB Serial
+This is used solely for wireless streaming through the dongle, which is 
+very inefficient through the official threespace_api
+"""
 from typing import Optional, Tuple
 import serial
 import struct

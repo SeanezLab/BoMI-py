@@ -67,15 +67,15 @@ def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorLi
 
         if device is not None:
             if device_type != "DNG":
-                all_sensors.append(device)
                 wired_sensors.append(device)
+                all_sensors.append(device)
             else:
                 dongles.append(device)
                 for i in range(4):  # check logical indexes of dongle for WL device
                     sens = device[i]
                     if sens is not None:
-                        all_sensors.append(sens)
                         wireless_sensors.append(sens)
+                        all_sensors.append(sens)
 
     return dongles, all_sensors, wired_sensors, wireless_sensors
 
@@ -140,8 +140,8 @@ class DeviceManager:
             dongle = ts_api.TSDongle(com_port=port_name)
             self.dongles.append(dongle)
 
-        port_names = []
-        ports = []
+        port_names: List[str] = []
+        ports: List[serial.Serial] = []
         wl_ids = [s.serial_number for s in self.wireless_sensors]
         for dongle in self.dongles:
             wl_mp = {}
@@ -159,6 +159,7 @@ class DeviceManager:
             ports.append(port)
 
             logical_ids = list(wl_mp.keys())
+            # Check the source to see which slots are setup
             start_dongle_streaming(port, logical_ids)
 
         ### Setup streaming for wired sensors
@@ -180,15 +181,15 @@ class DeviceManager:
         _print("Start streaming")
 
         def handle_stream():
-            # args = (True,)
             i = 0
             start_time = default_timer()
 
             try:
                 while self._streaming:
-                    res = []
+                    res: List[Packet] = []
                     now = default_timer()
 
+                    # read streaming batch from wired sensors
                     for sensor in self.wired_sensors:
                         b = sensor.getStreamingBatch()
                         packet = Packet(
@@ -201,6 +202,8 @@ class DeviceManager:
                         )
                         res.append(packet)
 
+                    # read streaming batch from wireless sensors through
+                    # a dongle's serial port
                     for port in ports:
                         failed, logical_id, raw = read_dongle_port(port)
                         if failed == 0 and len(raw) == 13:
@@ -216,7 +219,8 @@ class DeviceManager:
                             res.append(packet)
 
                     if res:
-                        queue.put(res)
+                        for packet in res:
+                            queue.put(packet)
                         i += len(res)
                         if i % 1000 == 0:
                             fps = i / (now - start_time)
@@ -224,14 +228,18 @@ class DeviceManager:
                             _print("Data rate:", fps)
             except Exception as e:
                 _print("[Streaming loop exception]", e)
+            except KeyboardInterrupt as e:
+                pass
             finally:
                 _print("Streaming loop ended")
                 # stop wired sensor streaming
                 ts_api.global_broadcaster.stopStreaming(filter=self.wired_sensors)
 
                 # stop dongle streaming
-                stop_dongle_streaming(port, logical_ids)
-                [port.close() for port in ports]
+                for port in ports:
+                    stop_dongle_streaming(port, logical_ids)
+                    port.close()
+                    del port
 
                 # recreate dongles
                 [recreate_dongle_obj(name) for name in port_names]
