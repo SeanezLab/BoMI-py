@@ -161,12 +161,6 @@ class DeviceManager:
             logical_ids = list(wl_mp.keys())
             start_dongle_streaming(port, logical_ids)
 
-        # while True:
-        # failed, logical_id, raw = read_dongle_port(port)
-        # if failed == 0 and raw:
-        # ret_val = struct.unpack(">fffB", raw)
-        # print(ret_val)
-
         ### Setup streaming for wired sensors
         broadcaster = ts_api.global_broadcaster
         broadcaster.setStreamingTiming(
@@ -198,7 +192,12 @@ class DeviceManager:
                     for sensor in self.wired_sensors:
                         b = sensor.getStreamingBatch()
                         packet = Packet(
-                            roll=b[0], pitch=b[1], yaw=b[2], battery=b[3], t=now
+                            roll=b[0],
+                            pitch=b[1],
+                            yaw=b[2],
+                            battery=b[3],
+                            t=now,
+                            name=sensor.serial_number_hex,
                         )
                         res.append(packet)
 
