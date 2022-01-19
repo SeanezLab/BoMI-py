@@ -88,7 +88,9 @@ class ScopeWidget(qw.QWidget):
         try:
             for _ in range(qsize):  # process current imtes in queue
                 data, ts = self.data, self.timestamp
-                d: List[Packet] = q.get()  # arr holds a list of tuples (each tuple is one device)
+                d: List[
+                    Packet
+                ] = q.get()  # arr holds a list of tuples (each tuple is one device)
                 q.task_done()
 
                 for packet in d:

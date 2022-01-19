@@ -10,9 +10,9 @@ class KeyboardWidget(qw.QWidget):
     def __init__(self):
         super().__init__()
         self._init_ui()
-        
+
         os.environ["QT_IM_MODULE"] = "qtvirtualkeyboard"
-        
+
     def _init_ui(self):
         layout = qw.QHBoxLayout()
         self.setLayout(layout)

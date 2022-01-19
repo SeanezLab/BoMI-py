@@ -26,7 +26,7 @@ def read_dongle_port(port: serial.Serial) -> Tuple[int, int, Optional[bytes]]:
 
 # send commands through dongle to sensor with logical id
 def write_dongle_port(port: serial.Serial, data: str, logical_id: int):
-    _print("Sending to logical_id", logical_id, "data", data)
+    # _print("Sending to logical_id", logical_id, "data", data)
     data = chr(logical_id) + data
     checksum = sum(ord(v) for v in data) % 256
     # Build command

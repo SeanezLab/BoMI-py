@@ -214,9 +214,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
         dm.start_stream(queue)
 
         ## Start scope here.
-        self._sw = sw = ScopeWidget(
-            queue=queue, close_callbacks=[dm.stop_stream]
-        )
+        self._sw = sw = ScopeWidget(queue=queue, close_callbacks=[dm.stop_stream])
         sw.show()
 
     @qc.Slot()

@@ -218,7 +218,7 @@ class DeviceManager:
 
                     if res:
                         queue.put(res)
-                        i += 1
+                        i += len(res)
                         if i % 1000 == 0:
                             fps = i / (now - start_time)
                             start_time, i = now, 0

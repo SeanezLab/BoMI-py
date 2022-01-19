@@ -107,7 +107,6 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         self.file_menu = menu_bar.addMenu("File")
         self.file_menu.addActions(self.actions)
 
-
     @qc.Slot()
     def start_widget(self, _cls: qw.QWidget, maximize=True):
         _attr = str(_cls)
