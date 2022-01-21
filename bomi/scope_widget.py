@@ -3,6 +3,7 @@ from typing import Callable, Dict, List
 from queue import Queue
 from dataclasses import dataclass
 from pathlib import Path
+from timeit import default_timer
 import traceback
 import pyqtgraph.parametertree as ptree
 import PySide6.QtGui as qg
@@ -11,10 +12,11 @@ import PySide6.QtCore as qc
 import pyqtgraph as pg
 import numpy as np
 
-from bomi.device_manager import Packet
+from bomi.device_manager import DeviceManager, Packet
 
 
 children = [
+    dict(name="streaming", title="Streaming", type="bool", value=True),
     dict(name="sigopts", title="Signal Options", type="group", children=[]),
     dict(name="antialias", type="bool", value=pg.getConfigOption("antialias")),
     dict(
@@ -61,30 +63,21 @@ class Buffer:
             self.timestamp[:l] = ts
 
 
+def init_buffers(names: List[str], bufsize: int, dims: int) -> Dict[str, Buffer]:
+    return {dev: Buffer.init(initial_buf_size=bufsize, dims=dims) for dev in names}
+
+
 class ScopeWidget(qw.QWidget):
-    def __init__(
-        self,
-        queue: Queue[Packet],
-        device_names: List[str],
-        dims=2,
-        close_callbacks: List[Callable] = [],
-    ):
+    def __init__(self, device_manager: DeviceManager):
         super().__init__()
-        assert all(
-            callable(cb) for cb in close_callbacks
-        ), "Some callbacks are not callable"
+        self.dm: DeviceManager = device_manager
 
         ### data
-        self.n_dims = dims
-        self.queue = queue
-        self.dev_names: List[str] = device_names  # List[serial_hex, serial_hex, ...]
-        self.close_callbacks = close_callbacks
-
-        self.INIT_BUF_SIZE = 2000
-        self.data = {
-            dev: Buffer.init(initial_buf_size=self.INIT_BUF_SIZE, dims=dims)
-            for dev in self.dev_names
-        }
+        self.dims = 2
+        self.queue: Queue[Packet] = Queue()
+        self.dev_names: List[str] = device_manager.get_sensor_names()
+        self.init_bufsize = 2000
+        self.buffers = init_buffers(self.dev_names, self.init_bufsize, self.dims)
 
         ### Init UI
         main_layout = qw.QHBoxLayout()
@@ -94,6 +87,17 @@ class ScopeWidget(qw.QWidget):
 
         pt = ptree.ParameterTree(showHeader=False)
         pt.setParameters(params)
+
+        def change(_, changes):
+            for param, change, data in changes:
+                if param.name() == "streaming":
+                    if data == False:
+                        self.stop_stream()
+                    else:
+                        self.start_stream()
+
+        params.sigTreeStateChanged.connect(change)
+
         splitter.addWidget(pt)
 
         self.glw = glw = pg.GraphicsLayoutWidget(title="Plot title")
@@ -103,7 +107,8 @@ class ScopeWidget(qw.QWidget):
         pens = ["r", "g", "b", "w"]
 
         def _init_curves(plot: pg.PlotItem):
-            return [plot.plot(pen=pen) for pen in pens[:dims]]
+            "Create `dims` curves on the given plot object"
+            return [plot.plot(pen=pen) for pen in pens[: self.dims]]
 
         self.plots: Dict[str, pg.PlotItem | pg.ViewBox] = {}
         self.curves: Dict[str, List[pg.PlotCurveItem]] = {}
@@ -113,54 +118,57 @@ class ScopeWidget(qw.QWidget):
             plot.setYRange(-np.pi, np.pi)
             plot.setLabel("bottom", "Time", units="s")
             plot.setLabel("left", "Euler Angle", units="rad")
+            plot.setTitle(name)
             plot.setDownsampling(mode="peak")
 
             self.curves[name] = _init_curves(plot)
 
-        # only update curves for a device when new packets are received
-        self.new_packet: Dict[str, bool] = {dev: False for dev in self.dev_names}
-
         # Start timer
-        self._running = False
         self.timer = qc.QTimer()
         self.timer.setInterval(20)
         self.timer.timeout.connect(self.updatePlot)
+
+        self.start_stream()
+
+    def start_stream(self):
+        """Start the stream and show in the scope
+        Recreate the queue and buffers
+        """
+        self.queue = Queue()
+        self.buffers = init_buffers(self.dev_names, self.init_bufsize, self.dims)
+        self.dm.start_stream(self.queue)
         self.timer.start(0)
 
+    def stop_stream(self):
+        self.dm.stop_stream()
+        self.timer.stop()
+
     def updatePlot(self):
-        dims = self.n_dims
         q = self.queue
         qsize = q.qsize()
         if not qsize:
             return
         try:
             for _ in range(qsize):  # process current items in queue
-                # data, ts = self.data, self.timestamp
                 packet: Packet = q.get()
-                q.task_done()
-
-                buf = self.data[packet.name]
-                buf.add(packet)
-                self.new_packet[packet.name] = True
+                q.task_done()  # not using queue.join() anywhere so this doesn't matter
+                self.buffers[packet.name].add(packet)
 
         except Exception as e:
             _print("[Update Exception]", traceback.format_exc())
 
         else:  # On successful read from queue, update curves
+            now = default_timer()
             for name in self.dev_names:
-                if not self.new_packet[name]:
-                    continue
-                self.new_packet[name] = False
                 curves = self.curves[name]
-                buf = self.data[name]
-                x = buf.timestamp[: buf.ptr]
-                x = -(x.max() - x)
-                for i in range(dims):
+                buf = self.buffers[name]
+                x = -(now - buf.timestamp[: buf.ptr])
+                for i in range(self.dims):
                     curves[i].setData(x=x, y=buf.data[: buf.ptr, i])
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
-        _print("Close event")
-        self.timer.stop()
-        [cb() for cb in self.close_callbacks]
-        _print("Close event done")
+        with pg.BusyCursor():
+            _print("Close event called")
+            self.stop_stream()
+            _print("Close event done")
         return super().closeEvent(event)

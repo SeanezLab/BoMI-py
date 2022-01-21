@@ -1,7 +1,9 @@
 """
-Communicate directly to a Yost dongle through USB Serial
+Communicate directly with a Yost dongle through USB Serial.
 This is used solely for wireless streaming through the dongle, which is 
-very inefficient through the official threespace_api
+very inefficient through the official threespace_api.
+Everything else (device discovery, management, config etc.) should still be
+managed through the threespace_api. 
 """
 from typing import Optional, Tuple
 import serial
@@ -13,6 +15,11 @@ def _print(*args):
 
 
 def read_dongle_port(port: serial.Serial) -> Tuple[int, int, Optional[bytes]]:
+    """
+    Implements 3-Space User Manual, Section 4.3.3 Binary Command Response
+
+    Returns: (failed, logical_id, response data)
+    """
     raw = port.read(2)
     if len(raw) != 2:
         _print("Port has no data")

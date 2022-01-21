@@ -121,117 +121,6 @@ COL_PROPS: List[ColumnProps] = [
 ]
 
 
-class DeviceManagerWidget(qw.QWidget, WindowMixin):
-    def __init__(self, device_manager: DeviceManager):
-        super().__init__()
-        self._dm = device_manager
-        self.setMinimumSize(300, 70)
-
-        main_layout = qw.QHBoxLayout()
-        self.setLayout(main_layout)
-
-        # Device controls
-        layout = qw.QVBoxLayout()
-        main_layout.addLayout(layout)
-
-        btn1 = qw.QPushButton(text="Discover devices")
-        btn1.setStyleSheet("QPushButton { background-color: rgb(0,255,0); }")
-        btn1.clicked.connect(self.s_discover_devices)
-        layout.addWidget(btn1)
-
-        btn1 = qw.QPushButton(text="Tare all devices")
-        btn1.clicked.connect(self.s_tare_all)
-        layout.addWidget(btn1)
-
-        btn1 = qw.QPushButton(text="Data Charts")
-        btn1.clicked.connect(self.s_data_charts)
-        layout.addWidget(btn1)
-
-        btn1 = qw.QPushButton(text="Commit all settings")
-        btn1.clicked.connect(self.s_commit_all)
-        layout.addWidget(btn1)
-
-        btn1 = qw.QPushButton(text="Disconnect All")
-        btn1.clicked.connect(self.s_disconnect_all)
-        layout.addWidget(btn1)
-
-        # Show device status
-        self.table_model = TableModel()
-        self.proxy_model = qc.QSortFilterProxyModel()
-        self.proxy_model.setSourceModel(self.table_model)
-        self.proxy_model.setDynamicSortFilter(True)
-
-        tv = qw.QTableView()
-        tv.setModel(self.proxy_model)
-        tv.setSortingEnabled(True)
-        tv.setSelectionBehavior(qw.QAbstractItemView.SelectRows)
-        tv.setSelectionMode(qw.QAbstractItemView.SingleSelection)
-        # tv.horizontalHeader().setStretchLastSection(True)
-        tv.horizontalHeader().setSectionResizeMode(qw.QHeaderView.Stretch)
-        tv.resizeColumnsToContents()
-        tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        tv.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Expanding)
-
-        main_layout.addWidget(tv)
-
-    @qc.Slot()
-    def s_discover_devices(self):
-        self.s_disconnect_all()
-        with pg.BusyCursor():
-            self._dm.discover_devices()
-        if not self._dm.all_sensors:
-            self.error_dialog(
-                "No devices found. Make sure wired dongle/sensors are plugged in, "
-                "and make sure wireless sensors are turned on, and use the same "
-                "Channel and Pan ID as the dongle."
-            )
-        self.table_model.set_devices(self._dm.dongles + self._dm.all_sensors)
-        self.proxy_model.invalidate()
-
-    @qc.Slot()
-    def s_tare_all(self):
-        dm = self._dm
-        if not dm.has_sensors():
-            return self.error_dialog(
-                "No sensors available. Plug in the devices, then click on 'Discover devices'"
-            )
-
-        dm.tare_all_devices()
-
-    @qc.Slot()
-    def s_commit_all(self):
-        for dev in self._dm.wired_sensors + self._dm.dongles:
-            dev.commitSettings()
-
-    @qc.Slot()
-    def s_data_charts(self):
-        dm = self._dm
-        if not dm.has_sensors():
-            return self.error_dialog(
-                "No sensors available. Plug in the devices, then click on 'Discover devices'"
-            )
-
-        queue: Queue[Packet] = Queue()
-        names = dm.get_sensor_names()
-        dm.start_stream(queue)
-
-        ## Start scope here.
-        try:
-            self._sw = sw = ScopeWidget(
-                queue=queue, device_names=names, close_callbacks=[dm.stop_stream]
-            )
-            sw.show()
-        except Exception as e:
-            _print(traceback.format_exc())
-            dm.stop_stream()
-
-    @qc.Slot()
-    def s_disconnect_all(self):
-        self._dm.close_devices()
-        self.table_model.set_devices([])
-        self.proxy_model.invalidate()
-
-
 class TableModel(qc.QAbstractTableModel):
     """TableModel handles data for the device table
     This class simply uses the definition of `COL_PROPS` to render data.
@@ -309,6 +198,115 @@ class TableModel(qc.QAbstractTableModel):
             flags |= Qt.ItemIsEditable
 
         return Qt.ItemFlags(flags)
+
+
+class DeviceManagerWidget(qw.QWidget, WindowMixin):
+    """A GUI for DeviceManager.
+    Can be embedded as a widget
+    """
+
+    def __init__(self, device_manager: DeviceManager):
+        super().__init__()
+        self.dm = device_manager
+        self.setMinimumSize(300, 70)
+
+        main_layout = qw.QHBoxLayout()
+        self.setLayout(main_layout)
+
+        # Device controls
+        layout = qw.QVBoxLayout()
+        main_layout.addLayout(layout)
+
+        btn1 = qw.QPushButton(text="Discover devices")
+        btn1.setStyleSheet("QPushButton { background-color: rgb(0,255,0); }")
+        btn1.clicked.connect(self.s_discover_devices)
+        layout.addWidget(btn1)
+
+        btn1 = qw.QPushButton(text="Tare all devices")
+        btn1.clicked.connect(self.s_tare_all)
+        layout.addWidget(btn1)
+
+        btn1 = qw.QPushButton(text="Data Charts")
+        btn1.clicked.connect(self.s_data_charts)
+        layout.addWidget(btn1)
+
+        btn1 = qw.QPushButton(text="Commit all settings")
+        btn1.clicked.connect(self.s_commit_all)
+        layout.addWidget(btn1)
+
+        btn1 = qw.QPushButton(text="Disconnect All")
+        btn1.clicked.connect(self.s_disconnect_all)
+        layout.addWidget(btn1)
+
+        # Show device status
+        self.table_model = TableModel()
+        self.proxy_model = qc.QSortFilterProxyModel()
+        self.proxy_model.setSourceModel(self.table_model)
+        self.proxy_model.setDynamicSortFilter(True)
+
+        tv = qw.QTableView()
+        tv.setModel(self.proxy_model)
+        tv.setSortingEnabled(True)
+        tv.setSelectionBehavior(qw.QAbstractItemView.SelectRows)
+        tv.setSelectionMode(qw.QAbstractItemView.SingleSelection)
+        # tv.horizontalHeader().setStretchLastSection(True)
+        tv.horizontalHeader().setSectionResizeMode(qw.QHeaderView.Stretch)
+        tv.resizeColumnsToContents()
+        tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        tv.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Expanding)
+
+        main_layout.addWidget(tv)
+
+    @qc.Slot()
+    def s_discover_devices(self):
+        self.s_disconnect_all()
+        with pg.BusyCursor():
+            self.dm.discover_devices()
+        if not self.dm.all_sensors:
+            self.error_dialog(
+                "No devices found. Make sure wired dongle/sensors are plugged in, "
+                "and make sure wireless sensors are turned on, and use the same "
+                "Channel and Pan ID as the dongle."
+            )
+        self.table_model.set_devices(self.dm.dongles + self.dm.all_sensors)
+        self.proxy_model.invalidate()
+
+    @qc.Slot()
+    def s_tare_all(self):
+        dm = self.dm
+        if not dm.has_sensors():
+            return self.error_dialog(
+                "No sensors available. Plug in the devices, then click on 'Discover devices'"
+            )
+
+        dm.tare_all_devices()
+
+    @qc.Slot()
+    def s_commit_all(self):
+        for dev in self.dm.wired_sensors + self.dm.dongles:
+            dev.commitSettings()
+
+    @qc.Slot()
+    def s_data_charts(self):
+        dm = self.dm
+        if not dm.has_sensors():
+            return self.error_dialog(
+                "No sensors available. Plug in the devices, then click on 'Discover devices'"
+            )
+
+        ## Start scope here.
+        try:
+            self._sw = ScopeWidget(dm)
+            self._sw.show()
+        except Exception as e:
+            _print(traceback.format_exc())
+            dm.stop_stream()
+
+    @qc.Slot()
+    def s_disconnect_all(self):
+        self.dm.close_all_devices()
+        self.table_model.set_devices([])
+        self.proxy_model.invalidate()
 
 
 if __name__ == "__main__":

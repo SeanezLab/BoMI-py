@@ -1,4 +1,4 @@
-from typing import List, NamedTuple, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Tuple
 from pathlib import Path
 from queue import Queue
 from timeit import default_timer
@@ -14,6 +14,11 @@ from bomi.yost_serial_comm import (
     stop_dongle_streaming,
 )
 
+
+def _print(*args):
+    print("[Device Manager]", *args)
+
+
 get_time = default_timer
 DeviceT = ts_api.TSDongle | ts_api._TSSensor
 DeviceList = List[DeviceT]
@@ -21,8 +26,15 @@ DongleList = List[ts_api.TSDongle]
 SensorList = List[ts_api._TSSensor]
 
 
-def _print(*args):
-    print("[Device Manager]", *args)
+class Packet(NamedTuple):
+    """Packet represents one streaming batch from one sensor"""
+
+    pitch: float
+    yaw: float
+    roll: float
+    battery: int
+    t: float  # time
+    name: str  # device name
 
 
 def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorList]:
@@ -81,15 +93,6 @@ def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorLi
     return dongles, all_sensors, wired_sensors, wireless_sensors
 
 
-class Packet(NamedTuple):
-    pitch: float
-    yaw: float
-    roll: float
-    battery: int
-    t: float  # time
-    name: str  # device name
-
-
 class DeviceManager:
     """
     Manage the discovery, initialization, and data acquisition of all yost body sensors.
@@ -104,6 +107,7 @@ class DeviceManager:
 
         self._streaming: bool = False
         self._data_dir: Path = Path(data_dir)
+        self._thread: Optional[threading.Thread] = None
 
     def __del__(self):
         self.stop_stream()
@@ -115,7 +119,7 @@ class DeviceManager:
 
     def discover_devices(self):
         "Walk COM ports to discover Yost devices"
-        self.close_devices()
+        self.close_all_devices()
 
         dongles, all_sensors, wired_sensors, wireless_sensors = discover_all_devices()
         self.dongles = dongles
@@ -130,10 +134,11 @@ class DeviceManager:
         return sensor_names
 
     def start_stream(self, queue: Queue, fname: Optional[str] = None):
-        if len(self.all_sensors) == 0:
+        if not self.has_sensors():
+            _print("No sensors found. Aborting stream")
             return
+
         _print("Setting up stream")
-        self._queue = queue
 
         ### We use the threespace_api to setup/read/stop streaming for wired sensors
         ### For wireless sensors + dongles, we communicate with the dongle serial port directly
@@ -188,6 +193,10 @@ class DeviceManager:
         # Orientation in Euler angles given in (pitch, yaw, roll)
 
         def handle_stream():
+            """
+            Handle reading batch data from sensors and putting them into the queue
+            Should execute in a new thread
+            """
             i = 0
             start_time = default_timer()
 
@@ -221,7 +230,7 @@ class DeviceManager:
                                 roll=b[2],
                                 battery=b[3],
                                 t=now,
-                                name='{0:08X}'.format(port.wl_mp[logical_id])
+                                name="{0:08X}".format(port.wl_mp[logical_id]),
                             )
                             queue.put(packet)
                             i += 1
@@ -248,15 +257,16 @@ class DeviceManager:
                 # recreate dongles
                 [recreate_dongle_obj(name) for name in port_names]
 
-        self._thread = threading.Thread(target=handle_stream)
         self._streaming = True
+        self._thread = threading.Thread(target=handle_stream)
         self._thread.start()
 
     def stop_stream(self):
         _print("Stopping stream")
-        if self._streaming:
+        if self._thread and self._streaming:
             self._streaming = False
             self._thread.join(timeout=1)
+            self._thread = None
         _print("Stream stopped")
 
     def tare_all_devices(self):
@@ -290,7 +300,7 @@ class DeviceManager:
         rm_from_dict(ts_api.global_sensorlist)
         rm_from_dict(ts_api.global_donglist)
 
-    def close_devices(self):
+    def close_all_devices(self):
         "close all ports"
         for device in self.all_sensors:
             device.close()
@@ -304,7 +314,7 @@ class DeviceManager:
         ts_api.global_sensorlist = {}
 
     def __del__(self):
-        self.close_devices()
+        self.close_all_devices()
 
 
 if __name__ == "__main__":
