@@ -1,4 +1,5 @@
 from typing import List, NamedTuple, Optional, Tuple
+from pathlib import Path
 from queue import Queue
 from timeit import default_timer
 import struct
@@ -81,9 +82,9 @@ def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorLi
 
 
 class Packet(NamedTuple):
-    roll: float
     pitch: float
     yaw: float
+    roll: float
     battery: int
     t: float  # time
     name: str  # device name
@@ -95,14 +96,14 @@ class DeviceManager:
     Should only be instantiated once and used as a singleton, though this is not enforced.
     """
 
-    def __init__(self):
+    def __init__(self, data_dir: str | Path = "data"):
         self.dongles: DongleList = []
         self.all_sensors: SensorList = []
         self.wired_sensors: SensorList = []
         self.wireless_sensors: SensorList = []
 
         self._streaming: bool = False
-        self._save_file: Optional[str] = None
+        self._data_dir: Path = Path(data_dir)
 
     def __del__(self):
         self.stop_stream()
@@ -124,7 +125,11 @@ class DeviceManager:
 
         _print(self.status())
 
-    def start_stream(self, queue: Queue, save_file: Optional[str] = None):
+    def get_sensor_names(self) -> List[str]:
+        sensor_names = [s.serial_number_hex for s in self.all_sensors]
+        return sensor_names
+
+    def start_stream(self, queue: Queue, fname: Optional[str] = None):
         if len(self.all_sensors) == 0:
             return
         _print("Setting up stream")
@@ -180,27 +185,29 @@ class DeviceManager:
 
         _print("Start streaming")
 
+        # Orientation in Euler angles given in (pitch, yaw, roll)
+
         def handle_stream():
             i = 0
             start_time = default_timer()
 
             try:
                 while self._streaming:
-                    res: List[Packet] = []
                     now = default_timer()
 
                     # read streaming batch from wired sensors
                     for sensor in self.wired_sensors:
                         b = sensor.getStreamingBatch()
                         packet = Packet(
-                            roll=b[0],
-                            pitch=b[1],
-                            yaw=b[2],
+                            pitch=b[0],
+                            yaw=b[1],
+                            roll=b[2],
                             battery=b[3],
                             t=now,
                             name=sensor.serial_number_hex,
                         )
-                        res.append(packet)
+                        queue.put(packet)
+                        i += 1
 
                     # read streaming batch from wireless sensors through
                     # a dongle's serial port
@@ -209,23 +216,20 @@ class DeviceManager:
                         if failed == 0 and len(raw) == 13:
                             b = struct.unpack(">fffB", raw)
                             packet = Packet(
-                                roll=b[0],
-                                pitch=b[1],
-                                yaw=b[2],
+                                pitch=b[0],
+                                yaw=b[1],
+                                roll=b[2],
                                 battery=b[3],
                                 t=now,
-                                name=hex(port.wl_mp[logical_id]),
+                                name='{0:08X}'.format(port.wl_mp[logical_id])
                             )
-                            res.append(packet)
-
-                    if res:
-                        for packet in res:
                             queue.put(packet)
-                        i += len(res)
-                        if i % 1000 == 0:
-                            fps = i / (now - start_time)
-                            start_time, i = now, 0
-                            _print("Data rate:", fps)
+                            i += 1
+
+                    if i % 2000 == 0:
+                        fps = i / (now - start_time)
+                        start_time, i = now, 0
+                        _print("Data rate:", fps)
             except Exception as e:
                 _print("[Streaming loop exception]", e)
             except KeyboardInterrupt as e:

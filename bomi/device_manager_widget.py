@@ -2,13 +2,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from queue import Queue
 from typing import Callable, Dict, List, Optional, TypeVar
+import traceback
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
 import pyqtgraph as pg
 
-from bomi.device_manager import DeviceManager, DeviceT
+from bomi.device_manager import DeviceManager, DeviceT, Packet
 from bomi.scope_widget import ScopeWidget
 from bomi.window_mixin import WindowMixin
 
@@ -210,12 +211,19 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
                 "No sensors available. Plug in the devices, then click on 'Discover devices'"
             )
 
-        queue = Queue()
+        queue: Queue[Packet] = Queue()
+        names = dm.get_sensor_names()
         dm.start_stream(queue)
 
         ## Start scope here.
-        self._sw = sw = ScopeWidget(queue=queue, close_callbacks=[dm.stop_stream])
-        sw.show()
+        try:
+            self._sw = sw = ScopeWidget(
+                queue=queue, device_names=names, close_callbacks=[dm.stop_stream]
+            )
+            sw.show()
+        except Exception as e:
+            _print(traceback.format_exc())
+            dm.stop_stream()
 
     @qc.Slot()
     def s_disconnect_all(self):
