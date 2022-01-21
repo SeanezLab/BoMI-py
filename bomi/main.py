@@ -12,6 +12,7 @@ from bomi.painter_widget import PainterWidget
 from bomi.reaching_widget import ReachingWidget
 from bomi.sample_3d_widget import Sample3DWidget
 from bomi.sample_plot_widget import SamplePlotWidget
+from bomi.start_react_widget import StartReactWidget
 from bomi.window_mixin import WindowMixin
 from bomi.version import __version__
 
@@ -62,8 +63,17 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         dm_widget = DeviceManagerWidget(self._device_manager)
         cal_group_layout.addWidget(dm_widget)
 
-        ### Task group
-        task_group = qw.QGroupBox("Tasks")
+        ### StartReact Group
+        sr_groupbox = qw.QGroupBox("Start React")
+        main_layout.addWidget(sr_groupbox)
+        sr_layout = qw.QGridLayout()
+        sr_groupbox.setLayout(sr_layout)
+
+        sr_w = StartReactWidget(self._device_manager)
+        sr_layout.addWidget(sr_w)
+
+        ### Cursor Task group
+        task_group = qw.QGroupBox("Cursor Tasks")
         main_layout.addWidget(task_group)
         task_group_layout = qw.QGridLayout()
         task_group.setLayout(task_group_layout)

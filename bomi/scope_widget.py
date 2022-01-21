@@ -123,11 +123,11 @@ class ScopeWidget(qw.QWidget):
         # Start timer
         self._running = False
         self.timer = qc.QTimer()
-        self.timer.setInterval(30)
-        self.timer.timeout.connect(self.update3)
+        self.timer.setInterval(20)
+        self.timer.timeout.connect(self.updatePlot)
         self.timer.start(0)
 
-    def update3(self):
+    def updatePlot(self):
         dims = self.n_dims
         q = self.queue
         qsize = q.qsize()

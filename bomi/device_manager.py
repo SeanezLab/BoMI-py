@@ -229,7 +229,7 @@ class DeviceManager:
                     if i % 2000 == 0:
                         fps = i / (now - start_time)
                         start_time, i = now, 0
-                        _print("Data rate:", fps)
+                        _print(f"Throughput: {fps:.2f} packets/sec")
             except Exception as e:
                 _print("[Streaming loop exception]", e)
             except KeyboardInterrupt as e:

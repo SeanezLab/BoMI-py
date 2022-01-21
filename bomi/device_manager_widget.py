@@ -143,8 +143,8 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
         btn1.clicked.connect(self.s_tare_all)
         layout.addWidget(btn1)
 
-        btn1 = qw.QPushButton(text="Stream data")
-        btn1.clicked.connect(self.s_stream_data)
+        btn1 = qw.QPushButton(text="Data Charts")
+        btn1.clicked.connect(self.s_data_charts)
         layout.addWidget(btn1)
 
         btn1 = qw.QPushButton(text="Commit all settings")
@@ -200,11 +200,11 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_commit_all(self):
-        for dev in self._dm.wired_sensors:
+        for dev in self._dm.wired_sensors + self._dm.dongles:
             dev.commitSettings()
 
     @qc.Slot()
-    def s_stream_data(self):
+    def s_data_charts(self):
         dm = self._dm
         if not dm.has_sensors():
             return self.error_dialog(
