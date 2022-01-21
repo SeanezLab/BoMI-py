@@ -72,13 +72,21 @@ class ScopeWidget(qw.QWidget):
         super().__init__()
         self.dm: DeviceManager = device_manager
 
+    def show(self) -> None:
+        self.init_data()
+        self.init_ui()
+        return super().show()
+
+    def init_data(self):
         ### data
         self.dims = 2
         self.queue: Queue[Packet] = Queue()
-        self.dev_names: List[str] = device_manager.get_sensor_names()
+        self.dev_names: List[str] = self.dm.get_all_sensor_names()
+        self.dev_sn: List[str] = self.dm.get_all_sensor_serial()
         self.init_bufsize = 2000
         self.buffers = init_buffers(self.dev_names, self.init_bufsize, self.dims)
 
+    def init_ui(self):
         ### Init UI
         main_layout = qw.QHBoxLayout()
         self.setLayout(main_layout)
@@ -112,18 +120,21 @@ class ScopeWidget(qw.QWidget):
 
         self.plots: Dict[str, pg.PlotItem | pg.ViewBox] = {}
         self.curves: Dict[str, List[pg.PlotCurveItem]] = {}
-        for i, name in enumerate(self.dev_names):
+        for i, (name, sn) in enumerate(zip(self.dev_names, self.dev_sn)):
             self.plots[name] = plot = glw.addPlot(row=i + 1, col=0)
             plot.setXRange(-5, 0)
             plot.setYRange(-np.pi, np.pi)
             plot.setLabel("bottom", "Time", units="s")
             plot.setLabel("left", "Euler Angle", units="rad")
-            plot.setTitle(name)
+            if name == sn:
+                plot.setTitle(f"{sn}")
+            else:
+                plot.setTitle(f"{sn} ({name})")
             plot.setDownsampling(mode="peak")
 
             self.curves[name] = _init_curves(plot)
 
-        # Start timer
+        # init timer
         self.timer = qc.QTimer()
         self.timer.setInterval(20)
         self.timer.timeout.connect(self.updatePlot)

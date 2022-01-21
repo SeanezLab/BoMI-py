@@ -19,6 +19,8 @@ def _print(*args):
     print("[Device Manager]", *args)
 
 
+HEX = "{0:08X}"
+
 get_time = default_timer
 DeviceT = ts_api.TSDongle | ts_api._TSSensor
 DeviceList = List[DeviceT]
@@ -34,7 +36,7 @@ class Packet(NamedTuple):
     roll: float
     battery: int
     t: float  # time
-    name: str  # device name
+    name: str  # device nickname
 
 
 def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorList]:
@@ -109,6 +111,9 @@ class DeviceManager:
         self._data_dir: Path = Path(data_dir)
         self._thread: Optional[threading.Thread] = None
 
+        # Mapping[serial_number_hex, nickname]. Nickname defaults to serial_number_hex
+        self._names: Dict[str, str] = {}
+
     def __del__(self):
         self.stop_stream()
 
@@ -126,12 +131,28 @@ class DeviceManager:
         self.all_sensors = all_sensors
         self.wired_sensors = wired_sensors
         self.wireless_sensors = wireless_sensors
+        for dev in dongles + all_sensors:
+            if not dev.serial_number_hex in self._names:
+                self._names[dev.serial_number_hex] = dev.serial_number_hex
 
         _print(self.status())
 
-    def get_sensor_names(self) -> List[str]:
-        sensor_names = [s.serial_number_hex for s in self.all_sensors]
-        return sensor_names
+    def get_all_sensor_serial(self) -> List[str]:
+        "Get serial_number_hex of all sensors"
+        return [s.serial_number_hex for s in self.all_sensors]
+
+    def get_all_sensor_names(self) -> List[str]:
+        "Get nickname of all sensors"
+        return [self._names[s.serial_number_hex] for s in self.all_sensors]
+
+    def get_device_name(self, serial_number_hex: str) -> str | None:
+        "Get the nickname of a device"
+        return self._names.get(serial_number_hex)
+
+    def set_device_name(self, serial_number_hex: str, name: str):
+        "Set the nickname of a device"
+        _print(f"{serial_number_hex} nicknamed {name}")
+        self._names[serial_number_hex] = name
 
     def start_stream(self, queue: Queue, fname: Optional[str] = None):
         if not self.has_sensors():
@@ -152,13 +173,13 @@ class DeviceManager:
 
         port_names: List[str] = []
         ports: List[serial.Serial] = []
-        wl_ids = [s.serial_number for s in self.wireless_sensors]
+        wl_ids = [s.serial_number for s in self.wireless_sensors]  # List[serial_number]
         for dongle in self.dongles:
-            wl_mp = {}
+            wl_mp: Dict[int, str] = {}  # Dict[logical_id, device_name]
             for wl_id in wl_ids:
                 if wl_id in dongle.wireless_table:
                     idx = dongle.wireless_table.index(wl_id)
-                    wl_mp[idx] = wl_id
+                    wl_mp[idx] = self.get_device_name(HEX.format(wl_id))
 
             port_name = dongle.serial_port.name
             port_names.append(port_name)
@@ -213,7 +234,7 @@ class DeviceManager:
                             roll=b[2],
                             battery=b[3],
                             t=now,
-                            name=sensor.serial_number_hex,
+                            name=self._names[sensor.serial_number_hex],
                         )
                         queue.put(packet)
                         i += 1
@@ -230,7 +251,7 @@ class DeviceManager:
                                 roll=b[2],
                                 battery=b[3],
                                 t=now,
-                                name="{0:08X}".format(port.wl_mp[logical_id]),
+                                name=port.wl_mp[logical_id],
                             )
                             queue.put(packet)
                             i += 1
