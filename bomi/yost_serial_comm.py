@@ -90,11 +90,16 @@ def start_dongle_streaming(port: serial.Serial, logical_ids):
         )
         read_dongle_port(port)
 
-        # start streaming
+    # start streaming
+    for logical_id in logical_ids:
         write_dongle_port(port, chr(85), logical_id=logical_id)
+    
+    for _ in logical_ids:
         read_dongle_port(port)
 
 
 def stop_dongle_streaming(port: serial.Serial, logical_ids):
     for logical_id in logical_ids:
         write_dongle_port(port, chr(86), logical_id=logical_id)
+    for _ in logical_ids:
+        read_dongle_port(port)

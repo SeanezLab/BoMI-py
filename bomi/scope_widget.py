@@ -145,8 +145,9 @@ class ScopeWidget(qw.QWidget):
         """Start the stream and show in the scope
         Recreate the queue and buffers
         """
-        self.queue = Queue()
-        self.buffers = init_buffers(self.dev_names, self.init_bufsize, self.dims)
+        self.init_data()
+        # self.queue = Queue()
+        # self.buffers = init_buffers(self.dev_names, self.init_bufsize, self.dims)
         self.dm.start_stream(self.queue)
         self.timer.start(0)
 

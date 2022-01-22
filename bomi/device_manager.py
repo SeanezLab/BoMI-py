@@ -3,6 +3,7 @@ from pathlib import Path
 from queue import Queue
 from timeit import default_timer
 import struct
+import time
 import threading
 from serial.serialutil import SerialException
 import serial
@@ -166,15 +167,13 @@ class DeviceManager:
 
         ### Setup streaming for wireless sensors
         # As a workaround, destroy the TSDongle objects and create our own serial port
-        # In the end of the streaming loop, recreate the TSDongle object
-        def recreate_dongle_obj(port_name: str):
-            dongle = ts_api.TSDongle(com_port=port_name)
-            self.dongles.append(dongle)
-
+        # In the end of the streaming loop, recreate the TSDongle object by rediscovering devices
         port_names: List[str] = []
         ports: List[serial.Serial] = []
         wl_ids = [s.serial_number for s in self.wireless_sensors]  # List[serial_number]
-        for dongle in self.dongles:
+
+        while self.dongles:
+            dongle = self.dongles.pop()
             wl_mp: Dict[int, str] = {}  # Dict[logical_id, device_name]
             for wl_id in wl_ids:
                 if wl_id in dongle.wireless_table:
@@ -275,8 +274,8 @@ class DeviceManager:
                     port.close()
                     del port
 
-                # recreate dongles
-                [recreate_dongle_obj(name) for name in port_names]
+                time.sleep(0.5)
+                self.discover_devices()
 
         self._streaming = True
         self._thread = threading.Thread(target=handle_stream)
@@ -286,7 +285,7 @@ class DeviceManager:
         _print("Stopping stream")
         if self._thread and self._streaming:
             self._streaming = False
-            self._thread.join(timeout=1)
+            self._thread.join()
             self._thread = None
         _print("Stream stopped")
 
@@ -315,8 +314,8 @@ class DeviceManager:
         rm_from_lst(self.wireless_sensors)
 
         def rm_from_dict(d):
-            if device in d:
-                del d[device]
+            if device.serial_number in d:
+                del d[device.serial_number]
 
         rm_from_dict(ts_api.global_sensorlist)
         rm_from_dict(ts_api.global_donglist)
