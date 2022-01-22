@@ -153,6 +153,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         )
         self._target_base: qc.QPoint = center
         self._targets: List[qc.QPoint] = targets
+        self._targets_uniq: List[qc.QPoint] = list(set(targets))
 
         ### Current target states
         # updated only by `_update_reaching_state` and `_move_target`
@@ -186,8 +187,7 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         popup.setLayout(layout)
 
         instructions = qw.QLabel(
-            "A target will be randomly generated on screen. "
-            "Move the cursor inside the target as quickly as possible. "
+            "Move the cursor inside the GREEN target as quickly as possible."
         )
         instructions.setFont(qg.QFont("Arial", 14))
         instructions.setWordWrap(True)
@@ -253,25 +253,6 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         h = self._task_history
 
         self.begin_task("Good job! Restart?")
-        # popup = qw.QWidget(self, Qt.SplashScreen | Qt.WindowStaysOnTopHint)
-        # popup.installEventFilter(self)
-        # layout = qw.QVBoxLayout()
-        # popup.setLayout(layout)
-
-        # l1 = qw.QLabel("Task Finished!")
-        # layout.addWidget(l1)
-        # l1.setFont(qg.QFont("Arial", 18))
-        # l1.setFrameStyle(qw.QLabel.Panel)
-        # l1.setAlignment(Qt.AlignCenter)
-
-        # def restart():
-        # popup.close()
-        # self.begin_task()
-
-        # qc.QTimer.singleShot(3000, restart)
-
-        # popup.setFixedSize(200, 100)
-        # popup.show()
 
     @staticmethod
     def generate_targets(n_targets=8, n_reps=3) -> Tuple[qc.QPoint, List[qc.QPoint]]:
@@ -301,15 +282,21 @@ class ReachingWidget(qw.QWidget, ReachingParams):
         # qg.QCursor.setPos(self._target_base)  # move mouse to the base
 
     def paintEvent(self, event: qg.QPaintEvent):
+        painter = qg.QPainter(self)
+        painter.setRenderHint(qg.QPainter.Antialiasing)
+        painter.setPen(qg.QPen(Qt.darkGray, 3))
+        painter.setBrush(Qt.black)
+        r = self.TARGET_RADIUS
+        for t in self._targets_uniq:
+            painter.drawEllipse(t, r, r)
+        painter.drawEllipse(self._target_base, r, r)
+
         if self._running:
-            painter = qg.QPainter(self)
-            painter.setRenderHint(qg.QPainter.Antialiasing)
             # Paint target
             painter.setPen(qg.QPen(self._target_line_color, 3))
-            painter.setBrush(self._target_fill_color)
-            painter.drawEllipse(
-                self._target_center, self.TARGET_RADIUS, self.TARGET_RADIUS
-            )
+            # painter.setBrush(self._target_fill_color)
+            painter.setBrush(self._target_line_color)
+            painter.drawEllipse(self._target_center, r, r)
             # # Paint cursor
             # painter.setBrush(self.CURSOR_COLOR)
             # painter.drawEllipse(self._cursor_pos, 5, 5)
