@@ -9,10 +9,10 @@ import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
 import pyqtgraph as pg
 import numpy as np
-from bomi import device_manager
 
 from bomi.device_manager import DeviceManager, DeviceT, Packet
 from bomi.scope_widget import ScopeWidget
+from bomi.sr_precision_widget import SRPrecisionWidget
 from bomi.window_mixin import WindowMixin
 
 
@@ -53,7 +53,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
     def __init__(self, device_manager: DeviceManager):
         super().__init__()
-        self._dm = device_manager
+        self.dm = device_manager
 
         main_layout = qw.QVBoxLayout()
         self.setLayout(main_layout)
@@ -63,4 +63,5 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         main_layout.addWidget(btn1)
 
     def s_precision_task(self):
-        pass
+        self.srp = SRPrecisionWidget(self.dm)
+        self.srp.show()
