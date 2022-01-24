@@ -291,7 +291,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_commit_all(self):
-        for dev in self.dm.wired_sensors + self.dm.dongles:
+        for dev in self.dm.all_sensors + self.dm.dongles:
             dev.commitSettings()
 
     @qc.Slot()

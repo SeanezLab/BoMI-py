@@ -138,6 +138,11 @@ class DeviceManager:
 
         _print(self.status())
 
+        # Disable all compass (magnetometer) - not accurate
+        for sensor in self.all_sensors:
+            sensor.setCompassEnabled(False)
+        self.tare_all_devices()
+
     def get_all_sensor_serial(self) -> List[str]:
         "Get serial_number_hex of all sensors"
         return [s.serial_number_hex for s in self.all_sensors]
