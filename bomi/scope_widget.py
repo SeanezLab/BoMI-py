@@ -272,9 +272,9 @@ class ScopeWidget(qw.QWidget):
             plot: pg.PlotItem = glw.addPlot(row=i + 1, col=0, title=title)
             plot.addLegend(offset=(1, 1))
             plot.setXRange(-6, 0)
-            plot.setYRange(-np.pi, np.pi)
+            plot.setYRange(-180, 180)
             plot.setLabel("bottom", "Time", units="s")
-            plot.setLabel("left", "Euler Angle", units="rad")
+            plot.setLabel("left", "Euler Angle", units="deg")
             plot.setDownsampling(mode="peak")
             self.plot_handles[name] = PlotHandle.init(plot)
 
@@ -296,7 +296,7 @@ class ScopeWidget(qw.QWidget):
     def stop_stream(self):
         """Stop the data stream and update timer"""
         self.dm.stop_stream()
-        self.timer.stop()
+        hasattr(self, "timer") and self.timer.stop()
 
     def toggle_stream(self, on: bool):
         self.start_stream() if on else self.stop_stream()

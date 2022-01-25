@@ -1,25 +1,30 @@
 import struct
+import math
 import threading
 import time
 from pathlib import Path
 from queue import Queue
 from timeit import default_timer
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Final, List, Optional, Tuple
 
 import serial
 import threespace_api as ts_api
 from serial.serialutil import SerialException
 
 from bomi.datastructure import Packet
-from bomi.yost_serial_comm import (read_dongle_port, start_dongle_streaming,
-                                   stop_dongle_streaming)
+from bomi.yost_serial_comm import (
+    read_dongle_port,
+    start_dongle_streaming,
+    stop_dongle_streaming,
+)
 
 
 def _print(*args):
     print("[Device Manager]", *args)
 
 
-HEX = "{0:08X}"
+HEX: Final = "{0:08X}"
+RAD2DEG: Final = 180 / math.pi
 
 get_time = default_timer
 DeviceT = ts_api.TSDongle | ts_api._TSSensor
@@ -221,9 +226,9 @@ class DeviceManager:
                     for sensor in self.wired_sensors:
                         b = sensor.getStreamingBatch()
                         packet = Packet(
-                            pitch=b[0],
-                            yaw=b[1],
-                            roll=b[2],
+                            pitch=b[0] * RAD2DEG,
+                            yaw=b[1] * RAD2DEG,
+                            roll=b[2] * RAD2DEG,
                             battery=b[3],
                             t=now,
                             name=self._names[sensor.serial_number_hex],
@@ -238,9 +243,9 @@ class DeviceManager:
                         if failed == 0 and len(raw) == 13:
                             b = struct.unpack(">fffB", raw)
                             packet = Packet(
-                                pitch=b[0],
-                                yaw=b[1],
-                                roll=b[2],
+                                pitch=b[0] * RAD2DEG,
+                                yaw=b[1] * RAD2DEG,
+                                roll=b[2] * RAD2DEG,
                                 battery=b[3],
                                 t=now,
                                 name=port.wl_mp[logical_id],
