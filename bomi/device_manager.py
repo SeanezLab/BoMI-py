@@ -1,19 +1,18 @@
-from typing import Dict, List, NamedTuple, Optional, Tuple
+import struct
+import threading
+import time
 from pathlib import Path
 from queue import Queue
 from timeit import default_timer
-import struct
-import time
-import threading
-from serial.serialutil import SerialException
-import serial
+from typing import Dict, List, Optional, Tuple
 
+import serial
 import threespace_api as ts_api
-from bomi.yost_serial_comm import (
-    read_dongle_port,
-    start_dongle_streaming,
-    stop_dongle_streaming,
-)
+from serial.serialutil import SerialException
+
+from bomi.datastructure import Packet
+from bomi.yost_serial_comm import (read_dongle_port, start_dongle_streaming,
+                                   stop_dongle_streaming)
 
 
 def _print(*args):
@@ -27,17 +26,6 @@ DeviceT = ts_api.TSDongle | ts_api._TSSensor
 DeviceList = List[DeviceT]
 DongleList = List[ts_api.TSDongle]
 SensorList = List[ts_api._TSSensor]
-
-
-class Packet(NamedTuple):
-    """Packet represents one streaming batch from one sensor"""
-
-    pitch: float
-    yaw: float
-    roll: float
-    battery: int
-    t: float  # time
-    name: str  # device nickname
 
 
 def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorList]:
