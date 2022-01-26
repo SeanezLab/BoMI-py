@@ -1,13 +1,13 @@
 from __future__ import annotations
+from pickle import NONE
 
 import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Queue
 from timeit import default_timer
-from typing import ClassVar, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
-import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.parametertree as ptree
 import PySide6.QtCore as qc
@@ -37,6 +37,9 @@ COLORS = [
 
 PENS = [pg.mkPen(clr, width=2) for clr in COLORS]
 
+TARGET_PEN = NONE
+TARGET_BRUSH = pg.mkBrush(qg.QColor(25, 222, 193, 15))
+
 
 @dataclass
 class PlotHandle:
@@ -51,9 +54,9 @@ class PlotHandle:
     ) -> PlotHandle:
         "Create curves on the given plot object"
         # init curves
-        curves = [
-            plot.plot(pen=pen, name=name) for pen, name in zip(PENS, Buffer.labels)
-        ]
+        curves = []
+        for pen, name in zip(PENS, Buffer.labels):
+            curves.append(plot.plot(pen=pen, name=name))
 
         target = cls.init_target(plot, target_range) if target_range else None
 
@@ -70,9 +73,14 @@ class PlotHandle:
     ) -> pg.LinearRegionItem:
         # Target region
         target = pg.LinearRegionItem(
-            values=target_range, orientation="horizontal", movable=False
+            values=target_range,
+            orientation="horizontal",
+            movable=False,
+            brush=TARGET_BRUSH,
         )
-        pg.InfLineLabel(target.lines[1], "Target", position=0.05, anchor=(1, 1))
+        pg.InfLineLabel(
+            target.lines[0], "Target", position=0.05, anchor=(1, 1), color="k"
+        )
         plot.addItem(target)
         return target
 
@@ -82,6 +90,10 @@ class PlotHandle:
         self.target.lines[0].setValue(target_range[0])
         self.target.lines[1].setValue(target_range[1])
 
+    def update_target_color(self, *args, **argv):
+        if self.target:
+            self.target.setBrush(*args, **argv)
+
     def clear_target(self):
         self.plot.removeItem(self.target)
         self.target = None
@@ -89,11 +101,11 @@ class PlotHandle:
 
 @dataclass
 class ScopeConfig:
-    window_title = "Scope"
+    window_title: str = "Scope"
 
     target_show: bool = False
     target_range: Tuple[float, float] = (70, 80)
-    
+
     xrange: Tuple[float, float] = (-6, 0)
     yrange: Tuple[float, float] = (-180, 180)
 
@@ -193,39 +205,12 @@ class ScopeWidget(qw.QWidget):
             "show_rollpitch": "abs(roll) + abs(pitch)",
         }
 
-        def onPTChange(_, changes):
-            for param, change, data in changes:
-                name = param.name()
-
-                if name == "streaming":
-                    self.toggle_stream(data)
-                elif name in ("tmax", "tmin"):
-                    self.update_targets()
-                elif name == "tshow":
-                    if data == False:
-                        self.clear_targets()
-                    else:
-                        self.update_targets()
-
         def onShowHideChange(_, changes):
-            for param, change, show in changes:
+            for param, change, data in changes:
                 name = param.name()
                 if name in key2label:
                     name = key2label[name]
-                    i = Buffer.labels.index(name)
-                    if show and name not in self.show_labels:
-                        for dev in self.dev_names:
-                            handle = self.plot_handles[dev]
-                            handle.plot.addCurve(handle.curves[i])
-
-                        self.show_labels.append(name)
-
-                    if not show and name in self.show_labels:
-                        for dev in self.dev_names:
-                            handle = self.plot_handles[dev]
-                            handle.plot.removeItem(handle.curves[i])
-
-                        self.show_labels.remove(name)
+                    self.show_hide_curve(name, data)
 
         def updateTarget(_, val):
             # for "tshow", val is bool, for ("tmax", "tmin"), probably a value, but doesn't matter
@@ -234,7 +219,11 @@ class ScopeWidget(qw.QWidget):
             else:
                 self.clear_targets()
 
+        def toggle_stream(_, on: bool):
+            self.start_stream() if on else self.stop_stream()
+
         # self.params.sigTreeStateChanged.connect(onPTChange)
+        self.params.child("streaming").sigValueChanged.connect(toggle_stream)
         self.params.child("target", "tshow").sigValueChanged.connect(updateTarget)
         self.params.child("target", "tmax").sigValueChanged.connect(updateTarget)
         self.params.child("target", "tmin").sigValueChanged.connect(updateTarget)
@@ -257,6 +246,22 @@ class ScopeWidget(qw.QWidget):
         self.timer.setInterval(20)
         self.timer.timeout.connect(self.update)
 
+    def show_hide_curve(self, name: str, show: bool):
+        i = Buffer.labels.index(name)
+        if show and name not in self.show_labels:
+            for dev in self.dev_names:
+                handle = self.plot_handles[dev]
+                handle.plot.addCurve(handle.curves[i])
+
+            self.show_labels.append(name)
+
+        if not show and name in self.show_labels:
+            for dev in self.dev_names:
+                handle = self.plot_handles[dev]
+                handle.plot.removeItem(handle.curves[i])
+
+            self.show_labels.remove(name)
+
     def clear_targets(self):
         for name in self.dev_names:
             plot_handle = self.plot_handles[name]
@@ -276,8 +281,8 @@ class ScopeWidget(qw.QWidget):
 
     def get_target_range(self) -> Tuple[float, float]:
         return (
-            self.param_tmax.value(),
             self.param_tmin.value(),
+            self.param_tmax.value(),
         )
 
     def showEvent(self, event: qg.QShowEvent) -> None:
@@ -296,7 +301,9 @@ class ScopeWidget(qw.QWidget):
             self.queue.task_done()
         self.dev_names = self.dm.get_all_sensor_names()
         self.dev_sn = self.dm.get_all_sensor_serial()
-        self.buffers = Buffer.init_buffers(self.dev_names, self.init_bufsize, task_name=self.config.window_title)
+        self.buffers = Buffer.init_buffers(
+            self.dev_names, self.init_bufsize, task_name=self.config.window_title
+        )
 
     def init_ui(self):
         ### Init UI
@@ -329,6 +336,14 @@ class ScopeWidget(qw.QWidget):
         pt.setParameters(self.params)
         splitter.addWidget(pt)
 
+        # apply current config
+        config = self.config
+        config.target_show and self.update_targets()
+        config.show_roll or self.show_hide_curve("Roll", False)
+        config.show_pitch or self.show_hide_curve("Pitch", False)
+        config.show_yaw or self.show_hide_curve("Yaw", False)
+        config.show_rollpitch or self.show_hide_curve("abs(roll) + abs(pitch)", False)
+
         self.start_stream()
 
     def start_stream(self):
@@ -343,9 +358,6 @@ class ScopeWidget(qw.QWidget):
         """Stop the data stream and update timer"""
         self.dm.stop_stream()
         hasattr(self, "timer") and self.timer.stop()
-
-    def toggle_stream(self, on: bool):
-        self.start_stream() if on else self.stop_stream()
 
     def update(self):
         """Update function connected to the timer
