@@ -15,6 +15,7 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 from pyqtgraph.parametertree.parameterTypes import ActionParameter
+from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.datastructure import Buffer, Packet
 from bomi.device_manager import DeviceManager
@@ -92,6 +93,9 @@ class ScopeConfig:
 
     target_show: bool = False
     target_range: Tuple[float, float] = (70, 80)
+    
+    xrange: Tuple[float, float] = (-6, 0)
+    yrange: Tuple[float, float] = (-180, 180)
 
     show_roll: bool = True
     show_pitch: bool = True
@@ -106,6 +110,7 @@ class ScopeWidget(qw.QWidget):
         super().__init__()
         self.dm: DeviceManager = device_manager
         self.setWindowTitle(config.window_title)
+        self.config = config
 
         self.show_labels = list(Buffer.labels)
         self.queue: Queue[Packet] = Queue()
@@ -116,69 +121,69 @@ class ScopeWidget(qw.QWidget):
         self.buffers: Dict[str, Buffer] = {}
 
         ### Parameter tree
-        children = [
-            dict(name="streaming", title="Streaming", type="bool", value=True),
-            ActionParameter(name="tare", title="Tare"),
-            dict(
-                name="target",
-                title="Target",
-                type="group",
-                children=[
-                    dict(
-                        name="tshow",
-                        title="Show",
-                        type="bool",
-                        value=config.target_show,
-                    ),
-                    dict(
-                        name="tmax",
-                        title="Max",
-                        type="float",
-                        value=config.target_range[1],
-                    ),
-                    dict(
-                        name="tmin",
-                        title="Min",
-                        type="float",
-                        value=config.target_range[0],
-                    ),
-                ],
-            ),
-            dict(
-                name="show",
-                title="Show",
-                type="group",
-                children=[
-                    dict(
-                        name="show_roll",
-                        title="Show roll",
-                        type="bool",
-                        value=config.show_roll,
-                    ),
-                    dict(
-                        name="show_pitch",
-                        title="Show pitch",
-                        type="bool",
-                        value=config.show_pitch,
-                    ),
-                    dict(
-                        name="show_yaw",
-                        title="Show yaw",
-                        type="bool",
-                        value=config.show_yaw,
-                    ),
-                    dict(
-                        name="show_rollpitch",
-                        title="Show abs(roll) + abs(pitch)",
-                        type="bool",
-                        value=config.show_rollpitch,
-                    ),
-                ],
-            ),
-        ]
-
         self.params: ptree.Parameter = ptree.Parameter.create(
-            name="Controls", type="group", children=children
+            name="Controls",
+            type="group",
+            children=[
+                dict(name="streaming", title="Streaming", type="bool", value=True),
+                ActionParameter(name="tare", title="Tare"),
+                dict(
+                    name="target",
+                    title="Target",
+                    type="group",
+                    children=[
+                        dict(
+                            name="tshow",
+                            title="Show",
+                            type="bool",
+                            value=config.target_show,
+                        ),
+                        dict(
+                            name="tmax",
+                            title="Max",
+                            type="float",
+                            value=config.target_range[1],
+                        ),
+                        dict(
+                            name="tmin",
+                            title="Min",
+                            type="float",
+                            value=config.target_range[0],
+                        ),
+                    ],
+                ),
+                dict(
+                    name="show",
+                    title="Show",
+                    type="group",
+                    children=[
+                        dict(
+                            name="show_roll",
+                            title="Show roll",
+                            type="bool",
+                            value=config.show_roll,
+                        ),
+                        dict(
+                            name="show_pitch",
+                            title="Show pitch",
+                            type="bool",
+                            value=config.show_pitch,
+                        ),
+                        dict(
+                            name="show_yaw",
+                            title="Show yaw",
+                            type="bool",
+                            value=config.show_yaw,
+                        ),
+                        dict(
+                            name="show_rollpitch",
+                            title="Show abs(roll) + abs(pitch)",
+                            type="bool",
+                            value=config.show_rollpitch,
+                        ),
+                    ],
+                ),
+            ],
         )
 
         key2label = {  # map from config name to the corresponding Buffer.labels
@@ -202,26 +207,43 @@ class ScopeWidget(qw.QWidget):
                     else:
                         self.update_targets()
 
-                elif name in key2label:
-                    handleShowHideCurves(key2label[name], data)
+        def onShowHideChange(_, changes):
+            for param, change, show in changes:
+                name = param.name()
+                if name in key2label:
+                    name = key2label[name]
+                    i = Buffer.labels.index(name)
+                    if show and name not in self.show_labels:
+                        for dev in self.dev_names:
+                            handle = self.plot_handles[dev]
+                            handle.plot.addCurve(handle.curves[i])
 
-        def handleShowHideCurves(name: str, show: bool):
-            i = Buffer.labels.index(name)
-            if show and name not in self.show_labels:
-                for dev in self.dev_names:
-                    handle = self.plot_handles[dev]
-                    handle.plot.addCurve(handle.curves[i])
+                        self.show_labels.append(name)
 
-                self.show_labels.append(name)
+                    if not show and name in self.show_labels:
+                        for dev in self.dev_names:
+                            handle = self.plot_handles[dev]
+                            handle.plot.removeItem(handle.curves[i])
 
-            if not show and name in self.show_labels:
-                for dev in self.dev_names:
-                    handle = self.plot_handles[dev]
-                    handle.plot.removeItem(handle.curves[i])
+                        self.show_labels.remove(name)
 
-                self.show_labels.remove(name)
+        def updateTarget(_, val):
+            # for "tshow", val is bool, for ("tmax", "tmin"), probably a value, but doesn't matter
+            if val:
+                self.update_targets()
+            else:
+                self.clear_targets()
 
-        self.params.sigTreeStateChanged.connect(onPTChange)
+        # self.params.sigTreeStateChanged.connect(onPTChange)
+        self.params.child("target", "tshow").sigValueChanged.connect(updateTarget)
+        self.params.child("target", "tmax").sigValueChanged.connect(updateTarget)
+        self.params.child("target", "tmin").sigValueChanged.connect(updateTarget)
+        self.params.child("show").sigTreeStateChanged.connect(onShowHideChange)
+
+        # keep references of these params for more efficient query
+        self.param_tshow: Parameter = self.params.child("target", "tshow")
+        self.param_tmax: Parameter = self.params.child("target", "tmax")
+        self.param_tmin: Parameter = self.params.child("target", "tmin")
 
         def tare():
             with pg.BusyCursor():
@@ -247,17 +269,16 @@ class ScopeWidget(qw.QWidget):
         for name in self.dev_names:
             plot_handle = self.plot_handles[name]
             plot_handle.update_target(target_range)
+            self.buffers[name].move_target(default_timer(), *target_range)
 
     def get_target_show(self) -> bool:
-        return self.params.child("target").child("tshow").value()
+        return self.param_tshow.value()
 
     def get_target_range(self) -> Tuple[float, float]:
-        targ_param = self.params.child("target")
-        target_range = (
-            targ_param.child("tmax").value(),
-            targ_param.child("tmin").value(),
+        return (
+            self.param_tmax.value(),
+            self.param_tmin.value(),
         )
-        return target_range
 
     def showEvent(self, event: qg.QShowEvent) -> None:
         """Override showEvent to initialise data params and UI after the window is shown.
@@ -275,7 +296,7 @@ class ScopeWidget(qw.QWidget):
             self.queue.task_done()
         self.dev_names = self.dm.get_all_sensor_names()
         self.dev_sn = self.dm.get_all_sensor_serial()
-        self.buffers = Buffer.init_buffers(self.dev_names, self.init_bufsize)
+        self.buffers = Buffer.init_buffers(self.dev_names, self.init_bufsize, task_name=self.config.window_title)
 
     def init_ui(self):
         ### Init UI
@@ -290,15 +311,17 @@ class ScopeWidget(qw.QWidget):
 
         ### Init Plots
         self.plot_handles: Dict[str, PlotHandle] = {}
+        plot_style = {"color": "k"}
         for i, (name, sn) in enumerate(zip(self.dev_names, self.dev_sn)):
-            title = f"{sn}" if name == sn else f"{sn} ({name})"
-            plot: pg.PlotItem = glw.addPlot(row=i + 1, col=0, title=title)
-            plot.addLegend(offset=(1, 1))
-            plot.setXRange(-6, 0)
-            plot.setYRange(-180, 180)
-            plot.setLabel("bottom", "Time", units="s")
-            plot.setLabel("left", "Euler Angle", units="deg")
+            plot: pg.PlotItem = glw.addPlot(row=i + 1, col=0)
+            plot.addLegend(offset=(1, 1), **plot_style)
+            plot.setXRange(*self.config.xrange)
+            plot.setYRange(*self.config.yrange)
+            plot.setLabel("bottom", "Time", units="s", **plot_style)
+            plot.setLabel("left", "Euler Angle", units="deg", **plot_style)
             plot.setDownsampling(mode="peak")
+            title = f"{sn}" if name == sn else f"{sn} ({name})"
+            plot.setTitle(title, **plot_style)
             self.plot_handles[name] = PlotHandle.init(plot)
 
         # Create param tree
@@ -337,7 +360,7 @@ class ScopeWidget(qw.QWidget):
             for _ in range(qsize):  # process current items in queue
                 packet: Packet = q.get()
                 q.task_done()  # not using queue.join() anywhere so this doesn't matter
-                self.buffers[packet.name].add(packet)
+                self.buffers[packet.name].add_packet(packet)
 
         except Exception as e:
             _print("[Update Exception]", traceback.format_exc())

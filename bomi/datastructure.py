@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import ClassVar, Dict, List, NamedTuple, TextIO
 
@@ -8,7 +9,7 @@ import numpy as np
 
 
 class Packet(NamedTuple):
-    """Packet represents one streaming batch from one sensor"""
+    """Packet represents one streaming batch from one Yost sensor"""
 
     pitch: float
     yaw: float
@@ -18,47 +19,93 @@ class Packet(NamedTuple):
     name: str  # device nickname
 
 
-@dataclass
+DATA_ROOT = Path.home() / "Documents" / "BoMI Data"
+DATA_ROOT.mkdir(exist_ok=True)
+
+
+class StartReactEvent(Enum):
+    visual = 1
+    visual_auditory = 2
+    visual_startle = 3
+
+
+class TaskEventFmt:
+    target_moved = "target_moved t={t} tmin={tmin} tmax={tmax}"
+
+    visual = "visual_signal t={t}"
+    visual_auditory = "visual_auditory_signal t={t}"
+    visual_startle = "visual_startle_signal t={t}"
+
+
+@dataclass(slots=True)
 class Buffer:
     """Manage all data (packets) consumed from the queue"""
 
+    # Sensor data
     labels: ClassVar = ("Roll", "Pitch", "Yaw", "abs(roll) + abs(pitch)")
-
     ptr: int
+    buf_size: int
     timestamp: np.array  # 1D array of timestamps
     data: np.array  # 2D array of (roll, pitch, yaw)
-    fp: TextIO  # filepointer to write CSV data to
+    sensor_fp: TextIO  # filepointer to write CSV data to
 
-    INITIAL_BUF_SIZE: int
+    # task data
+    task_history: TextIO  # filepointer to write task history
 
     @classmethod
-    def init(cls, initial_buf_size: int, name: str = "") -> Buffer:
-        timestamp = np.zeros(initial_buf_size)
-        buf = np.zeros((initial_buf_size, len(cls.labels)))
+    def init(cls, buf_size: int, savedir: Path, name: str) -> Buffer:
+        timestamp = np.zeros(buf_size)
+        buf = np.zeros((buf_size, len(cls.labels)))
 
-        datestr = datetime.now().strftime("%Y-%m-%d %H-%M-%S-%f")
-        fname = f"{datestr}_{name}.csv"
-        savedir = Path.home() / "Documents" / "BoMI Data"
-        savedir.mkdir(exist_ok=True)
-        print("Writing data to ", savedir / fname)
-        fp = open(savedir / fname, "w")
+        print("Writing data to ", savedir)
 
+        sensor_fp = open(savedir / f"sensor_{name}.csv", "w")
         header = ",".join(("t", *cls.labels)) + "\n"
-        fp.write(header)
+        sensor_fp.write(header)
+
+        task_history = open(savedir / f"task_history_{name}.csv", "w")
 
         return Buffer(
             ptr=0,
+            buf_size=buf_size,
             timestamp=timestamp,
             data=buf,
-            fp=fp,
-            INITIAL_BUF_SIZE=initial_buf_size,
+            sensor_fp=sensor_fp,
+            task_history=task_history,
         )
 
     @staticmethod
-    def init_buffers(names: List[str], bufsize: int) -> Dict[str, Buffer]:
-        return {dev: Buffer.init(initial_buf_size=bufsize, name=dev) for dev in names}
+    def init_buffers(
+        names: List[str], bufsize: int, task_name: str = ""
+    ) -> Dict[str, Buffer]:
+        """Create the save directory and return a dictionary of {name: Buffer}"""
+        datestr = datetime.now().strftime("%Y-%m-%d %H-%M-%S-%f")
+        savedir = DATA_ROOT / "_".join((datestr, task_name))
+        savedir.mkdir()
 
-    def add(self, packet: Packet):
+        bufs = {}
+        for dev in names:
+            bufs[dev] = Buffer.init(buf_size=bufsize, savedir=savedir, name=dev)
+
+        return bufs
+
+    def move_target(self, t: float, tmin: float, tmax: float):
+        s = TaskEventFmt.target_moved.format(t=t, tmin=tmin, tmax=tmax) + "\n"
+        self.task_history.write(s)
+
+    def start_react_signal(self, t: float, signal: StartReactEvent):
+        if signal == StartReactEvent.visual:
+            s = TaskEventFmt.visual.format(t=t)
+            self.task_history.write(s)
+        elif signal == StartReactEvent.visual_auditory:
+            s = TaskEventFmt.visual_auditory.format(t=t)
+            self.task_history.write(s)
+        elif signal == StartReactEvent.visual_startle:
+            s = TaskEventFmt.visual_startle.format(t=t)
+            self.task_history.write(s)
+
+    def add_packet(self, packet: Packet):
+        "Add `Packet` of sensor data"
         data, ts = self.data, self.timestamp
         _packet = (
             packet.roll,
@@ -68,11 +115,10 @@ class Buffer:
         )
 
         # Write to file pointer
-        self.fp.write(",".join((str(v) for v in (packet.t, *_packet))) + "\n")
-
+        self.sensor_fp.write(",".join((str(v) for v in (packet.t, *_packet))) + "\n")
 
         ### Shift buffer when full, never changing buffer size
-        if self.ptr >= self.INITIAL_BUF_SIZE:
+        if self.ptr >= self.buf_size:
             data[:-1] = data[1:]
             data[-1] = _packet
             ts[:-1] = ts[1:]
@@ -82,14 +128,8 @@ class Buffer:
             ts[self.ptr] = packet.t
             self.ptr += 1
 
-        # ### Add current packet to buffer, double buffer size if full
-        # data[self.ptr] = _packet
-        # ts[self.ptr] = packet.t
 
-        # self.ptr += 1
-        # l, dims = data.shape
-        # if self.ptr >= l:
-        # self.data = np.empty((l * 2, dims))
-        # self.data[:l] = data
-        # self.timestamp = np.empty(l * 2)
-        # self.timestamp[:l] = ts
+if __name__ == "__main__":
+    from dis import dis
+
+    dis(Packet)
