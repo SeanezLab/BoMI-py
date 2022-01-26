@@ -112,7 +112,7 @@ class ScopeWidget(qw.QWidget):
 
         self.dev_names: List[str] = []
         self.dev_sn: List[str] = []
-        self.init_bufsize = 2000
+        self.init_bufsize = 2500
         self.buffers: Dict[str, Buffer] = {}
 
         ### Parameter tree
@@ -260,6 +260,10 @@ class ScopeWidget(qw.QWidget):
         return target_range
 
     def showEvent(self, event: qg.QShowEvent) -> None:
+        """Override showEvent to initialise data params and UI after the window is shown.
+        This is because we need to know the number of sensors available to create the
+        same number of plots
+        """
         self.init_data()
         self.init_ui()
         return super().showEvent(event)
@@ -281,6 +285,7 @@ class ScopeWidget(qw.QWidget):
         main_layout.addWidget(splitter)
 
         self.glw = glw = pg.GraphicsLayoutWidget()
+        self.glw.setBackground("white")
         splitter.addWidget(glw)
 
         ### Init Plots

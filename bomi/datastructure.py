@@ -29,6 +29,8 @@ class Buffer:
     data: np.array  # 2D array of (roll, pitch, yaw)
     fp: TextIO  # filepointer to write CSV data to
 
+    INITIAL_BUF_SIZE: int
+
     @classmethod
     def init(cls, initial_buf_size: int, name: str = "") -> Buffer:
         timestamp = np.zeros(initial_buf_size)
@@ -44,7 +46,13 @@ class Buffer:
         header = ",".join(("t", *cls.labels)) + "\n"
         fp.write(header)
 
-        return Buffer(ptr=0, timestamp=timestamp, data=buf, fp=fp)
+        return Buffer(
+            ptr=0,
+            timestamp=timestamp,
+            data=buf,
+            fp=fp,
+            INITIAL_BUF_SIZE=initial_buf_size,
+        )
 
     @staticmethod
     def init_buffers(names: List[str], bufsize: int) -> Dict[str, Buffer]:
@@ -58,18 +66,30 @@ class Buffer:
             packet.yaw,
             abs(packet.roll) + abs(packet.pitch),
         )
-        data[self.ptr, :] = _packet
-        ts[self.ptr] = packet.t
 
-        self.fp.write(
-            ",".join((str(v) for v in (packet.t, *_packet))) + "\n"
-        )  # write to file pointer
+        # Write to file pointer
+        self.fp.write(",".join((str(v) for v in (packet.t, *_packet))) + "\n")
 
-        # Double buffer size if full
-        self.ptr += 1
-        l, dims = data.shape
-        if self.ptr >= l:
-            self.data = np.empty((l * 2, dims))
-            self.data[:l] = data
-            self.timestamp = np.empty(l * 2)
-            self.timestamp[:l] = ts
+
+        ### Shift buffer when full, never changing buffer size
+        if self.ptr >= self.INITIAL_BUF_SIZE:
+            data[:-1] = data[1:]
+            data[-1] = _packet
+            ts[:-1] = ts[1:]
+            ts[-1] = packet.t
+        else:
+            data[self.ptr] = _packet
+            ts[self.ptr] = packet.t
+            self.ptr += 1
+
+        # ### Add current packet to buffer, double buffer size if full
+        # data[self.ptr] = _packet
+        # ts[self.ptr] = packet.t
+
+        # self.ptr += 1
+        # l, dims = data.shape
+        # if self.ptr >= l:
+        # self.data = np.empty((l * 2, dims))
+        # self.data[:l] = data
+        # self.timestamp = np.empty(l * 2)
+        # self.timestamp[:l] = ts
