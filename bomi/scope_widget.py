@@ -98,6 +98,12 @@ class ScopeWidget(qw.QWidget):
         self.show_labels = list(Buffer.labels)
         self.queue: Queue[Packet] = Queue()
 
+        self.dev_names: List[str] = []
+        self.dev_sn: List[str] = []
+        self.init_bufsize = 2000
+        self.buffers: Dict[str, Buffer] = {}
+
+        ### Parameter tree
         children = [
             dict(name="streaming", title="Streaming", type="bool", value=True),
             ActionParameter(name="tare", title="Tare"),
@@ -163,7 +169,7 @@ class ScopeWidget(qw.QWidget):
             name="Controls", type="group", children=children
         )
 
-        key2label = {  # map from a config name to the corresponding Buffer.labels
+        key2label = {  # map from config name to the corresponding Buffer.labels
             "show_roll": "Roll",
             "show_pitch": "Pitch",
             "show_yaw": "Yaw",
@@ -212,6 +218,11 @@ class ScopeWidget(qw.QWidget):
 
         self.params.child("tare").sigActivated.connect(tare)
 
+        # init timer
+        self.timer = qc.QTimer()
+        self.timer.setInterval(20)
+        self.timer.timeout.connect(self.update)
+
     def clear_targets(self):
         for name in self.dev_names:
             plot_handle = self.plot_handles[name]
@@ -246,9 +257,8 @@ class ScopeWidget(qw.QWidget):
         while self.queue.qsize():
             self.queue.get()
             self.queue.task_done()
-        self.dev_names: List[str] = self.dm.get_all_sensor_names()
-        self.dev_sn: List[str] = self.dm.get_all_sensor_serial()
-        self.init_bufsize = 2000
+        self.dev_names = self.dm.get_all_sensor_names()
+        self.dev_sn = self.dm.get_all_sensor_serial()
         self.buffers = Buffer.init_buffers(self.dev_names, self.init_bufsize)
 
     def init_ui(self):
@@ -257,10 +267,6 @@ class ScopeWidget(qw.QWidget):
         self.setLayout(main_layout)
         splitter = qw.QSplitter()
         main_layout.addWidget(splitter)
-
-        pt = ptree.ParameterTree(showHeader=False)
-        pt.setParameters(self.params)
-        splitter.addWidget(pt)
 
         self.glw = glw = pg.GraphicsLayoutWidget()
         splitter.addWidget(glw)
@@ -278,10 +284,10 @@ class ScopeWidget(qw.QWidget):
             plot.setDownsampling(mode="peak")
             self.plot_handles[name] = PlotHandle.init(plot)
 
-        # init timer
-        self.timer = qc.QTimer()
-        self.timer.setInterval(20)
-        self.timer.timeout.connect(self.update)
+        # Create param tree
+        pt = ptree.ParameterTree(showHeader=False)
+        pt.setParameters(self.params)
+        splitter.addWidget(pt)
 
         self.start_stream()
 
