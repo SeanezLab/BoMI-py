@@ -237,13 +237,16 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
         btn1 = qw.QPushButton(text="Disconnect All")
         btn1.clicked.connect(self.s_disconnect_all)
         layout.addWidget(btn1)
-        
+
         ### Setup nickname callbacks
         nickname_col = COL_PROPS[0]
+
         def nn_getter(dev: DeviceT):
             return device_manager.get_device_name(dev.serial_number_hex)
+
         def nn_setter(dev: DeviceT, name):
             return device_manager.set_device_name(dev.serial_number_hex, name)
+
         nickname_col.use_getter(nn_getter).use_setter(nn_setter)
 
         # Show device status
