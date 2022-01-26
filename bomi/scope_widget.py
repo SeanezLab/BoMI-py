@@ -13,6 +13,7 @@ import pyqtgraph.parametertree as ptree
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
+from PySide6.QtCore import Qt
 from pyqtgraph.parametertree.parameterTypes import ActionParameter
 
 from bomi.datastructure import Buffer, Packet
@@ -23,14 +24,25 @@ def _print(*args):
     print("[ScopeWidget]", *args)
 
 
+# Seanez lab colors
+COLORS = [
+    qg.QColor(253, 0, 58),  # red
+    qg.QColor(25, 222, 193),  # green/cyan
+    qg.QColor(19, 10, 241),  # dark blue
+    qg.QColor(254, 136, 33),  # orange
+    qg.QColor(177, 57, 255),  # purple
+]
+
+
+PENS = [pg.mkPen(clr, width=2) for clr in COLORS]
+
+
 @dataclass
 class PlotHandle:
     "Holds a PlotItem and its curves"
     plot: pg.PlotItem | pg.ViewBox
     curves: List[pg.PlotCurveItem]
     target: pg.LinearRegionItem | None
-
-    pens: ClassVar = ("r", "g", "b", "w")
 
     @classmethod
     def init(
@@ -39,7 +51,7 @@ class PlotHandle:
         "Create curves on the given plot object"
         # init curves
         curves = [
-            plot.plot(pen=pen, name=name) for pen, name in zip(cls.pens, Buffer.labels)
+            plot.plot(pen=pen, name=name) for pen, name in zip(PENS, Buffer.labels)
         ]
 
         target = cls.init_target(plot, target_range) if target_range else None
@@ -49,7 +61,7 @@ class PlotHandle:
     @classmethod
     def init_curve(cls, plot: pg.PlotItem, i: int):
         assert i < len(Buffer.labels)
-        return plot.plot(pen=cls.pens[i], name=Buffer.labels[i])
+        return plot.plot(pen=PENS[i], name=Buffer.labels[i])
 
     @staticmethod
     def init_target(
@@ -59,7 +71,7 @@ class PlotHandle:
         target = pg.LinearRegionItem(
             values=target_range, orientation="horizontal", movable=False
         )
-        pg.InfLineLabel(target.lines[0], "Target", position=0.05, anchor=(1, 1))
+        pg.InfLineLabel(target.lines[1], "Target", position=0.05, anchor=(1, 1))
         plot.addItem(target)
         return target
 
@@ -79,7 +91,7 @@ class ScopeConfig:
     window_title = "Scope"
 
     target_show: bool = False
-    target_range: Tuple[float, float] = (0.8, 0.9)
+    target_range: Tuple[float, float] = (70, 80)
 
     show_roll: bool = True
     show_pitch: bool = True
