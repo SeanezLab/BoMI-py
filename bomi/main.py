@@ -75,21 +75,16 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         ### Cursor Task group
         task_group = qw.QGroupBox("Cursor Tasks")
         main_layout.addWidget(task_group)
-        task_group_layout = qw.QGridLayout()
+        task_group_layout = qw.QVBoxLayout()
         task_group.setLayout(task_group_layout)
 
         btn_reach = qw.QPushButton(text="Reaching")
         btn_reach.clicked.connect(partial(self.start_widget, ReachingWidget))
-        btn_reach_config = qw.QPushButton(text="Config")
-        btn_reach_config.clicked.connect(
-            partial(self.start_widget, ReachingWidget.Config, False)
-        )
-        task_group_layout.addWidget(btn_reach, 0, 0, 1, 3)
-        task_group_layout.addWidget(btn_reach_config, 0, 3, 1, 1)
+        task_group_layout.addWidget(btn_reach)
 
         btn_paint = qw.QPushButton(text="Painter")
         btn_paint.clicked.connect(partial(self.start_widget, PainterWidget))
-        task_group_layout.addWidget(btn_paint, 1, 0, 1, 3)
+        task_group_layout.addWidget(btn_paint)
 
         ### Misc group
         misc_group = qw.QGroupBox("Others")
@@ -117,22 +112,6 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         self.file_menu = menu_bar.addMenu("File")
         self.file_menu.addActions(self.actions)
 
-    @qc.Slot()
-    def start_widget(self, _cls: qw.QWidget, maximize=True):
-        _attr = str(_cls)
-        if not hasattr(self, _attr):
-            _app = _cls()
-            setattr(self, _attr, _app)
-
-            def closeEvent(event: qg.QCloseEvent):
-                event.accept()
-                delattr(self, _attr)
-
-            _app.closeEvent = closeEvent
-            if maximize:
-                _app.showMaximized()
-            else:
-                _app.show()
 
 
 def main():
