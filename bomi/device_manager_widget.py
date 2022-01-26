@@ -8,7 +8,7 @@ import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
 import pyqtgraph as pg
 
-from bomi.device_manager import DeviceManager, DeviceT, Packet
+from bomi.device_manager import YostDeviceManager, DeviceT, Packet
 from bomi.scope_widget import ScopeWidget
 from bomi.window_mixin import WindowMixin
 
@@ -205,7 +205,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
     Can be embedded as a widget
     """
 
-    def __init__(self, device_manager: DeviceManager):
+    def __init__(self, device_manager: YostDeviceManager):
         super().__init__()
         self.dm = device_manager
         self.setMinimumSize(350, 70)
@@ -308,7 +308,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
         ## Start scope here.
         try:
             self._sw = ScopeWidget(dm)
-            self._sw.show()
+            self._sw.showMaximized()
         except Exception as e:
             _print(traceback.format_exc())
             dm.stop_stream()
@@ -322,7 +322,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
 if __name__ == "__main__":
     app = qw.QApplication()
-    dm = DeviceManager()
+    dm = YostDeviceManager()
     win = DeviceManagerWidget(dm)
     win.show()
     app.exec()

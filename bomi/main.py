@@ -6,7 +6,7 @@ import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
 import pyqtgraph as pg
 
-from bomi.device_manager import DeviceManager
+from bomi.device_manager import YostDeviceManager
 from bomi.device_manager_widget import DeviceManagerWidget
 from bomi.painter_widget import PainterWidget
 from bomi.reaching_widget import ReachingWidget
@@ -31,7 +31,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
     def __init__(self):
         super().__init__()
-        self._device_manager = DeviceManager()
+        self._device_manager = YostDeviceManager()
 
         self._init_ui()
         self._init_actions()

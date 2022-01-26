@@ -18,7 +18,7 @@ from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.datastructure import Buffer, Packet
-from bomi.device_manager import DeviceManager
+from bomi.device_manager import YostDeviceManager
 
 
 def _print(*args):
@@ -105,10 +105,10 @@ class ScopeConfig:
 
 class ScopeWidget(qw.QWidget):
     def __init__(
-        self, device_manager: DeviceManager, config: ScopeConfig = ScopeConfig()
+        self, device_manager: YostDeviceManager, config: ScopeConfig = ScopeConfig()
     ):
         super().__init__()
-        self.dm: DeviceManager = device_manager
+        self.dm: YostDeviceManager = device_manager
         self.setWindowTitle(config.window_title)
         self.config = config
 

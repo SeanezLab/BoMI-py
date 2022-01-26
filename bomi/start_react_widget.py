@@ -10,7 +10,7 @@ from PySide6.QtCore import Qt
 import pyqtgraph as pg
 import numpy as np
 
-from bomi.device_manager import DeviceManager, DeviceT, Packet
+from bomi.device_manager import YostDeviceManager, DeviceT, Packet
 from bomi.scope_widget import ScopeWidget
 from bomi.sr_precision_widget import SRPrecisionWidget
 from bomi.window_mixin import WindowMixin
@@ -51,7 +51,7 @@ class Buffer:
 class StartReactWidget(qw.QWidget, WindowMixin):
     """GUI to manage StartReact tasks"""
 
-    def __init__(self, device_manager: DeviceManager):
+    def __init__(self, device_manager: YostDeviceManager):
         super().__init__()
         self.dm = device_manager
 

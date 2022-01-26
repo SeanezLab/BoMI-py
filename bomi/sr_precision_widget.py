@@ -12,7 +12,7 @@ import PySide6.QtCore as qc
 import pyqtgraph as pg
 import numpy as np
 
-from bomi.device_manager import DeviceManager, Packet
+from bomi.device_manager import YostDeviceManager, Packet
 
 
 children = [
@@ -75,9 +75,9 @@ def init_buffers(names: List[str], bufsize: int) -> Dict[str, Buffer]:
 
 
 class SRPrecisionWidget(qw.QWidget):
-    def __init__(self, device_manager: DeviceManager):
+    def __init__(self, device_manager: YostDeviceManager):
         super().__init__()
-        self.dm: DeviceManager = device_manager
+        self.dm: YostDeviceManager = device_manager
 
         # init timer
         self.timer = qc.QTimer()

@@ -89,7 +89,7 @@ def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorLi
     return dongles, all_sensors, wired_sensors, wireless_sensors
 
 
-class DeviceManager:
+class YostDeviceManager:
     """
     Manage the discovery, initialization, and data acquisition of all yost body sensors.
     Should only be instantiated once and used as a singleton, though this is not enforced.
@@ -336,4 +336,4 @@ class DeviceManager:
 
 
 if __name__ == "__main__":
-    dm = DeviceManager()
+    dm = YostDeviceManager()
