@@ -18,7 +18,7 @@ def _print(*args):
     print("[Reaching]", *args)
 
 
-class ReachingParams:
+class Config:
     # Reaching task params
     HOLD_TIME = 0.5
     TIME_LIMIT = 1.0
@@ -40,7 +40,7 @@ def create_spin_box(
     return spin_box
 
 
-class ReachingConfig(qw.QDialog):
+class ConfigWidget(qw.QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Reaching Config")
@@ -73,15 +73,13 @@ class ReachingConfig(qw.QDialog):
         layout = qw.QFormLayout()
 
         self.hold_time = create_spin_box(
-            qw.QDoubleSpinBox, ReachingParams.HOLD_TIME, 0.1, (0, 1)
+            qw.QDoubleSpinBox, Config.HOLD_TIME, 0.1, (0, 1)
         )
         self.time_limit = create_spin_box(
-            qw.QDoubleSpinBox, ReachingParams.TIME_LIMIT, 0.1, (0, 2)
+            qw.QDoubleSpinBox, Config.TIME_LIMIT, 0.1, (0, 2)
         )
-        self.n_targets = create_spin_box(
-            qw.QSpinBox, ReachingParams.N_TARGETS, 1, (1, 10)
-        )
-        self.n_reps = create_spin_box(qw.QSpinBox, ReachingParams.N_REPS, 1, (1, 5))
+        self.n_targets = create_spin_box(qw.QSpinBox, Config.N_TARGETS, 1, (1, 10))
+        self.n_reps = create_spin_box(qw.QSpinBox, Config.N_REPS, 1, (1, 5))
 
         layout.addRow(qw.QLabel("Hold time"), self.hold_time)
         layout.addRow(qw.QLabel("Time limit"), self.time_limit)
@@ -90,10 +88,10 @@ class ReachingConfig(qw.QDialog):
         self._form_group_box.setLayout(layout)
 
     def accept(self):
-        ReachingParams.HOLD_TIME = self.hold_time.value()
-        ReachingParams.TIME_LIMIT = self.time_limit.value()
-        ReachingParams.N_TARGETS = self.n_targets.value()
-        ReachingParams.N_REPS = self.n_reps.value()
+        Config.HOLD_TIME = self.hold_time.value()
+        Config.TIME_LIMIT = self.time_limit.value()
+        Config.N_TARGETS = self.n_targets.value()
+        Config.N_REPS = self.n_reps.value()
         return super().accept()
 
 
@@ -121,6 +119,13 @@ class Targets:
     def init(cls, n_targets: int, n_reps: int) -> Targets:
         center, targets = cls.generate_targets(n_targets=n_targets, n_reps=n_reps)
         return cls(base=center, all=targets, uniq=list(set(targets)))
+
+    def reinit(self, n_targets: int, n_reps: int) -> Targets:
+        center, targets = self.generate_targets(n_targets=n_targets, n_reps=n_reps)
+        self.base = center
+        self.all = targets
+        self.uniq = list(set(targets))
+        self.idx = 0
 
     @property
     def curr(self) -> qc.QPoint:
@@ -154,27 +159,64 @@ class Targets:
         return center, target_n
 
 
-class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
-    INF = np.inf
-    Config = ReachingConfig
+# class ReachingState:
+# HOLDING = 1
+# REACHING = 2
+# INTERMISSION = 3
 
+
+class ReachingWidget(qw.QWidget, WindowMixin):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Reaching Task")
         self.setWindowFlags(Qt.FramelessWindowHint)
 
-        self.targets = Targets.init(ReachingParams.N_TARGETS, ReachingParams.N_REPS)
-        self.targ_phantom_r = 0
+        self._targ_phantom_r = 0
 
         self.init_ui()  # Inititialize user interface
-        self.init_states()  # Initialize all states
+        self.running = False
+        self.task_begin_time = 0
+
+        ### Cursor states
+        # This is updated only by `mouseMoveEvent`,
+        # read-only for `_update_reaching_state`
+        self.cursor_pos = qc.QPoint(0, 0)
+        self.last_cursor_inside = False
+        self.target_acquired_time = math.inf
+        self.target_moved_time = math.inf
+
+        ### Task history
+        # Every new cursor event is recorded in cursor_history as
+        #    (timestamp, (x, y))
+        # When a target is reached, the task_history stores
+        #    ((target_x, target_y), cursor_history)
+        PointT = Tuple[int, int]
+        CursorPointT = Tuple[float, PointT]
+        CursorHistoryT = List[CursorPointT]
+        self.cursor_history: CursorHistoryT = []
+        self.task_history: List[Tuple[PointT, CursorHistoryT]] = []
+
+        ### Timer to update states
+        self.timer = qc.QTimer()
+        self.timer.setInterval(1000 / 50)  # 50 Hz update rate
+        self.timer.timeout.connect(self.update_task_state)
+
+        self.targets = Targets.init(Config.N_TARGETS, Config.N_REPS)
+
+        self.popup: Optional[qw.QWidget] = None
+
+        ### target animations
+        self.targ_clr_animation = qc.QPropertyAnimation(self, b"target_color")
+        self.targ_clr_animation.setDuration(100)
+
+        self._targ_phantom_r = 0
+        self.targ_phantom_animation = qc.QPropertyAnimation(self, b"target_phantom_r")
+        self.targ_phantom_animation.setDuration(Config.HOLD_TIME * 1000)
+        self.targ_phantom_animation.setEasingCurve(qc.QEasingCurve.OutSine)
 
     def showEvent(self, event: qg.QShowEvent) -> None:
         self.begin_task()
         return super().showEvent(event)
-
-    def __del__(self):
-        _print("Task ended")
 
     def init_ui(self):
         layout = qw.QGridLayout(self)
@@ -196,73 +238,31 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
         l1.setFont(qg.QFont("Arial", 18))
         layout.addWidget(l1, 0, 0, alignment=Qt.AlignBottom | Qt.AlignLeft)
 
-    def init_states(self):
-        self.running = False
-        self.task_begin_time = 0
-
-        ### Cursor states
-        # This is updated only by `mouseMoveEvent`,
-        # read-only for `_update_reaching_state`
-        self.cursor_pos = qc.QPoint(0, 0)
-        self.last_cursor_inside = False
-        self.target_acquired_time = self.INF
-        self.target_moved_time = self.INF
-
-        ### target animations
-        self.targ_clr_animation = qc.QPropertyAnimation(
-            self, b"target_fill_color", self
-        )
-        self.targ_clr_animation.setDuration(100)
-
-        self.targ_phantom_animation = qc.QPropertyAnimation(
-            self, b"target_phantom_radius", self
-        )
-        self.targ_phantom_animation.setDuration(ReachingParams.HOLD_TIME * 1000)
-        self.targ_phantom_r = 0
-
-        ### Task history
-        # Every new cursor event is recorded in cursor_history as
-        #    (timestamp, (x, y))
-        # When a target is reached, the task_history stores
-        #    ((target_x, target_y), cursor_history)
-        PointT = Tuple[int, int]
-        CursorPointT = Tuple[float, PointT]
-        CursorHistoryT = List[CursorPointT]
-        self.cursor_history: CursorHistoryT = []
-        self.task_history: List[Tuple[PointT, CursorHistoryT]] = []
-
-        ### Timer to update states
-        self.timer = qc.QTimer()
-        self.timer.timeout.connect(self.update_task_state)
-
-        self.popup: Optional[qw.QWidget] = None
-
     @qc.Property(qg.QColor)
-    def target_fill_color(self) -> qg.QColor:
+    def target_color(self) -> qg.QColor:
         return self.targets.active_fill_clr
 
-    @target_fill_color.setter
-    def target_fill_color(self, clr: qg.QColor):
+    @target_color.setter
+    def target_color(self, clr: qg.QColor):
         self.targets.active_fill_clr = clr
         self.update()
 
     @qc.Property(float)
-    def target_phantom_radius(self) -> float:
-        return self.targ_phantom_r
+    def target_phantom_r(self) -> float:
+        return self._targ_phantom_r
 
-    @target_phantom_radius.setter
-    def target_phantom_radius(self, r: float):
-        self.targ_phantom_r = r
+    @target_phantom_r.setter
+    def target_phantom_r(self, r: float):
+        self._targ_phantom_r = r
         self.update()
 
     def start_clr_transition(self, val: qg.QColor):
         animation = self.targ_clr_animation
         animation.stop()
-        if val:
-            animation.setEndValue(val)
+        animation.setEndValue(val)
         animation.start()
 
-    def start_phantom_transition(self, val: float = ReachingParams.TARGET_RADIUS):
+    def start_phantom_transition(self, val: float = Config.TARGET_RADIUS):
         animation = self.targ_phantom_animation
         if animation.Running == animation.state():
             return
@@ -271,16 +271,15 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
             animation.setEndValue(val)
         animation.start()
 
-    def stop_phantom_transition(self, val: float = ReachingParams.TARGET_RADIUS):
+    def stop_phantom_transition(self):
         animation = self.targ_phantom_animation
         animation.stop()
-        self.target_phantom_radius = 0
+        self.target_phantom_r = 0
 
     def begin_task(self, msg: str = "Get Ready"):
         """Start the task"""
         # Show popup window with instructions and countdown
-        popup = qw.QWidget(self, Qt.SplashScreen)
-        self.popup = popup
+        self.popup = popup = qw.QWidget(self, Qt.SplashScreen)
         layout = qw.QVBoxLayout()
         popup.setLayout(layout)
 
@@ -304,9 +303,7 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
         config_btn.setFont(qg.QFont("Arial", 18))
         btn_layout.addWidget(config_btn, 1, 1, 1, 2)
 
-        config_btn.clicked.connect(
-            partial(self.start_widget, ReachingWidget.Config, False)
-        )
+        config_btn.clicked.connect(partial(self.start_widget, ConfigWidget, False))
 
         exit_btn = qw.QPushButton("Exit")
         exit_btn.setFont(qg.QFont("Arial", 18))
@@ -317,12 +314,8 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
         start_btn.setStyleSheet("QPushButton {background-color: rgb(0,255,0);}")
         btn_layout.addWidget(start_btn, 2, 2)
 
-        def _exit():
-            self.popup.close()
-            self.close()
-
         def _begin_task():
-            self.popup.close()
+            popup.close()
             self._begin_task()
 
         def _begin_countdown():
@@ -332,18 +325,22 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
             qc.QTimer.singleShot(2000, lambda: l1.setText("Starting in 1 s"))
             qc.QTimer.singleShot(3000, _begin_task)
 
-        start_btn.clicked.connect(_begin_countdown)
-        exit_btn.clicked.connect(_exit)
+        start_btn.clicked.connect(_begin_task)
+        exit_btn.clicked.connect(self.close)
 
         popup.setFixedSize(480, 250)
         popup.show()
 
     def _begin_task(self):
+        # get new config params
+        self.targets.reinit(Config.N_TARGETS, Config.N_REPS)
+        self.targ_phantom_animation.setDuration(Config.HOLD_TIME * 1000)
+
         _print("Begin task")
         self.running = True
         self.task_begin_time = default_timer()
         self.setMouseTracking(True)
-        self.timer.start(1000 / 50)  # 50 Hz update rate
+        self.timer.start()
         self.move_target()
         self.update()
 
@@ -365,7 +362,7 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
         self.begin_task("Good job! Restart?")
 
     def paintEvent(self, event: qg.QPaintEvent):
-        r = self.TARGET_RADIUS
+        r = Config.TARGET_RADIUS
         tgts = self.targets
         painter = qg.QPainter(self)
         painter.setRenderHint(qg.QPainter.Antialiasing)
@@ -386,9 +383,7 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
             # Paint target phantom
             painter.setPen(qg.QPen(CYAN, 3))
             painter.setBrush(CYAN)
-            painter.drawEllipse(
-                tgts.curr, self.target_phantom_radius, self.target_phantom_radius
-            )
+            painter.drawEllipse(tgts.curr, self.target_phantom_r, self.target_phantom_r)
 
         return super().paintEvent(event)
 
@@ -401,7 +396,7 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
             self.stop_phantom_transition()
         tgts = self.targets
 
-        if now - self.target_acquired_time > self.HOLD_TIME:
+        if now - self.target_acquired_time > Config.HOLD_TIME:
             # Cursor has been held inside target for enough time.
             # _print(f"Held for long enough ({self.HOLD_TIME}s). Moving target")
 
@@ -425,7 +420,8 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
             self.move_target()
             self.update()
 
-        elif now - self.target_moved_time > self.TIME_LIMIT:
+        elif now - self.target_moved_time > Config.TIME_LIMIT:
+            # exceeded time limit
             if tgts.active_line_clr != RED and not self.last_cursor_inside:
                 # _print(f"Failed to reach target within time limit ({self.TIME_LIMIT}s)")
                 tgts.active_line_clr = RED
@@ -444,12 +440,12 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
 
             # update cursor states
             d = tgts.curr - self.cursor_pos
-            cursor_inside = math.hypot(d.x(), d.y()) < self.TARGET_RADIUS
+            cursor_inside = math.hypot(d.x(), d.y()) < Config.TARGET_RADIUS
             if cursor_inside:
                 if not self.last_cursor_inside:
                     self.target_acquired_time = now
             else:
-                self.target_acquired_time = self.INF
+                self.target_acquired_time = math.inf
 
             self.last_cursor_inside = cursor_inside
         self.top_label.setText(f"Reaching. Targets to reach: {tgts.n_left}")
@@ -461,10 +457,13 @@ class ReachingWidget(qw.QWidget, ReachingParams, WindowMixin):
         self.update()
         return super().mouseMoveEvent(event)
 
+    def closeEvent(self, event: qg.QCloseEvent) -> None:
+        self.popup and self.popup.close()
+        event.accept()
+        return super().closeEvent(event)
+
     def keyPressEvent(self, event: qg.QKeyEvent) -> None:
         if event.key() in (Qt.Key.Key_Escape, Qt.Key.Key_Q):
-            if self.popup:
-                self.popup.close()
             self.close()
         return super().keyPressEvent(event)
 

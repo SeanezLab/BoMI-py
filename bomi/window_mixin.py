@@ -1,6 +1,7 @@
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
+from PySide6.QtCore import Qt
 
 
 class WindowMixin:
@@ -15,18 +16,20 @@ class WindowMixin:
     @qc.Slot()
     def start_widget(self, cls: qw.QWidget, maximize=True):
         "Run the given QWidget class in a new window"
+        obj = cls()
         attr = str(cls)
-        if not hasattr(self, attr):
-            obj = cls()
-            setattr(self, attr, obj)
+        setattr(self, attr, obj)
 
-            # when the window is closed, remove the attribute stored in this parent class
-            def closeEvent(event: qg.QCloseEvent):
-                event.accept()
-                delattr(self, attr)
+        # hijack the QWidget's `closeEvent` to delete this attribute
+        obj._closeEvent = obj.closeEvent
 
-            obj.closeEvent = closeEvent
-            if maximize:
-                obj.showMaximized()
-            else:
-                obj.show()
+        def closeEvent(event: qg.QCloseEvent):
+            delattr(self, attr)
+            obj._closeEvent(event)
+
+        obj.closeEvent = closeEvent
+
+        if maximize:
+            obj.showMaximized()
+        else:
+            obj.show()

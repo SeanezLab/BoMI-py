@@ -91,7 +91,7 @@ class Sample3DWidget(qw.QWidget):
 
         self.index = 0
 
-        self.timer = qc.QTimer()
+        self.timer = qc.QTimer(self)
         self.timer.timeout.connect(self.update)
         self.timer.start(30)
 
