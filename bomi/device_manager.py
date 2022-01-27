@@ -20,7 +20,7 @@ from bomi.yost_serial_comm import (
 
 
 def _print(*args):
-    print("[Device Manager]", *args)
+    print("[Yost Device Manager]", *args)
 
 
 HEX: Final = "{0:08X}"

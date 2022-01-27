@@ -315,12 +315,16 @@ class ScopeWidget(qw.QWidget):
         self.glw = glw = pg.GraphicsLayoutWidget()
         self.glw.setBackground("white")
         splitter.addWidget(glw)
+        
+        glw.addLabel("Hello world", color="k", size="12pt")
+        row = 1
 
         ### Init Plots
         self.plot_handles: Dict[str, PlotHandle] = {}
         plot_style = {"color": "k"}
-        for i, (name, sn) in enumerate(zip(self.dev_names, self.dev_sn)):
-            plot: pg.PlotItem = glw.addPlot(row=i + 1, col=0)
+        for name, sn in zip(self.dev_names, self.dev_sn):
+            plot: pg.PlotItem = glw.addPlot(row=row, col=0)
+            row += 1
             plot.addLegend(offset=(1, 1), **plot_style)
             plot.setXRange(*self.config.xrange)
             plot.setYRange(*self.config.yrange)

@@ -105,8 +105,8 @@ def set_wl_table(dongle: DeviceT, idx: int, serial_hex: str):
         ...
 
 
-# COL_PROPS is a list of column props for rendering the device manager table
-COL_PROPS: List[ColumnProps] = [
+# a list of column props for rendering the device manager table
+YOST_COL_PROPS: List[ColumnProps] = [
     ColumnProps("Nickname", str),
     ColumnProps("Serial Number", int).use_getter(prop_getter("serial_number_hex")),
     ColumnProps("Device Type", str).use_getter(get_device_type),
@@ -123,15 +123,16 @@ COL_PROPS: List[ColumnProps] = [
 
 class TableModel(qc.QAbstractTableModel):
     """TableModel handles data for the device table
-    This class simply uses the definition of `COL_PROPS` to render data.
-    Modify the definitions of `COL_PROPS` to change the table structure.
+    This class simply uses the definition of `col_props` to render data.
+    Modify the definitions of `col_props` to change the table structure.
     """
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, col_props: List[ColumnProps]):
+        super().__init__()
 
         self.devices: List = []
-        self._n_cols = len(COL_PROPS)
+        self.col_props = col_props
+        self.n_cols = len(col_props)
 
     def set_devices(self, devs: List):
         self.devices: List = list(set(devs))
@@ -142,7 +143,7 @@ class TableModel(qc.QAbstractTableModel):
 
     def columnCount(self, index=qc.QModelIndex()):
         """Returns the number of columns the model holds."""
-        return self._n_cols
+        return self.n_cols
 
     def data(self, index, role=Qt.DisplayRole):
         """Depending on the index and role given, return data. If not
@@ -154,9 +155,9 @@ class TableModel(qc.QAbstractTableModel):
             index.isValid()
             and 0 <= row < len(self.devices)
             and role == Qt.DisplayRole
-            and col < len(COL_PROPS)
+            and col < self.n_cols
         ):
-            return COL_PROPS[col].get(self.devices[row])
+            return self.col_props[col].get(self.devices[row])
 
         return None
 
@@ -169,10 +170,10 @@ class TableModel(qc.QAbstractTableModel):
             role == Qt.EditRole
             and index.isValid()
             and 0 <= row < len(self.devices)
-            and col < len(COL_PROPS)
+            and col < self.n_cols
             and value
         ):
-            COL_PROPS[col].set(self.devices[row], value)
+            self.col_props[col].set(self.devices[row], value)
             self.dataChanged.emit(index, index, 0)
             return True
 
@@ -183,9 +184,9 @@ class TableModel(qc.QAbstractTableModel):
         if (
             role == Qt.DisplayRole
             and orientation == Qt.Horizontal
-            and section < len(COL_PROPS)
+            and section < self.n_cols
         ):
-            return COL_PROPS[section].name
+            return self.col_props[section].name
 
         return None
 
@@ -194,7 +195,7 @@ class TableModel(qc.QAbstractTableModel):
         if not index.isValid():
             return Qt.ItemIsEnabled
         flags = qc.QAbstractTableModel.flags(self, index)
-        if COL_PROPS[index.column()].editable:
+        if self.col_props[index.column()].editable:
             flags |= Qt.ItemIsEditable
 
         return Qt.ItemFlags(flags)
@@ -205,86 +206,86 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
     Can be embedded as a widget
     """
 
-    def __init__(self, device_manager: YostDeviceManager):
+    def __init__(self, yost_device_manager: YostDeviceManager):
         super().__init__()
-        self.dm = device_manager
-        self.setMinimumSize(350, 70)
+        self.yost_dm = yost_device_manager
+        self.setMinimumSize(350, 200)
 
         main_layout = qw.QHBoxLayout()
         self.setLayout(main_layout)
 
-        # Device controls
+        ### Device controls
         layout = qw.QVBoxLayout()
         main_layout.addLayout(layout)
 
-        btn1 = qw.QPushButton(text="Discover devices")
-        btn1.setStyleSheet("QPushButton { background-color: rgb(0,255,0); }")
-        btn1.clicked.connect(self.s_discover_devices)
-        layout.addWidget(btn1)
+        discover_btn = qw.QPushButton("&Discover devices")
+        discover_btn.setStyleSheet("QPushButton { background-color: rgb(0,255,0); }")
+        discover_btn.clicked.connect(self.s_discover_devices)
 
-        btn1 = qw.QPushButton(text="Tare all devices")
-        btn1.clicked.connect(self.s_tare_all)
-        layout.addWidget(btn1)
+        tare_btn = qw.QPushButton(text="&Tare all devices")
+        tare_btn.clicked.connect(self.s_tare_all)
 
-        btn1 = qw.QPushButton(text="Data Charts")
-        btn1.clicked.connect(self.s_data_charts)
-        layout.addWidget(btn1)
+        chart_btn = qw.QPushButton(text="Data &Charts")
+        chart_btn.clicked.connect(self.s_data_charts)
 
-        btn1 = qw.QPushButton(text="Commit all settings")
-        btn1.clicked.connect(self.s_commit_all)
-        layout.addWidget(btn1)
+        commit_btn = qw.QPushButton(text="Commit all settings")
+        commit_btn.clicked.connect(self.s_commit_all)
 
-        btn1 = qw.QPushButton(text="Disconnect All")
-        btn1.clicked.connect(self.s_disconnect_all)
-        layout.addWidget(btn1)
+        disconnect_btn = qw.QPushButton(text="Disconnect All")
+        disconnect_btn.clicked.connect(self.s_disconnect_all)
+
+        layout.addWidget(discover_btn)
+        layout.addWidget(tare_btn)
+        layout.addWidget(chart_btn)
+        layout.addWidget(commit_btn)
+        layout.addWidget(disconnect_btn)
 
         ### Setup nickname callbacks
-        nickname_col = COL_PROPS[0]
-
         def nn_getter(dev: DeviceT):
-            return device_manager.get_device_name(dev.serial_number_hex)
+            return yost_device_manager.get_device_name(dev.serial_number_hex)
 
         def nn_setter(dev: DeviceT, name):
-            return device_manager.set_device_name(dev.serial_number_hex, name)
+            return yost_device_manager.set_device_name(dev.serial_number_hex, name)
 
+        nickname_col = YOST_COL_PROPS[0]
         nickname_col.use_getter(nn_getter).use_setter(nn_setter)
 
         # Show device status
-        self.table_model = TableModel()
-        self.proxy_model = qc.QSortFilterProxyModel()
-        self.proxy_model.setSourceModel(self.table_model)
-        self.proxy_model.setDynamicSortFilter(True)
+        self.yost_model = TableModel(YOST_COL_PROPS)
+        self.yost_proxy_model = qc.QSortFilterProxyModel()
+        self.yost_proxy_model.setSourceModel(self.yost_model)
+        self.yost_proxy_model.setDynamicSortFilter(True)
 
-        tv = qw.QTableView()
-        tv.setModel(self.proxy_model)
-        tv.setSortingEnabled(True)
-        tv.setSelectionBehavior(qw.QAbstractItemView.SelectRows)
-        tv.setSelectionMode(qw.QAbstractItemView.SingleSelection)
+        yost_tv = qw.QTableView()
+        yost_tv.setModel(self.yost_proxy_model)
+        yost_tv.setSortingEnabled(True)
+        yost_tv.setSelectionBehavior(qw.QAbstractItemView.SelectRows)
+        yost_tv.setSelectionMode(qw.QAbstractItemView.SingleSelection)
         # tv.horizontalHeader().setStretchLastSection(True)
-        tv.horizontalHeader().setSectionResizeMode(qw.QHeaderView.Stretch)
-        tv.resizeColumnsToContents()
-        tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        tv.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Expanding)
+        yost_tv.horizontalHeader().setSectionResizeMode(qw.QHeaderView.Stretch)
+        yost_tv.resizeColumnsToContents()
+        yost_tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        yost_tv.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Expanding)
 
-        main_layout.addWidget(tv)
+        main_layout.addWidget(yost_tv)
 
     @qc.Slot()
     def s_discover_devices(self):
         self.s_disconnect_all()
         with pg.BusyCursor():
-            self.dm.discover_devices()
-        if not self.dm.all_sensors:
+            self.yost_dm.discover_devices()
+        if not self.yost_dm.all_sensors:
             self.error_dialog(
                 "No devices found. Make sure wired dongle/sensors are plugged in, "
                 "and make sure wireless sensors are turned on, and use the same "
                 "Channel and Pan ID as the dongle."
             )
-        self.table_model.set_devices(self.dm.dongles + self.dm.all_sensors)
-        self.proxy_model.invalidate()
+        self.yost_model.set_devices(self.yost_dm.dongles + self.yost_dm.all_sensors)
+        self.yost_proxy_model.invalidate()
 
     @qc.Slot()
     def s_tare_all(self):
-        dm = self.dm
+        dm = self.yost_dm
         if not dm.has_sensors():
             return self.error_dialog(
                 "No sensors available. Plug in the devices, then click on 'Discover devices'"
@@ -294,12 +295,12 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_commit_all(self):
-        for dev in self.dm.all_sensors + self.dm.dongles:
+        for dev in self.yost_dm.all_sensors + self.yost_dm.dongles:
             dev.commitSettings()
 
     @qc.Slot()
     def s_data_charts(self):
-        dm = self.dm
+        dm = self.yost_dm
         if not dm.has_sensors():
             return self.error_dialog(
                 "No sensors available. Plug in the devices, then click on 'Discover devices'"
@@ -315,9 +316,9 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_disconnect_all(self):
-        self.dm.close_all_devices()
-        self.table_model.set_devices([])
-        self.proxy_model.invalidate()
+        self.yost_dm.close_all_devices()
+        self.yost_model.set_devices([])
+        self.yost_proxy_model.invalidate()
 
 
 if __name__ == "__main__":

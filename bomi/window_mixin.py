@@ -20,7 +20,7 @@ class WindowMixin:
             obj = cls()
             setattr(self, attr, obj)
 
-            # when the window is close, remove the attribute stored in this parent class
+            # when the window is closed, remove the attribute stored in this parent class
             def closeEvent(event: qg.QCloseEvent):
                 event.accept()
                 delattr(self, attr)
