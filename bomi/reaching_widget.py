@@ -10,6 +10,7 @@ import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
 import numpy as np
+from bomi.base_widgets import create_spinbox
 
 from bomi.window_mixin import WindowMixin
 
@@ -25,20 +26,6 @@ class Config:
     TARGET_RADIUS = 40
     N_TARGETS = 8
     N_REPS = 3
-
-
-def create_spin_box(
-    SpinBoxType: qw.QAbstractSpinBox,
-    value: float,
-    step_size: float,
-    range: Tuple[float, float],
-):
-    spin_box = SpinBoxType()
-    spin_box.setSingleStep(step_size)
-    spin_box.setRange(*range)
-    spin_box.setValue(value)
-    return spin_box
-
 
 class ConfigWidget(qw.QDialog):
     def __init__(self):
@@ -69,17 +56,17 @@ class ConfigWidget(qw.QDialog):
         self._exit_action.triggered.connect(self.accept)
 
     def create_form_group_box(self):
-        self._form_group_box = qw.QGroupBox("Form layout")
+        self._form_group_box = qw.QGroupBox("Reaching Config")
         layout = qw.QFormLayout()
 
-        self.hold_time = create_spin_box(
+        self.hold_time = create_spinbox(
             qw.QDoubleSpinBox, Config.HOLD_TIME, 0.1, (0, 1)
         )
-        self.time_limit = create_spin_box(
+        self.time_limit = create_spinbox(
             qw.QDoubleSpinBox, Config.TIME_LIMIT, 0.1, (0, 2)
         )
-        self.n_targets = create_spin_box(qw.QSpinBox, Config.N_TARGETS, 1, (1, 10))
-        self.n_reps = create_spin_box(qw.QSpinBox, Config.N_REPS, 1, (1, 5))
+        self.n_targets = create_spinbox(qw.QSpinBox, Config.N_TARGETS, 1, (1, 10))
+        self.n_reps = create_spinbox(qw.QSpinBox, Config.N_REPS, 1, (1, 5))
 
         layout.addRow(qw.QLabel("Hold time"), self.hold_time)
         layout.addRow(qw.QLabel("Time limit"), self.time_limit)

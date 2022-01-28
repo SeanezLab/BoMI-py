@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import traceback
-from random import random
+import random
 from typing import NamedTuple
 
-import numpy as np
-import pyqtgraph as pg
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
-from bomi.base_widgets import TaskDisplay
+from bomi.base_widgets import TaskDisplay, create_spinbox
 from bomi.device_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
@@ -27,69 +25,130 @@ class SRState(NamedTuple):
     duration: float = -1  # duration in seconds
 
 
-class PrecisionDisplay(TaskDisplay):
+class SRDisplay(TaskDisplay):
     IDLE = SRState(color=Qt.lightGray, text="Get ready!")
-    GO = SRState(color=Qt.green, text="Go!")
+    GO = SRState(color=Qt.green, text="Reach the target and hold!")
+    WAIT = SRState(color=Qt.yellow, text="Wait...")
     TASK_DONE = SRState(color=Qt.lightGray, text="All done!")
 
     HOLD_TIME = 3000  # msec
     PAUSE_MIN = 2000
     PAUSE_RANDOM = 2000
-    
+
     BTN_START_TXT = "Begin task"
     BTN_END_TXT = "End task"
 
-    def __init__(self):
+    def __init__(self, task_name: str = ""):
         super().__init__()
 
         ### Init UI
         main_layout = qw.QGridLayout()
         self.setLayout(main_layout)
-
-        self.label = qw.QLabel("Get ready!")
-        self.label.setFont(qg.QFont("Arial", 18))
-        main_layout.addWidget(self.label, 0, 0, alignment=Qt.AlignCenter)
-
         self.setAutoFillBackground(True)
 
+        # Top label
+        self.top_label = qw.QLabel(task_name)
+        self.top_label.setFont(qg.QFont("Arial", 18))
+        main_layout.addWidget(
+            self.top_label, 0, 0, alignment=Qt.AlignTop | Qt.AlignLeft
+        )
+
+        # Center label
+        self.center_label = qw.QLabel("Get ready!")
+        self.center_label.setFont(qg.QFont("Arial", 24))
+        main_layout.addWidget(self.center_label, 0, 0, alignment=Qt.AlignCenter)
+
+        self.progress_bar = qw.QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(100)
+        self.progress_bar.setTextVisible(False)
+        self.progress_animation = qc.QPropertyAnimation(self, b"pval")
+        self.progress_animation.setDuration(self.HOLD_TIME)
+        self.progress_animation.setStartValue(0)
+        self.progress_animation.setEndValue(100)
+        main_layout.addWidget(self.progress_bar, 5, 0)
+
+        # Config + Controls
+        gb = qw.QGroupBox("Task Config")
+        form_layout = qw.QFormLayout()
+        gb.setLayout(form_layout)
+        self.n_trials = create_spinbox(qw.QSpinBox, 5, 1, (1, 20))
+        form_layout.addRow(qw.QLabel("No. Trials"), self.n_trials)
+        main_layout.addWidget(gb, 6, 0, 1, 2)
+
+        # Buttons
         self.start_stop_btn = qw.QPushButton(self.BTN_START_TXT)
         self.start_stop_btn.clicked.connect(self.toggle_start_stop)
-        main_layout.addWidget(self.start_stop_btn, 5, 0)
+        main_layout.addWidget(self.start_stop_btn, 7, 0, 1, 2)
 
         ### Task states
         self.n_cycles_left = 0
 
         self.set_state(self.IDLE)
 
+    @qc.Property(int)
+    def pval(self):
+        return self.progress_bar.value()
+
+    @pval.setter
+    def pval(self, val):
+        self.progress_bar.setValue(val)
+
     def set_state(self, s: SRState):
         self.setPalette(s.color)
-        if s == self.IDLE and self.n_cycles_left:
+        if s == self.WAIT and self.n_cycles_left:
             if self.n_cycles_left == 1:
                 txt = f" {self.n_cycles_left} cycle left"
             else:
                 txt = f" {self.n_cycles_left} cycles left"
-            self.label.setText(s.text + txt)
+            self.center_label.setText(s.text + txt)
         else:
-            self.label.setText(s.text)
+            self.center_label.setText(s.text)
 
     @classmethod
-    def get_wait_time(cls):
-        return cls.HOLD_TIME + cls.PAUSE_MIN + (cls.PAUSE_RANDOM) * random()
+    def get_random_wait_time(cls):
+        "Calculate random wait time"
+        return cls.PAUSE_MIN + (cls.PAUSE_RANDOM) * random.random()
+
+    def send_visual_signal(self):
+        self.signal_task.emit("visual")
+        self.set_state(self.GO)
+
+    def send_visual_auditory_signal(self):
+        "TODO: IMPLEMENT AUD"
+        self.signal_task.emit("visual_auditory")
+        self.set_state(self.GO)
+
+    def send_visual_startling_signal(self):
+        "TODO: IMPLEMENT AUD"
+        self.signal_task.emit("visual_startling")
+        self.set_state(self.GO)
 
     def one_cycle(self):
         """Send a visual signal to the subject to begin doing the task
         If there are more cycles remaining, schedule one more
         """
-        self.signal_task.emit("GO")
-        self.set_state(self.GO)
+        random.choice(
+            (
+                self.send_visual_signal,
+                self.send_visual_auditory_signal,
+                self.send_visual_startling_signal,
+            )
+        )()
+        self.progress_animation.start()
 
         if self.n_cycles_left > 1:
-            qc.QTimer.singleShot(self.HOLD_TIME, lambda: self.set_state(self.IDLE))
-            qc.QTimer.singleShot(self.get_wait_time(), self.one_cycle)
+            qc.QTimer.singleShot(self.HOLD_TIME, self.end_one_cycle)
+            qc.QTimer.singleShot(
+                self.HOLD_TIME + self.get_random_wait_time(), self.one_cycle
+            )
         else:
             qc.QTimer.singleShot(self.HOLD_TIME, self.end_task)
 
         self.n_cycles_left -= 1
+
+    def end_one_cycle(self):
+        self.set_state(self.WAIT)
 
     def begin_task(self, n_cycles: int = 2):
         """Begin the precision control task
@@ -98,22 +157,23 @@ class PrecisionDisplay(TaskDisplay):
         each cycle lasting 3 seconds.
         Wait a random amount of time before starting the next cycle until we finish `n_cycles`
         """
+        self.start_stop_btn.setText(self.BTN_END_TXT)
+        self.progress_bar.setValue(0)
         self.n_cycles_left = n_cycles
-        self.set_state(self.IDLE)
-        qc.QTimer.singleShot(2000 + random() * 1000, self.one_cycle)
+        self.set_state(self.WAIT)
+        qc.QTimer.singleShot(self.get_random_wait_time(), self.one_cycle)
 
     def end_task(self):
-        self.start_stop_btn.setText("Start")
+        """Finish the task, reset widget to initial states"""
+        self.start_stop_btn.setText(self.BTN_START_TXT)
         self.n_cycles_left = 0
         self.set_state(self.TASK_DONE)
 
     def toggle_start_stop(self):
         if self.start_stop_btn.text() == self.BTN_START_TXT:
-            self.start_stop_btn.setText(self.BTN_END_TXT)
             self.begin_task()
 
         else:
-            self.start_stop_btn.setText(self.BTN_START_TXT)
             self.end_task()
 
 
@@ -132,6 +192,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         btn1.clicked.connect(self.s_precision_task)
         main_layout.addWidget(btn1)
 
+        btn1 = qw.QPushButton(text="MaxROM")
+        btn1.clicked.connect(self.s_max_rom)
+        main_layout.addWidget(btn1)
+
     def s_precision_task(self):
         dm = self.dm
         if not dm.has_sensors():
@@ -139,9 +203,33 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         scope_config = ScopeConfig(
             window_title="Precision",
-            task_widget=PrecisionDisplay(),
+            task_widget=SRDisplay("Precision Control"),
             show_scope_params=True,
             target_show=True,
+            yrange=(0, 120),
+            show_roll=False,
+            show_pitch=False,
+            show_yaw=False,
+        )
+
+        try:
+            self._precision = ScopeWidget(dm, config=scope_config)
+            self._precision.showMaximized()
+        except Exception as e:
+            _print(traceback.format_exc())
+            self.dm.stop_stream()
+
+    def s_max_rom(self):
+        dm = self.dm
+        if not dm.has_sensors():
+            return self.no_sensors_error()
+
+        scope_config = ScopeConfig(
+            window_title="MaxROM",
+            task_widget=SRDisplay("Max Range of Motion"),
+            show_scope_params=True,
+            target_show=True,
+            target_range=(80, 120),
             yrange=(0, 120),
             show_roll=False,
             show_pitch=False,

@@ -305,9 +305,19 @@ class ScopeWidget(qw.QWidget):
             self.queue.task_done()
         self.dev_names = self.dm.get_all_sensor_names()
         self.dev_sn = self.dm.get_all_sensor_serial()
-        self.buffers = Buffer.init_buffers(
-            self.dev_names, self.init_bufsize, task_name=self.config.window_title
-        )
+        if self.buffers:
+            keys = list(self.buffers.keys())
+            sample = self.buffers[keys[0]]
+            for dev in self.dev_names:
+                if not dev in keys:
+                    self.buffers[dev] = Buffer.init(
+                        buf_size=sample.buf_size, savedir=sample.savedir, name=dev
+                    )
+
+        else:
+            self.buffers = Buffer.init_buffers(
+                self.dev_names, self.init_bufsize, task_name=self.config.window_title
+            )
 
     def init_ui(self):
         ### Init UI

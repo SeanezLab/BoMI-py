@@ -28,9 +28,9 @@ class TaskEventFmt:
     target_moved = "target_moved t={t} tmin={tmin} tmax={tmax}"
     event = "{event_name} t={t}"
 
-    visual = "visual_signal t={t}"
-    visual_auditory = "visual_auditory_signal t={t}"
-    visual_startle = "visual_startle_signal t={t}"
+    visual = "visual t={t}"
+    visual_auditory = "visual_auditory t={t}"
+    visual_startle = "visual_startling t={t}"
 
 
 @dataclass()
@@ -47,6 +47,8 @@ class Buffer:
 
     # task data
     task_history: TextIO  # filepointer to write task history
+    
+    savedir: Path
 
     @classmethod
     def init(cls, buf_size: int, savedir: Path, name: str) -> Buffer:
@@ -68,6 +70,7 @@ class Buffer:
             data=buf,
             sensor_fp=sensor_fp,
             task_history=task_history,
+            savedir=savedir,
         )
 
     @staticmethod
