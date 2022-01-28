@@ -261,7 +261,6 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
         yost_tv.setSortingEnabled(True)
         yost_tv.setSelectionBehavior(qw.QAbstractItemView.SelectRows)
         yost_tv.setSelectionMode(qw.QAbstractItemView.SingleSelection)
-        # tv.horizontalHeader().setStretchLastSection(True)
         yost_tv.horizontalHeader().setSectionResizeMode(qw.QHeaderView.Stretch)
         yost_tv.resizeColumnsToContents()
         yost_tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)

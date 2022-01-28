@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from timeit import default_timer
 from typing import ClassVar, Dict, List, NamedTuple, TextIO
 
 import numpy as np
@@ -23,21 +24,16 @@ DATA_ROOT = Path.home() / "Documents" / "BoMI Data"
 DATA_ROOT.mkdir(exist_ok=True)
 
 
-class StartReactEvent(Enum):
-    visual = 1
-    visual_auditory = 2
-    visual_startle = 3
-
-
 class TaskEventFmt:
     target_moved = "target_moved t={t} tmin={tmin} tmax={tmax}"
+    event = "{event_name} t={t}"
 
     visual = "visual_signal t={t}"
     visual_auditory = "visual_auditory_signal t={t}"
     visual_startle = "visual_startle_signal t={t}"
 
 
-@dataclass(slots=True)
+@dataclass()
 class Buffer:
     """Manage all data (packets) consumed from the queue"""
 
@@ -93,16 +89,11 @@ class Buffer:
         s = TaskEventFmt.target_moved.format(t=t, tmin=tmin, tmax=tmax) + "\n"
         self.task_history.write(s)
 
-    def start_react_signal(self, t: float, signal: StartReactEvent):
-        if signal == StartReactEvent.visual:
-            s = TaskEventFmt.visual.format(t=t)
-            self.task_history.write(s)
-        elif signal == StartReactEvent.visual_auditory:
-            s = TaskEventFmt.visual_auditory.format(t=t)
-            self.task_history.write(s)
-        elif signal == StartReactEvent.visual_startle:
-            s = TaskEventFmt.visual_startle.format(t=t)
-            self.task_history.write(s)
+    def write_task_event(self, event_name: str, t: float = None):
+        if t == None:
+            t = default_timer()
+        s = TaskEventFmt.event.format(event_name=event_name, t=t)
+        self.task_history.write(s + "\n")
 
     def add_packet(self, packet: Packet):
         "Add `Packet` of sensor data"

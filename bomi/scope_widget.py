@@ -1,9 +1,8 @@
 from __future__ import annotations
-from pickle import NONE
 
 import traceback
 from dataclasses import dataclass
-from pathlib import Path
+from pickle import NONE
 from queue import Queue
 from timeit import default_timer
 from typing import Dict, List, Tuple
@@ -13,10 +12,11 @@ import pyqtgraph.parametertree as ptree
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
-from PySide6.QtCore import Qt
 from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
+from PySide6.QtCore import Qt
 
+from bomi.base_widgets import TaskDisplay
 from bomi.datastructure import Buffer, Packet
 from bomi.device_manager import YostDeviceManager
 
@@ -45,7 +45,8 @@ TARGET_BRUSH = pg.mkBrush(qg.QColor(25, 222, 193, 15))
 class ScopeConfig:
     "Configuration parameters for ScopeWidget"
     window_title: str = "Scope"
-    task_widget: qw.QWidget = None
+    task_widget: TaskDisplay = None
+    show_scope_params: bool = True
 
     target_show: bool = False
     target_range: Tuple[float, float] = (70, 80)
@@ -348,12 +349,14 @@ class ScopeWidget(qw.QWidget):
         # Create param tree
         pt = ptree.ParameterTree(showHeader=False)
         pt.setParameters(self.params)
-        layout.addWidget(pt, 1)
+        if self.config.show_scope_params:
+            layout.addWidget(pt, 1)
 
         # Create task widget
         self.task_widget = self.config.task_widget
         if self.task_widget is not None:
             layout.addWidget(self.task_widget, 1)
+            self.task_widget.signal_task.connect(self.propagate_task_event)
 
         ### apply other config
         config = self.config
@@ -364,6 +367,12 @@ class ScopeWidget(qw.QWidget):
         config.show_rollpitch or self.show_hide_curve("abs(roll) + abs(pitch)", False)
 
         self.start_stream()
+
+    def propagate_task_event(self, event_name: str):
+        # Connect task signal to all buffers
+        t = default_timer()
+        for name in self.dev_names:
+            self.buffers[name].write_task_event(event_name=event_name, t=t)
 
     def start_stream(self):
         """Start the stream and show in the scope
