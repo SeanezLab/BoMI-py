@@ -13,6 +13,11 @@ class WindowMixin:
 
         self._err_dialog.showMessage(msg)
 
+    def no_sensors_error(self):
+        return self.error_dialog(
+            "No sensors available. Plug in the devices, then click on 'Discover devices'"
+        )
+
     @qc.Slot()
     def start_widget(self, cls: qw.QWidget, maximize=True):
         "Run the given QWidget class in a new window"

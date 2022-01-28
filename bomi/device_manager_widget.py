@@ -287,9 +287,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
     def s_tare_all(self):
         dm = self.yost_dm
         if not dm.has_sensors():
-            return self.error_dialog(
-                "No sensors available. Plug in the devices, then click on 'Discover devices'"
-            )
+            return self.no_sensors_error()
 
         dm.tare_all_devices()
 
@@ -302,9 +300,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
     def s_data_charts(self):
         dm = self.yost_dm
         if not dm.has_sensors():
-            return self.error_dialog(
-                "No sensors available. Plug in the devices, then click on 'Discover devices'"
-            )
+            return self.no_sensors_error()
 
         ## Start scope here.
         try:

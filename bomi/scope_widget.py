@@ -42,6 +42,26 @@ TARGET_BRUSH = pg.mkBrush(qg.QColor(25, 222, 193, 15))
 
 
 @dataclass
+class ScopeConfig:
+    "Configuration parameters for ScopeWidget"
+    window_title: str = "Scope"
+    task_widget: qw.QWidget = None
+
+    target_show: bool = False
+    target_range: Tuple[float, float] = (70, 80)
+
+    xrange: Tuple[float, float] = (-6, 0)
+    yrange: Tuple[float, float] = (-180, 180)
+
+    autoscale_y: bool = False
+
+    show_roll: bool = True
+    show_pitch: bool = True
+    show_yaw: bool = True
+    show_rollpitch: bool = True
+
+
+@dataclass
 class PlotHandle:
     "Holds a PlotItem and its curves"
     plot: pg.PlotItem | pg.ViewBox
@@ -99,22 +119,6 @@ class PlotHandle:
         self.target = None
 
 
-@dataclass
-class ScopeConfig:
-    window_title: str = "Scope"
-
-    target_show: bool = False
-    target_range: Tuple[float, float] = (70, 80)
-
-    xrange: Tuple[float, float] = (-6, 0)
-    yrange: Tuple[float, float] = (-180, 180)
-
-    show_roll: bool = True
-    show_pitch: bool = True
-    show_yaw: bool = True
-    show_rollpitch: bool = True
-
-
 class ScopeWidget(qw.QWidget):
     def __init__(
         self, device_manager: YostDeviceManager, config: ScopeConfig = ScopeConfig()
@@ -134,7 +138,7 @@ class ScopeWidget(qw.QWidget):
 
         ### Parameter tree
         self.params: ptree.Parameter = ptree.Parameter.create(
-            name="Controls",
+            name="Scope Controls",
             type="group",
             children=[
                 dict(name="streaming", title="Streaming", type="bool", value=True),
@@ -222,7 +226,6 @@ class ScopeWidget(qw.QWidget):
         def toggle_stream(_, on: bool):
             self.start_stream() if on else self.stop_stream()
 
-        # self.params.sigTreeStateChanged.connect(onPTChange)
         self.params.child("streaming").sigValueChanged.connect(toggle_stream)
         self.params.child("target", "tshow").sigValueChanged.connect(updateTarget)
         self.params.child("target", "tmax").sigValueChanged.connect(updateTarget)
@@ -315,19 +318,20 @@ class ScopeWidget(qw.QWidget):
         self.glw = glw = pg.GraphicsLayoutWidget()
         self.glw.setBackground("white")
         splitter.addWidget(glw)
-        
-        glw.addLabel("Hello world", color="k", size="12pt")
+
         row = 1
 
         ### Init Plots
         self.plot_handles: Dict[str, PlotHandle] = {}
-        plot_style = {"color": "k"}
+        plot_style = {"color": "k"}  # label style
         for name, sn in zip(self.dev_names, self.dev_sn):
             plot: pg.PlotItem = glw.addPlot(row=row, col=0)
             row += 1
             plot.addLegend(offset=(1, 1), **plot_style)
             plot.setXRange(*self.config.xrange)
             plot.setYRange(*self.config.yrange)
+            if self.config.autoscale_y:
+                plot.enableAutoRange(axis="y")
             plot.setLabel("bottom", "Time", units="s", **plot_style)
             plot.setLabel("left", "Euler Angle", units="deg", **plot_style)
             plot.setDownsampling(mode="peak")
@@ -335,12 +339,23 @@ class ScopeWidget(qw.QWidget):
             plot.setTitle(title, **plot_style)
             self.plot_handles[name] = PlotHandle.init(plot)
 
+        ### Init RHS of window
+        RHS = qw.QWidget()
+        layout = qw.QVBoxLayout()
+        RHS.setLayout(layout)
+        splitter.addWidget(RHS)
+
         # Create param tree
         pt = ptree.ParameterTree(showHeader=False)
         pt.setParameters(self.params)
-        splitter.addWidget(pt)
+        layout.addWidget(pt, 1)
 
-        # apply current config
+        # Create task widget
+        self.task_widget = self.config.task_widget
+        if self.task_widget is not None:
+            layout.addWidget(self.task_widget, 1)
+
+        ### apply other config
         config = self.config
         config.target_show and self.update_targets()
         config.show_roll or self.show_hide_curve("Roll", False)
