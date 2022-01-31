@@ -47,7 +47,7 @@ class Buffer:
 
     # task data
     task_history: TextIO  # filepointer to write task history
-    
+
     savedir: Path
 
     @classmethod

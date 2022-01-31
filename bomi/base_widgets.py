@@ -1,15 +1,16 @@
-from typing import Tuple
+from typing import Tuple, TypeVar
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 
+T = TypeVar("T")
 
-def create_spinbox(
-    SpinBoxType: qw.QAbstractSpinBox,
+
+def set_spinbox(
+    spin_box: T,
     value: float,
     step_size: float,
     range: Tuple[float, float],
-) -> qw.QAbstractSpinBox:
-    spin_box = SpinBoxType()
+) -> T:
     spin_box.setSingleStep(step_size)
     spin_box.setRange(*range)
     spin_box.setValue(value)

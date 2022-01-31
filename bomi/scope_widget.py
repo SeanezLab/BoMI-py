@@ -431,7 +431,5 @@ class ScopeWidget(qw.QWidget):
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         with pg.BusyCursor():
-            # _print("Close event called")
             self.stop_stream()
-            # _print("Close event done")
         return super().closeEvent(event)

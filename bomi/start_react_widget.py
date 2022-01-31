@@ -9,7 +9,7 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
-from bomi.base_widgets import TaskDisplay, create_spinbox
+from bomi.base_widgets import TaskDisplay, set_spinbox
 from bomi.device_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
@@ -26,6 +26,9 @@ class SRState(NamedTuple):
 
 
 class SRDisplay(TaskDisplay):
+    """StartReact Display"""
+
+    # States
     IDLE = SRState(color=Qt.lightGray, text="Get ready!")
     GO = SRState(color=Qt.green, text="Reach the target and hold!")
     WAIT = SRState(color=Qt.yellow, text="Wait...")
@@ -39,6 +42,7 @@ class SRDisplay(TaskDisplay):
     BTN_END_TXT = "End task"
 
     def __init__(self, task_name: str = ""):
+        "task_name will be displayed at the top of the widget"
         super().__init__()
 
         ### Init UI
@@ -72,7 +76,7 @@ class SRDisplay(TaskDisplay):
         gb = qw.QGroupBox("Task Config")
         form_layout = qw.QFormLayout()
         gb.setLayout(form_layout)
-        self.n_trials = create_spinbox(qw.QSpinBox, 5, 1, (1, 20))
+        self.n_trials = set_spinbox(qw.QSpinBox(), 5, 1, (1, 20))
         form_layout.addRow(qw.QLabel("No. Trials"), self.n_trials)
         main_layout.addWidget(gb, 6, 0, 1, 2)
 
@@ -82,7 +86,7 @@ class SRDisplay(TaskDisplay):
         main_layout.addWidget(self.start_stop_btn, 7, 0, 1, 2)
 
         ### Task states
-        self.n_cycles_left = 0
+        self.n_trials_left = 0
 
         self.set_state(self.IDLE)
 
@@ -96,11 +100,11 @@ class SRDisplay(TaskDisplay):
 
     def set_state(self, s: SRState):
         self.setPalette(s.color)
-        if s == self.WAIT and self.n_cycles_left:
-            if self.n_cycles_left == 1:
-                txt = f" {self.n_cycles_left} cycle left"
+        if s == self.WAIT and self.n_trials_left:
+            if self.n_trials_left == 1:
+                txt = f" {self.n_trials_left} cycle left"
             else:
-                txt = f" {self.n_cycles_left} cycles left"
+                txt = f" {self.n_trials_left} cycles left"
             self.center_label.setText(s.text + txt)
         else:
             self.center_label.setText(s.text)
@@ -124,10 +128,12 @@ class SRDisplay(TaskDisplay):
         self.signal_task.emit("visual_startling")
         self.set_state(self.GO)
 
-    def one_cycle(self):
+    def one_trial(self):
         """Send a visual signal to the subject to begin doing the task
         If there are more cycles remaining, schedule one more
         """
+        if self.n_trials_left <= 0:  # check if done
+            return
         random.choice(
             (
                 self.send_visual_signal,
@@ -137,36 +143,39 @@ class SRDisplay(TaskDisplay):
         )()
         self.progress_animation.start()
 
-        if self.n_cycles_left > 1:
-            qc.QTimer.singleShot(self.HOLD_TIME, self.end_one_cycle)
+        if self.n_trials_left > 1:  # check if schedule next trial
+            qc.QTimer.singleShot(self.HOLD_TIME, self.end_one_trial)
             qc.QTimer.singleShot(
-                self.HOLD_TIME + self.get_random_wait_time(), self.one_cycle
+                self.HOLD_TIME + self.get_random_wait_time(), self.one_trial
             )
         else:
             qc.QTimer.singleShot(self.HOLD_TIME, self.end_task)
 
-        self.n_cycles_left -= 1
+        self.n_trials_left -= 1
 
-    def end_one_cycle(self):
+    def end_one_trial(self):
+        """Execute clean up after a trial"""
         self.set_state(self.WAIT)
 
-    def begin_task(self, n_cycles: int = 2):
+    def begin_task(self):
         """Begin the precision control task
 
-        Begin sending random {visual, visual + auditory, visual + startling} to the subject per cycle,
-        each cycle lasting 3 seconds.
-        Wait a random amount of time before starting the next cycle until we finish `n_cycles`
+        Begin sending random {visual, visual + auditory, visual + startling} to the subject per trial,
+        each trial lasting 3 seconds.
+        Wait a random amount of time before starting the next trial until we finish `n_trials_left`
         """
         self.start_stop_btn.setText(self.BTN_END_TXT)
         self.progress_bar.setValue(0)
-        self.n_cycles_left = n_cycles
+        self.n_trials_left = self.n_trials.value()
         self.set_state(self.WAIT)
-        qc.QTimer.singleShot(self.get_random_wait_time(), self.one_cycle)
+        qc.QTimer.singleShot(self.get_random_wait_time(), self.one_trial)
 
     def end_task(self):
         """Finish the task, reset widget to initial states"""
         self.start_stop_btn.setText(self.BTN_START_TXT)
-        self.n_cycles_left = 0
+        self.n_trials_left = 0
+        self.progress_animation.stop()
+        self.progress_bar.setValue(0)
         self.set_state(self.TASK_DONE)
 
     def toggle_start_stop(self):
@@ -197,8 +206,8 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         main_layout.addWidget(btn1)
 
     def s_precision_task(self):
-        dm = self.dm
-        if not dm.has_sensors():
+        "Run the ScopeWidget with the precision task view"
+        if not self.dm.has_sensors():
             return self.no_sensors_error()
 
         scope_config = ScopeConfig(
@@ -206,22 +215,23 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             task_widget=SRDisplay("Precision Control"),
             show_scope_params=True,
             target_show=True,
-            yrange=(0, 120),
+            target_range=(45, 50),
+            yrange=(0, 90),
             show_roll=False,
             show_pitch=False,
             show_yaw=False,
         )
 
         try:
-            self._precision = ScopeWidget(dm, config=scope_config)
+            self._precision = ScopeWidget(self.dm, config=scope_config)
             self._precision.showMaximized()
         except Exception as e:
             _print(traceback.format_exc())
             self.dm.stop_stream()
 
     def s_max_rom(self):
-        dm = self.dm
-        if not dm.has_sensors():
+        "Run the ScopeWidget with the MaxROM task view"
+        if not self.dm.has_sensors():
             return self.no_sensors_error()
 
         scope_config = ScopeConfig(
@@ -229,15 +239,15 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             task_widget=SRDisplay("Max Range of Motion"),
             show_scope_params=True,
             target_show=True,
-            target_range=(80, 120),
-            yrange=(0, 120),
+            target_range=(70, 120),
+            yrange=(0, 110),
             show_roll=False,
             show_pitch=False,
             show_yaw=False,
         )
 
         try:
-            self._precision = ScopeWidget(dm, config=scope_config)
+            self._precision = ScopeWidget(self.dm, config=scope_config)
             self._precision.showMaximized()
         except Exception as e:
             _print(traceback.format_exc())
