@@ -1,14 +1,16 @@
 from __future__ import annotations
+
+import traceback
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, TypeVar
-import traceback
+
+import pyqtgraph as pg
+import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
-import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
-import pyqtgraph as pg
 
-from bomi.device_manager import YostDeviceManager, DeviceT, Packet
+from bomi.device_manager import DeviceT, YostDeviceManager
 from bomi.scope_widget import ScopeWidget
 from bomi.window_mixin import WindowMixin
 

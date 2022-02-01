@@ -3,11 +3,11 @@ from functools import partial
 from typing import Callable, Dict, List, Tuple, TypeVar
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
-from dataclasses import dataclass, Field
+from dataclasses import Field
 
 from bomi.datastructure import Metadata
 
-T = TypeVar("T")
+T = TypeVar("T", qw.QSpinBox, qw.QDoubleSpinBox)
 
 
 def set_spinbox(
@@ -23,8 +23,10 @@ def set_spinbox(
 
 
 class TaskDisplay(qw.QWidget):
-    signal_task = qc.Signal(str)  # emits (event_name) when a GO signal is sent
-    _task_stack = []
+    signal_task: qc.SignalInstance = qc.Signal(
+        str
+    )  # emits (event_name) when a GO signal is sent
+    _task_stack: List[str] = []
 
     def emit_begin(self, event_name: str):
         self.signal_task.emit("begin_" + event_name)
@@ -281,10 +283,3 @@ def generate_edit_form(
         button_box.rejected.connect(reject)
 
         return widget
-
-
-if __name__ == "__main__":
-    app = qw.QApplication()
-    win = MetadataWidget()
-    win.show()
-    app.exec()

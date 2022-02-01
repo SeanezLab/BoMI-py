@@ -1,5 +1,4 @@
 from __future__ import annotations
-from tkinter import dialog
 
 import traceback
 from dataclasses import dataclass

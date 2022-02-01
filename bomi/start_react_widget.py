@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import traceback
 import random
+import traceback
 from typing import NamedTuple
 
 import PySide6.QtCore as qc

@@ -109,9 +109,6 @@ class YostDeviceManager:
         # Mapping[serial_number_hex, nickname]. Nickname defaults to serial_number_hex
         self._names: Dict[str, str] = {}
 
-    def __del__(self):
-        self.stop_stream()
-
     def status(self) -> str:
         return (
             f"Discovered {len(self.dongles)} dongles, {len(self.all_sensors)} sensors"
@@ -333,6 +330,7 @@ class YostDeviceManager:
         ts_api.global_sensorlist = {}
 
     def __del__(self):
+        self.stop_stream()
         self.close_all_devices()
 
 

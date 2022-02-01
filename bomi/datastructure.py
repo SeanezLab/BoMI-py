@@ -1,8 +1,8 @@
 from __future__ import annotations
-from dataclasses import dataclass, asdict
-from datetime import datetime
-from enum import Enum
+
 import json
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 from timeit import default_timer
 from typing import ClassVar, Dict, List, NamedTuple, TextIO
@@ -69,7 +69,7 @@ class Buffer:
     task_history: TextIO  # filepointer to write task history
 
     savedir: Path
-    
+
     def close(self):
         "Close open file pointers"
         self.sensor_fp.close()

@@ -1,4 +1,3 @@
-from typing import List
 from functools import partial
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
@@ -20,7 +19,7 @@ __appname__ = "BoMI"
 __all__ = ["MainWindow", "main"]
 
 
-def wrap_gb(name: str, *widgets: List[qw.QWidget]):
+def wrap_gb(name: str, *widgets: qw.QWidget):
     "Wrap widgets in a QGroupBox"
     gb = qw.QGroupBox(name)
     layout = qw.QVBoxLayout()

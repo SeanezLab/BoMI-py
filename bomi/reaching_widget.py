@@ -56,7 +56,7 @@ class Targets:
         center, targets = cls.generate_targets(n_targets=n_targets, n_reps=n_reps)
         return cls(base=center, all=targets, uniq=list(set(targets)))
 
-    def reinit(self, n_targets: int, n_reps: int) -> Targets:
+    def reinit(self, n_targets: int, n_reps: int):
         center, targets = self.generate_targets(n_targets=n_targets, n_reps=n_reps)
         self.base = center
         self.all = targets
