@@ -51,7 +51,7 @@ def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorLi
 
     for device_port in ports:
         com_port, _, device_type = device_port
-        device = None
+        device: ts_api._TSSensor | ts_api.TSDongle = None
 
         try:
             if device_type == "USB":
@@ -75,7 +75,8 @@ def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorLi
             print("[WARNING]", e)
 
         if device is not None:
-            if device_type != "DNG":
+            if not isinstance(device, ts_api.TSDongle):
+                # if device_type != "DNG":
                 wired_sensors.append(device)
                 all_sensors.append(device)
             else:

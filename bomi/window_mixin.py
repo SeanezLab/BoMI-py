@@ -4,7 +4,7 @@ import PySide6.QtGui as qg
 from PySide6.QtCore import Qt
 
 
-class WindowMixin:
+class WindowMixin(object):
     def error_dialog(self, msg: str):
         "Display `msg` in a popup error dialog"
         if not hasattr(self, "_popup_window"):
@@ -18,11 +18,9 @@ class WindowMixin:
             "No sensors available. Plug in the devices, then click on 'Discover devices'"
         )
 
-    @qc.Slot()
-    def start_widget(self, cls: qw.QWidget, maximize=True):
+    def start_widget(self, obj: qw.QWidget, maximize=True):
         "Run the given QWidget class in a new window"
-        obj = cls()
-        attr = str(cls)
+        attr = str(type(obj))
         setattr(self, attr, obj)
 
         # hijack the QWidget's `closeEvent` to delete this attribute

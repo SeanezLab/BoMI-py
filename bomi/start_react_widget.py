@@ -31,7 +31,7 @@ class SRDisplay(TaskDisplay):
     # States
     IDLE = SRState(color=Qt.lightGray, text="Get ready!")
     GO = SRState(color=Qt.green, text="Reach the target and hold!")
-    WAIT = SRState(color=Qt.yellow, text="Wait...")
+    WAIT = SRState(color=qg.QColor(254, 219, 65), text="Wait...")
     TASK_DONE = SRState(color=Qt.lightGray, text="All done!")
 
     HOLD_TIME = 3000  # msec
@@ -115,47 +115,46 @@ class SRDisplay(TaskDisplay):
         return cls.PAUSE_MIN + (cls.PAUSE_RANDOM) * random.random()
 
     def send_visual_signal(self):
-        self.signal_task.emit("visual")
+        self.emit_begin("visual")
         self.set_state(self.GO)
 
     def send_visual_auditory_signal(self):
         "TODO: IMPLEMENT AUD"
-        self.signal_task.emit("visual_auditory")
+        self.emit_begin("visual_auditory")
         self.set_state(self.GO)
 
     def send_visual_startling_signal(self):
         "TODO: IMPLEMENT AUD"
-        self.signal_task.emit("visual_startling")
+        self.emit_begin("visual_startling")
         self.set_state(self.GO)
 
     def one_trial(self):
-        """Send a visual signal to the subject to begin doing the task
-        If there are more cycles remaining, schedule one more
+        """Send a signal to the subject to begin doing the task
+        Schedule the end of the trial
         """
-        if self.n_trials_left <= 0:  # check if done
-            return
-        random.choice(
-            (
-                self.send_visual_signal,
-                self.send_visual_auditory_signal,
-                self.send_visual_startling_signal,
+        if self.n_trials_left > 0:  # check if done
+            task = random.choice(
+                (
+                    self.send_visual_signal,
+                    self.send_visual_auditory_signal,
+                    self.send_visual_startling_signal,
+                )
             )
-        )()
-        self.progress_animation.start()
-
-        if self.n_trials_left > 1:  # check if schedule next trial
+            task()
             qc.QTimer.singleShot(self.HOLD_TIME, self.end_one_trial)
-            qc.QTimer.singleShot(
-                self.HOLD_TIME + self.get_random_wait_time(), self.one_trial
-            )
-        else:
-            qc.QTimer.singleShot(self.HOLD_TIME, self.end_task)
-
-        self.n_trials_left -= 1
+            self.progress_animation.start()
+            self.n_trials_left -= 1
 
     def end_one_trial(self):
-        """Execute clean up after a trial"""
+        """Execute clean up after a trial
+        If there are more cycles remaining, schedule one more
+        """
+        self.emit_end()
         self.set_state(self.WAIT)
+        if self.n_trials_left > 1:  # check if schedule next trial
+            qc.QTimer.singleShot(self.get_random_wait_time(), self.one_trial)
+        else:  # if no tasks remaining, end the task
+            self.end_task()
 
     def begin_task(self):
         """Begin the precision control task
@@ -164,6 +163,7 @@ class SRDisplay(TaskDisplay):
         each trial lasting 3 seconds.
         Wait a random amount of time before starting the next trial until we finish `n_trials_left`
         """
+        self.emit_begin("task")
         self.start_stop_btn.setText(self.BTN_END_TXT)
         self.progress_bar.setValue(0)
         self.n_trials_left = self.n_trials.value()
@@ -172,6 +172,7 @@ class SRDisplay(TaskDisplay):
 
     def end_task(self):
         """Finish the task, reset widget to initial states"""
+        self.emit_end()
         self.start_stop_btn.setText(self.BTN_START_TXT)
         self.n_trials_left = 0
         self.progress_animation.stop()
@@ -215,7 +216,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             task_widget=SRDisplay("Precision Control"),
             show_scope_params=True,
             target_show=True,
-            target_range=(45, 50),
+            target_range=(35, 40),
             yrange=(0, 90),
             show_roll=False,
             show_pitch=False,

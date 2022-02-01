@@ -64,19 +64,19 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
         ### Cursor Task group
         btn_reach = qw.QPushButton(text="Reaching")
-        btn_reach.clicked.connect(partial(self.start_widget, ReachingWidget))
+        btn_reach.clicked.connect(partial(self.start_widget, ReachingWidget()))
 
         btn_paint = qw.QPushButton(text="Painter")
-        btn_paint.clicked.connect(partial(self.start_widget, PainterWidget))
+        btn_paint.clicked.connect(partial(self.start_widget, PainterWidget()))
 
         vsplit.addWidget(wrap_gb("Cursor Tasks", btn_reach, btn_paint))
 
         ### Misc group
         btn2 = qw.QPushButton(text="Show sample plot")
-        btn2.clicked.connect(partial(self.start_widget, SamplePlotWidget))
+        btn2.clicked.connect(partial(self.start_widget, SamplePlotWidget()))
 
         btn3 = qw.QPushButton(text="Show sample 3D plot")
-        btn3.clicked.connect(partial(self.start_widget, Sample3DWidget))
+        btn3.clicked.connect(partial(self.start_widget, Sample3DWidget()))
 
         vsplit.addWidget(wrap_gb("Others", btn2, btn3))
 

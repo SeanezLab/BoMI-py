@@ -49,9 +49,9 @@ def write_dongle_port(port: serial.Serial, data: bytes, logical_id: int):
 class Cmd(NamedTuple):
     cmd: int  # command value
     out_len: int  # length of response data (bytes)
-    out_struct: str  # struct of the response data
+    out_struct: str | None  # struct of the response data
     in_len: int  # length of request data (bytes)
-    in_struct: str  # struct of request data
+    in_struct: str | None  # struct of request data
     compat: int
 
     def __call__(self, *args: Any) -> bytes:

@@ -1,8 +1,8 @@
 from __future__ import annotations
+from tkinter import dialog
 
 import traceback
 from dataclasses import dataclass
-from pickle import NONE
 from queue import Queue
 from timeit import default_timer
 from typing import Dict, List, Tuple
@@ -16,8 +16,8 @@ from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 from PySide6.QtCore import Qt
 
-from bomi.base_widgets import TaskDisplay
-from bomi.datastructure import Buffer, Packet
+from bomi.base_widgets import TaskDisplay, generate_edit_form
+from bomi.datastructure import Buffer, Metadata, Packet, get_savedir
 from bomi.device_manager import YostDeviceManager
 
 
@@ -37,7 +37,6 @@ COLORS = [
 
 PENS = [pg.mkPen(clr, width=2) for clr in COLORS]
 
-TARGET_PEN = NONE
 TARGET_BRUSH = pg.mkBrush(qg.QColor(25, 222, 193, 15))
 
 
@@ -121,21 +120,32 @@ class PlotHandle:
 
 
 class ScopeWidget(qw.QWidget):
-    def __init__(
-        self, device_manager: YostDeviceManager, config: ScopeConfig = ScopeConfig()
-    ):
+    def __init__(self, dm: YostDeviceManager, config: ScopeConfig = ScopeConfig()):
         super().__init__()
-        self.dm: YostDeviceManager = device_manager
         self.setWindowTitle(config.window_title)
+        self.dm = dm
         self.config = config
 
         self.show_labels = list(Buffer.labels)
         self.queue: Queue[Packet] = Queue()
 
-        self.dev_names: List[str] = []
-        self.dev_sn: List[str] = []
-        self.init_bufsize = 2500
+        self.dev_names: List[str] = []  # device name/nicknames
+        self.dev_sn: List[str] = []  # device serial numbers (hex str)
+        self.init_bufsize = 2500  # buffer size
+        self.savedir = get_savedir(
+            self.config.window_title
+        )  # savedir to write all data
         self.buffers: Dict[str, Buffer] = {}
+        self.meta = Metadata()
+
+        def write_meta():
+            print("write_meta", self.meta.dict())
+            self.meta.to_disk(self.savedir)
+
+        write_meta()
+        self.meta_gb = generate_edit_form(
+            self.meta, name="Edit Metadata", callback=write_meta
+        )
 
         ### Parameter tree
         self.params: ptree.Parameter = ptree.Parameter.create(
@@ -305,18 +315,12 @@ class ScopeWidget(qw.QWidget):
             self.queue.task_done()
         self.dev_names = self.dm.get_all_sensor_names()
         self.dev_sn = self.dm.get_all_sensor_serial()
-        if self.buffers:
-            keys = list(self.buffers.keys())
-            sample = self.buffers[keys[0]]
-            for dev in self.dev_names:
-                if not dev in keys:
-                    self.buffers[dev] = Buffer.init(
-                        buf_size=sample.buf_size, savedir=sample.savedir, name=dev
-                    )
 
-        else:
-            self.buffers = Buffer.init_buffers(
-                self.dev_names, self.init_bufsize, task_name=self.config.window_title
+        for dev in self.dev_names:
+            if dev in self.buffers:  # buffer already initialized
+                continue
+            self.buffers[dev] = Buffer.init(
+                bufsize=self.init_bufsize, savedir=self.savedir, name=dev
             )
 
     def init_ui(self):
@@ -361,6 +365,8 @@ class ScopeWidget(qw.QWidget):
         pt.setParameters(self.params)
         if self.config.show_scope_params:
             layout.addWidget(pt, 1)
+
+        layout.addWidget(self.meta_gb)
 
         # Create task widget
         self.task_widget = self.config.task_widget
@@ -432,4 +438,8 @@ class ScopeWidget(qw.QWidget):
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         with pg.BusyCursor():
             self.stop_stream()
+
+            for buffer in self.buffers.values():
+                buffer.close()
+
         return super().closeEvent(event)

@@ -1,17 +1,18 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from functools import partial
+
 import math
-from timeit import default_timer
 import random
+from dataclasses import dataclass, field
+from timeit import default_timer
 from typing import ClassVar, List, Optional, Tuple
+
+import numpy as np
+import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
-import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
-import numpy as np
-from bomi.base_widgets import set_spinbox
 
+from bomi.base_widgets import generate_edit_form
 from bomi.window_mixin import WindowMixin
 
 
@@ -19,66 +20,15 @@ def _print(*args):
     print("[Reaching]", *args)
 
 
+@dataclass
 class Config:
     # Reaching task params
-    HOLD_TIME = 0.5
-    TIME_LIMIT = 1.0
-    TARGET_RADIUS = 40
-    N_TARGETS = 8
-    N_REPS = 3
-
-
-class ConfigWidget(qw.QDialog):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Reaching Config")
-
-        self.create_menu()
-        self.create_form_group_box()
-
-        main_layout = qw.QVBoxLayout()
-        main_layout.setMenuBar(self._menu_bar)
-        main_layout.addWidget(self._form_group_box)
-        self.setLayout(main_layout)
-
-        button_box = qw.QDialogButtonBox(
-            qw.QDialogButtonBox.Ok | qw.QDialogButtonBox.Cancel
-        )
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-
-        main_layout.addWidget(button_box)
-
-    def create_menu(self):
-        self._menu_bar = qw.QMenuBar()
-        self._file_menu = qw.QMenu("&File", self)
-        self._exit_action = self._file_menu.addAction("&Exit")
-        self._menu_bar.addMenu(self._file_menu)
-        self._exit_action.triggered.connect(self.accept)
-
-    def create_form_group_box(self):
-        self._form_group_box = qw.QGroupBox("Reaching Config")
-        layout = qw.QFormLayout()
-
-        self.hold_time = set_spinbox(qw.QDoubleSpinBox(), Config.HOLD_TIME, 0.1, (0, 1))
-        self.time_limit = set_spinbox(
-            qw.QDoubleSpinBox(), Config.TIME_LIMIT, 0.1, (0, 2)
-        )
-        self.n_targets = set_spinbox(qw.QSpinBox(), Config.N_TARGETS, 1, (1, 10))
-        self.n_reps = set_spinbox(qw.QSpinBox(), Config.N_REPS, 1, (1, 5))
-
-        layout.addRow(qw.QLabel("Hold time"), self.hold_time)
-        layout.addRow(qw.QLabel("Time limit"), self.time_limit)
-        layout.addRow(qw.QLabel("No. targets"), self.n_targets)
-        layout.addRow(qw.QLabel("No. reps"), self.n_reps)
-        self._form_group_box.setLayout(layout)
-
-    def accept(self):
-        Config.HOLD_TIME = self.hold_time.value()
-        Config.TIME_LIMIT = self.time_limit.value()
-        Config.N_TARGETS = self.n_targets.value()
-        Config.N_REPS = self.n_reps.value()
-        return super().accept()
+    hold_time: float = field(default=0.5, metadata=dict(range=(0, 2), step=0.1))
+    time_limit: float = field(default=1.0, metadata=dict(range=(0, 2), step=0.1))
+    n_targets: int = field(default=8, metadata=dict(range=(1, 10), name="No. Targets"))
+    n_reps: int = field(default=3, metadata=dict(range=(1, 5), name="No. Reps"))
+    target_radius: int = field(default=40)
+    base_radius: int = field(default=60)
 
 
 YELLOW = qg.QColor(244, 224, 135)
@@ -145,18 +95,13 @@ class Targets:
         return center, target_n
 
 
-# class ReachingState:
-# HOLDING = 1
-# REACHING = 2
-# INTERMISSION = 3
-
-
 class ReachingWidget(qw.QWidget, WindowMixin):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Reaching Task")
         self.setWindowFlags(Qt.FramelessWindowHint)
 
+        self.config = config = Config()
         self._targ_phantom_r = 0
 
         self.init_ui()  # Inititialize user interface
@@ -187,7 +132,7 @@ class ReachingWidget(qw.QWidget, WindowMixin):
         self.timer.setInterval(1000 / 50)  # 50 Hz update rate
         self.timer.timeout.connect(self.update_task_state)
 
-        self.targets = Targets.init(Config.N_TARGETS, Config.N_REPS)
+        self.targets = Targets.init(config.n_targets, config.n_reps)
 
         self.popup: Optional[qw.QWidget] = None
 
@@ -197,7 +142,7 @@ class ReachingWidget(qw.QWidget, WindowMixin):
 
         self._targ_phantom_r = 0
         self.targ_phantom_animation = qc.QPropertyAnimation(self, b"target_phantom_r")
-        self.targ_phantom_animation.setDuration(Config.HOLD_TIME * 1000)
+        self.targ_phantom_animation.setDuration(config.hold_time * 1000)
         self.targ_phantom_animation.setEasingCurve(qc.QEasingCurve.OutSine)
 
     def showEvent(self, event: qg.QShowEvent) -> None:
@@ -248,13 +193,14 @@ class ReachingWidget(qw.QWidget, WindowMixin):
         animation.setEndValue(val)
         animation.start()
 
-    def start_phantom_transition(self, val: float = Config.TARGET_RADIUS):
+    def start_phantom_transition(self):
         animation = self.targ_phantom_animation
         if animation.Running == animation.state():
             return
-        if val:
-            animation.setStartValue(0)
-            animation.setEndValue(val)
+
+        animation.setStartValue(0)
+        animation.setEndValue(self.config.target_radius)
+
         animation.start()
 
     def stop_phantom_transition(self):
@@ -289,7 +235,11 @@ class ReachingWidget(qw.QWidget, WindowMixin):
         config_btn.setFont(qg.QFont("Arial", 18))
         btn_layout.addWidget(config_btn, 1, 1, 1, 2)
 
-        config_btn.clicked.connect(partial(self.start_widget, ConfigWidget, False))
+        def show_config_widget():
+            self.config_widget = generate_edit_form(self.config, dialog_box=True)
+            self.config_widget.show()
+
+        config_btn.clicked.connect(show_config_widget)
 
         exit_btn = qw.QPushButton("Exit")
         exit_btn.setFont(qg.QFont("Arial", 18))
@@ -319,8 +269,8 @@ class ReachingWidget(qw.QWidget, WindowMixin):
 
     def _begin_task(self):
         # get new config params
-        self.targets.reinit(Config.N_TARGETS, Config.N_REPS)
-        self.targ_phantom_animation.setDuration(Config.HOLD_TIME * 1000)
+        self.targets.reinit(self.config.n_targets, self.config.n_reps)
+        self.targ_phantom_animation.setDuration(self.config.hold_time * 1000)
 
         _print("Begin task")
         self.running = True
@@ -348,7 +298,6 @@ class ReachingWidget(qw.QWidget, WindowMixin):
         self.begin_task("Good job! Restart?")
 
     def paintEvent(self, event: qg.QPaintEvent):
-        r = Config.TARGET_RADIUS
         tgts = self.targets
         painter = qg.QPainter(self)
         painter.setRenderHint(qg.QPainter.Antialiasing)
@@ -356,7 +305,9 @@ class ReachingWidget(qw.QWidget, WindowMixin):
         painter.setPen(qg.QPen(GRAY, 3))
         painter.setBrush(GRAY)
 
-        painter.drawEllipse(tgts.base, r, r)
+        r = self.config.target_radius
+        base_r = self.config.base_radius
+        painter.drawEllipse(tgts.base, base_r, base_r)
         for t in tgts.uniq:
             painter.drawEllipse(t, r, r)
 
@@ -382,7 +333,7 @@ class ReachingWidget(qw.QWidget, WindowMixin):
             self.stop_phantom_transition()
         tgts = self.targets
 
-        if now - self.target_acquired_time > Config.HOLD_TIME:
+        if now - self.target_acquired_time > self.config.hold_time:
             # Cursor has been held inside target for enough time.
             # _print(f"Held for long enough ({self.HOLD_TIME}s). Moving target")
 
@@ -406,7 +357,7 @@ class ReachingWidget(qw.QWidget, WindowMixin):
             self.move_target()
             self.update()
 
-        elif now - self.target_moved_time > Config.TIME_LIMIT:
+        elif now - self.target_moved_time > self.config.time_limit:
             # exceeded time limit
             if tgts.active_line_clr != RED and not self.last_cursor_inside:
                 # _print(f"Failed to reach target within time limit ({self.TIME_LIMIT}s)")
@@ -426,7 +377,7 @@ class ReachingWidget(qw.QWidget, WindowMixin):
 
             # update cursor states
             d = tgts.curr - self.cursor_pos
-            cursor_inside = math.hypot(d.x(), d.y()) < Config.TARGET_RADIUS
+            cursor_inside = math.hypot(d.x(), d.y()) < self.config.target_radius
             if cursor_inside:
                 if not self.last_cursor_inside:
                     self.target_acquired_time = now
