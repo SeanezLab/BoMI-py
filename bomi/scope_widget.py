@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import traceback
 from dataclasses import dataclass
-from queue import Queue
+from collections import deque
 from timeit import default_timer
 from typing import Dict, List, Tuple
 
@@ -13,7 +13,6 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
-from PySide6.QtCore import Qt
 
 from bomi.base_widgets import TaskDisplay, generate_edit_form
 from bomi.datastructure import Buffer, Metadata, Packet, get_savedir
@@ -43,7 +42,7 @@ TARGET_BRUSH = pg.mkBrush(qg.QColor(25, 222, 193, 15))
 class ScopeConfig:
     "Configuration parameters for ScopeWidget"
     window_title: str = "Scope"
-    task_widget: TaskDisplay = None
+    task_widget: TaskDisplay | None = None
     show_scope_params: bool = True
 
     target_show: bool = False
@@ -126,7 +125,7 @@ class ScopeWidget(qw.QWidget):
         self.config = config
 
         self.show_labels = list(Buffer.labels)
-        self.queue: Queue[Packet] = Queue()
+        self.queue: deque[Packet] = deque()
 
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
@@ -309,9 +308,7 @@ class ScopeWidget(qw.QWidget):
 
     def init_data(self):
         ### data
-        while self.queue.qsize():
-            self.queue.get()
-            self.queue.task_done()
+        self.queue.clear()
         self.dev_names = self.dm.get_all_sensor_names()
         self.dev_sn = self.dm.get_all_sensor_serial()
 
@@ -391,7 +388,7 @@ class ScopeWidget(qw.QWidget):
 
     def start_stream(self):
         """Start the stream and show in the scope
-        Recreate the queue and buffers
+        Clear the queue and buffers
         """
         self.init_data()
         self.dm.start_stream(self.queue)
@@ -408,13 +405,12 @@ class ScopeWidget(qw.QWidget):
         2. If successful, update all plots
         """
         q = self.queue
-        qsize = q.qsize()
+        qsize = len(q)
         if not qsize:
             return
         try:
             for _ in range(qsize):  # process current items in queue
-                packet: Packet = q.get()
-                q.task_done()  # not using queue.join() anywhere so this doesn't matter
+                packet: Packet = q.popleft()
                 self.buffers[packet.name].add_packet(packet)
 
         except Exception as e:

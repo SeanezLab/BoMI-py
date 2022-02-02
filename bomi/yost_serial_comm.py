@@ -6,8 +6,7 @@ Everything else (device discovery, management, config etc.) should still be
 managed through the threespace_api. 
 """
 from __future__ import annotations
-from typing import Any, Dict, Final, List, NamedTuple, Optional, Tuple
-from queue import Queue
+from typing import Any, Deque, Dict, Final, List, NamedTuple, Optional, Tuple
 from timeit import default_timer
 import math
 
@@ -17,6 +16,7 @@ import struct
 from bomi.datastructure import Packet
 
 RAD2DEG: Final = 180 / math.pi
+
 
 def _print(*args):
     print("[Yost custom serial comm]", *args)
@@ -249,7 +249,7 @@ class Dongles:
 
         return self
 
-    def __call__(self, queue: Queue[Packet]) -> int:
+    def __call__(self, queue: Deque[Packet]) -> int:
         now = default_timer()
         i = 0
         for port in self.ports:
@@ -264,11 +264,9 @@ class Dongles:
                     t=now,
                     name=port.wl_mp[logical_id],
                 )
-                queue.put(packet)
+                queue.append(packet)
                 i += 1
         return i
-
-
 
     def __exit__(self, exctype, excinst, exctb):
         for port, logical_ids in zip(self.ports, self.logical_ids):

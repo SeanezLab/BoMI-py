@@ -69,7 +69,7 @@ def generate_edit_form(
 
     """
     assert hasattr(dc, "__dataclass_fields__")
-    
+
     name = name if name else dc.__class__.__name__
 
     gb = qw.QGroupBox(name)

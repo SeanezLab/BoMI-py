@@ -2,8 +2,8 @@ import struct
 import math
 import threading
 import time
+from collections import deque
 from pathlib import Path
-from queue import Queue
 from timeit import default_timer
 from typing import Dict, Final, List, Optional, Tuple
 
@@ -33,7 +33,7 @@ DongleList = List[ts_api.TSDongle]
 SensorList = List[ts_api._TSSensor]
 
 
-def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorList]:
+def discover_all_devices() -> Tuple[DongleList, SensorList, SensorList, SensorList]:
     """
     Discover all Yost sensors and dongles by checking all COM ports.
 
@@ -51,7 +51,7 @@ def discover_all_devices() -> Tuple[DeviceList, SensorList, SensorList, SensorLi
 
     for device_port in ports:
         com_port, _, device_type = device_port
-        device: ts_api._TSSensor | ts_api.TSDongle = None
+        device = None
 
         try:
             if device_type == "USB":
@@ -123,7 +123,7 @@ class YostDeviceManager:
         self.all_sensors = all_sensors
         self.wired_sensors = wired_sensors
         self.wireless_sensors = wireless_sensors
-        for dev in dongles + all_sensors:
+        for dev in (*dongles, *all_sensors):
             if not dev.serial_number_hex in self._names:
                 self._names[dev.serial_number_hex] = dev.serial_number_hex
 
@@ -142,16 +142,16 @@ class YostDeviceManager:
         "Get nickname of all sensors"
         return [self._names[s.serial_number_hex] for s in self.all_sensors]
 
-    def get_device_name(self, serial_number_hex: str) -> str | None:
+    def get_device_name(self, serial_number_hex: str) -> str:
         "Get the nickname of a device"
-        return self._names.get(serial_number_hex)
+        return self._names.get(serial_number_hex, "")
 
     def set_device_name(self, serial_number_hex: str, name: str):
         "Set the nickname of a device"
         _print(f"{serial_number_hex} nicknamed {name}")
         self._names[serial_number_hex] = name
 
-    def start_stream(self, queue: Queue, fname: Optional[str] = None):
+    def start_stream(self, queue: deque[Packet]):
         if not self.has_sensors():
             _print("No sensors found. Aborting stream")
             return
@@ -176,7 +176,7 @@ class YostDeviceManager:
                     idx = dongle.wireless_table.index(wl_id)
                     wl_mp[idx] = self.get_device_name(HEX.format(wl_id))
 
-            port_name = dongle.serial_port.name
+            port_name: str = dongle.serial_port.name
             port_names.append(port_name)
             self.close_device(dongle)
             del dongle
@@ -232,7 +232,7 @@ class YostDeviceManager:
                             t=now,
                             name=self._names[sensor.serial_number_hex],
                         )
-                        queue.put(packet)
+                        queue.append(packet)
                         i += 1
 
                     # read streaming batch from wireless sensors through
@@ -249,7 +249,7 @@ class YostDeviceManager:
                                 t=now,
                                 name=port.wl_mp[logical_id],
                             )
-                            queue.put(packet)
+                            queue.append(packet)
                             i += 1
 
                     if i % 2000 == 0:
