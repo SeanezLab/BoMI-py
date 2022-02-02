@@ -180,6 +180,7 @@ class YostDeviceManager:
             port_names.append(port_name)
             self.close_device(dongle)
             del dongle
+
             port = serial.Serial(port_name, 115200, timeout=1)
             port.wl_mp = wl_mp
             ports.append(port)
@@ -238,7 +239,7 @@ class YostDeviceManager:
                     # a dongle's serial port
                     for port in ports:
                         failed, logical_id, raw = read_dongle_port(port)
-                        if failed == 0 and len(raw) == 13:
+                        if failed == 0 and raw and len(raw) == 13:
                             b = struct.unpack(">fffB", raw)
                             packet = Packet(
                                 pitch=b[0] * RAD2DEG,

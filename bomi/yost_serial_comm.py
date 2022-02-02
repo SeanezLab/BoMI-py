@@ -5,10 +5,18 @@ very inefficient through the official threespace_api.
 Everything else (device discovery, management, config etc.) should still be
 managed through the threespace_api. 
 """
-from typing import Any, Final, NamedTuple, Optional, Tuple
+from __future__ import annotations
+from typing import Any, Dict, Final, List, NamedTuple, Optional, Tuple
+from queue import Queue
+from timeit import default_timer
+import math
+
 import serial
 import struct
 
+from bomi.datastructure import Packet
+
+RAD2DEG: Final = 180 / math.pi
 
 def _print(*args):
     print("[Yost custom serial comm]", *args)
@@ -214,6 +222,57 @@ class WLCmds:
     getBatteryPercentRemaining = Cmd(0xCA, 1, ">B", 0, None, 1)
     getBatteryStatus = Cmd(0xCB, 1, ">B", 0, None, 1)
     getButtonState = Cmd(0xFA, 1, ">B", 0, None, 1)
+
+
+class DongleError(Exception):
+    pass
+
+
+class Dongles:
+    def __init__(self, port_names: List[str], wl_mps: List[Dict[int, str]]):
+        """
+        port_name: List of COM port names connected to TSDongles
+        wl_mps: List of Dict[logical_id, device_name] that correspond to the dongles
+        """
+        self.port_names = port_names
+        self.wl_mps = wl_mps
+        self.ports: List[serial.Serial] = []
+        self.logical_ids: List[Tuple[int, ...]] = []
+
+    def __enter__(self) -> Dongles:
+        for port_name, wl_mp in zip(self.port_names, self.wl_mps):
+            port = serial.Serial(port_name, 115200, timeout=1)
+            self.ports.append(port)
+            logical_ids = tuple(wl_mp.keys())
+            self.logical_ids.append(logical_ids)
+            start_dongle_streaming(port, logical_ids)
+
+        return self
+
+    def __call__(self, queue: Queue[Packet]) -> int:
+        now = default_timer()
+        i = 0
+        for port in self.ports:
+            failed, logical_id, raw = read_dongle_port(port)
+            if failed == 0 and raw and len(raw) == 13:
+                b = struct.unpack(">fffB", raw)
+                packet = Packet(
+                    pitch=b[0] * RAD2DEG,
+                    yaw=b[1] * RAD2DEG,
+                    roll=b[2] * RAD2DEG,
+                    battery=b[3],
+                    t=now,
+                    name=port.wl_mp[logical_id],
+                )
+                queue.put(packet)
+                i += 1
+        return i
+
+
+
+    def __exit__(self, exctype, excinst, exctb):
+        for port, logical_ids in zip(self.ports, self.logical_ids):
+            stop_dongle_streaming(port, logical_ids)
 
 
 def start_dongle_streaming(port: serial.Serial, logical_ids):
