@@ -26,9 +26,7 @@ def _print(*args):
 HEX: Final = "{0:08X}"
 RAD2DEG: Final = 180 / math.pi
 
-get_time = default_timer
 DeviceT = ts_api.TSDongle | ts_api._TSSensor
-DeviceList = List[DeviceT]
 DongleList = List[ts_api.TSDongle]
 SensorList = List[ts_api._TSSensor]
 

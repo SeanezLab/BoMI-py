@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import traceback
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Final, List, Optional, Tuple
 
 import pyqtgraph as pg
 import PySide6.QtCore as qc
-import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
@@ -19,19 +18,20 @@ def _print(*args):
     print("[DeviceManagerWidget]", *args)
 
 
-T = TypeVar("T")
+SetterT = Callable[[DeviceT, Any], None]
+GetterT = Callable[[DeviceT], Any]
 
 
 @dataclass
 class ColumnProps:
     name: str
     dtype: Callable
-    get: Optional[Callable[[DeviceT], T]] = None
-    set: Optional[Callable[[DeviceT, T], T]] = None
+    get: Optional[GetterT] = None
+    set: Optional[SetterT] = None
     editable: bool = False
-    _val: Dict[DeviceT, T] = field(default_factory=dict)
+    _val: Dict[DeviceT, Any] = field(default_factory=dict)  # cache
 
-    def use_getter(self, getter: Callable[[DeviceT], T]) -> ColumnProps:
+    def use_getter(self, getter: GetterT) -> ColumnProps:
         def _getter(dev: DeviceT):
             if dev in self._val:
                 return self._val[dev]
@@ -41,8 +41,8 @@ class ColumnProps:
         self.get = _getter
         return self
 
-    def use_setter(self, setter: Callable[[DeviceT, T], T]) -> ColumnProps:
-        def _setter(dev: DeviceT, val: T):
+    def use_setter(self, setter: SetterT) -> ColumnProps:
+        def _setter(dev: DeviceT, val: Any):
             setter(dev, self.dtype(val))
             del self._val[dev]
 
@@ -51,8 +51,8 @@ class ColumnProps:
         return self
 
 
-def make_getter(attr: str, default=None) -> Callable[[DeviceT], T]:
-    def _getter(dev: DeviceT) -> T:
+def make_getter(attr: str, default=None) -> GetterT:
+    def _getter(dev: DeviceT) -> Any:
         if hasattr(dev, attr):
             return getattr(dev, attr)()
         return default
@@ -60,25 +60,22 @@ def make_getter(attr: str, default=None) -> Callable[[DeviceT], T]:
     return _getter
 
 
-def prop_getter(attr: str, default=None):
-    def _getter(dev: DeviceT) -> T:
+def prop_getter(attr: str, default=None) -> GetterT:
+    def _getter(dev: DeviceT) -> Any:
         return getattr(dev, attr, default)
 
     return _getter
 
 
-def make_setter(attr: str) -> Callable[[DeviceT, T], bool]:
-    def _setter(dev: DeviceT, val: T):
+def make_setter(attr: str) -> SetterT:
+    def _setter(dev: DeviceT, val: Any):
         if hasattr(dev, attr):
-            success = getattr(dev, attr)(val)
-            _print(dev.serial_number_hex, attr, val, "success" if success else "failed")
-            return success
-        return False
+            getattr(dev, attr)(val)
 
     return _setter
 
 
-DEVICE_TYPE = {
+DEVICE_TYPE: Final = {
     "???": "Unknown",
     "BTL": "Bootloader (No Firmware)",
     "USB": "USB",
@@ -108,7 +105,7 @@ def set_wl_table(dongle: DeviceT, idx: int, serial_hex: str):
 
 
 # a list of column props for rendering the device manager table
-YOST_COL_PROPS: List[ColumnProps] = [
+YOST_COL_PROPS: Tuple[ColumnProps, ...] = (
     ColumnProps("Nickname", str),
     ColumnProps("Serial Number", int).use_getter(prop_getter("serial_number_hex")),
     ColumnProps("Device Type", str).use_getter(get_device_type),
@@ -120,7 +117,7 @@ YOST_COL_PROPS: List[ColumnProps] = [
     ColumnProps("Pan ID", int)
     .use_getter(make_getter("getWirelessPanID"))
     .use_setter(make_setter("setWirelessPanID")),
-]
+)
 
 
 class TableModel(qc.QAbstractTableModel):
@@ -129,7 +126,7 @@ class TableModel(qc.QAbstractTableModel):
     Modify the definitions of `col_props` to change the table structure.
     """
 
-    def __init__(self, col_props: List[ColumnProps]):
+    def __init__(self, col_props: Tuple[ColumnProps]):
         super().__init__()
 
         self.devices: List = []
