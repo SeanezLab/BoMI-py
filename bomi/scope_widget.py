@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import traceback
 from dataclasses import dataclass
 from collections import deque
 from timeit import default_timer
@@ -14,13 +13,13 @@ import PySide6.QtWidgets as qw
 from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
-from bomi.base_widgets import TaskDisplay, generate_edit_form
+from bomi.base_widgets import TEvent, TaskDisplay, generate_edit_form
 from bomi.datastructure import Buffer, Metadata, Packet, get_savedir
 from bomi.device_manager import YostDeviceManager
 
 
-def _print(*args):
-    print("[ScopeWidget]", *args)
+# def _print(*args):
+# print("[ScopeWidget]", *args)
 
 
 # Seanez lab colors
@@ -34,7 +33,6 @@ COLORS = [
 
 
 PENS = [pg.mkPen(clr, width=2) for clr in COLORS]
-
 TARGET_BRUSH = pg.mkBrush(qg.QColor(25, 222, 193, 15))
 
 
@@ -219,7 +217,7 @@ class ScopeWidget(qw.QWidget):
         }
 
         def onShowHideChange(_, changes):
-            for param, change, data in changes:
+            for param, _, data in changes:
                 name = param.name()
                 if name in key2label:
                     name = key2label[name]
@@ -245,6 +243,8 @@ class ScopeWidget(qw.QWidget):
         self.param_tshow: Parameter = self.params.child("target", "tshow")
         self.param_tmax: Parameter = self.params.child("target", "tmax")
         self.param_tmin: Parameter = self.params.child("target", "tmin")
+        self.target_changed: bool = True
+        self.target_range: Tuple[float, float] = self.get_target_range()
 
         def tare():
             with pg.BusyCursor():
@@ -256,7 +256,7 @@ class ScopeWidget(qw.QWidget):
         # init timer
         self.timer = qc.QTimer()
         self.timer.setInterval(20)
-        self.timer.timeout.connect(self.update)
+        self.timer.timeout.connect(self.update)  # type: ignore
 
     def show_hide_curve(self, name: str, show: bool):
         i = Buffer.labels.index(name)
@@ -280,13 +280,13 @@ class ScopeWidget(qw.QWidget):
             plot_handle.clear_target()
 
     def update_targets(self):
-        if not self.get_target_show():
-            return
-        target_range = self.get_target_range()
-        for name in self.dev_names:
-            plot_handle = self.plot_handles[name]
-            plot_handle.update_target(target_range)
-            self.buffers[name].move_target(default_timer(), *target_range)
+        if self.get_target_show():
+            target_range = self.get_target_range()
+            self.target_range = target_range
+            for name in self.dev_names:
+                plot_handle = self.plot_handles[name]
+                plot_handle.update_target(target_range)
+                self.buffers[name].move_target(default_timer(), *target_range)
 
     def get_target_show(self) -> bool:
         return self.param_tshow.value()
@@ -368,7 +368,7 @@ class ScopeWidget(qw.QWidget):
         self.task_widget = self.config.task_widget
         if self.task_widget is not None:
             layout.addWidget(self.task_widget, 1)
-            self.task_widget.signal_task.connect(self.propagate_task_event)
+            self.task_widget.sigTaskEventLog.connect(self.propagate_task_event)
 
         ### apply other config
         config = self.config
@@ -403,32 +403,38 @@ class ScopeWidget(qw.QWidget):
         """Update function connected to the timer
         1. Consume all data currently in the queue
         2. If successful, update all plots
+        3. If applicable, update task states
         """
         q = self.queue
         qsize = len(q)
         if not qsize:
             return
-        try:
-            for _ in range(qsize):  # process current items in queue
-                packet: Packet = q.popleft()
-                self.buffers[packet.name].add_packet(packet)
 
-        except Exception as e:
-            _print("[Update Exception]", traceback.format_exc())
+        for _ in range(qsize):  # process current items in queue
+            packet: Packet = q.popleft()
+            self.buffers[packet.name].add_packet(packet)
 
-        else:  # On successful read from queue, update curves
-            self.update_plots()
-
-    def update_plots(self):
+        # On successful read from queue, update curves
         now = default_timer()
         for name in self.dev_names:
-            curves = self.plot_handles[name].curves
             buf = self.buffers[name]
+            curves = self.plot_handles[name].curves
             x = -(now - buf.timestamp[: buf.ptr])
-
             for i, name in enumerate(buf.labels):
                 if name in self.show_labels:
                     curves[i].setData(x=x, y=buf.data[: buf.ptr, i])
+
+        ### Update task states if needed
+        # 1. Check if angle is within target range
+        # 2. If true, start the 3 second timer
+        if self.task_widget:
+            tmin, tmax = self.target_range
+            for name in self.dev_names:
+                buf = self.buffers[name]
+                if tmin <= buf.data[-1, -1] <= tmax:
+                    self.task_widget.sigTaskEventIn.emit(TEvent.ENTER_TARGET)
+                else:
+                    self.task_widget.sigTaskEventIn.emit(TEvent.EXIT_TARGET)
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         with pg.BusyCursor():

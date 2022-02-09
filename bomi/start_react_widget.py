@@ -8,8 +8,9 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
+import winsound
 
-from bomi.base_widgets import TaskDisplay, set_spinbox
+from bomi.base_widgets import TEvent, TaskDisplay, set_spinbox
 from bomi.device_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
@@ -25,7 +26,14 @@ class SRState(NamedTuple):
     duration: float = -1  # duration in seconds
 
 
-class SRDisplay(TaskDisplay):
+class SRConfig:
+    HOLD_TIME = 1000  # msec
+    PAUSE_MIN = 4000
+    PAUSE_RANDOM = 2000
+    N_TRIALS_DEFAULT = 10
+
+
+class SRDisplay(TaskDisplay, SRConfig):
     """StartReact Display"""
 
     # States
@@ -33,10 +41,6 @@ class SRDisplay(TaskDisplay):
     GO = SRState(color=Qt.green, text="Reach the target and hold!")
     WAIT = SRState(color=qg.QColor(254, 219, 65), text="Wait...")
     TASK_DONE = SRState(color=Qt.lightGray, text="All done!")
-
-    HOLD_TIME = 3000  # msec
-    PAUSE_MIN = 2000
-    PAUSE_RANDOM = 2000
 
     BTN_START_TXT = "Begin task"
     BTN_END_TXT = "End task"
@@ -76,22 +80,32 @@ class SRDisplay(TaskDisplay):
         gb = qw.QGroupBox("Task Config")
         form_layout = qw.QFormLayout()
         gb.setLayout(form_layout)
-        self.n_trials = set_spinbox(qw.QSpinBox(), 5, 1, (1, 20))
+        self.n_trials = set_spinbox(qw.QSpinBox(), self.N_TRIALS_DEFAULT, 1, (1, 20))
         form_layout.addRow(qw.QLabel("No. Trials"), self.n_trials)
         main_layout.addWidget(gb, 6, 0, 1, 2)
 
         # Buttons
         self.start_stop_btn = qw.QPushButton(self.BTN_START_TXT)
-        self.start_stop_btn.clicked.connect(self.toggle_start_stop)
+        self.start_stop_btn.clicked.connect(self.toggle_start_stop)  # type: ignore
         main_layout.addWidget(self.start_stop_btn, 7, 0, 1, 2)
 
         ### Task states
         self.n_trials_left = 0
+        self.curr_state = self.IDLE
 
         self.set_state(self.IDLE)
+        self.sigTaskEventIn.connect(self.handle_input_event)
 
-    @qc.Property(int)
-    def pval(self):
+        # Timers to start and end one trial
+        self.timer_one = qc.QTimer()
+        self.timer_one.setSingleShot(True)
+        self.timer_one.timeout.connect(self.one_trial)  # type: ignore
+        self.timer_end_one = qc.QTimer()
+        self.timer_end_one.setSingleShot(True)
+        self.timer_end_one.timeout.connect(self.end_one_trial)  # type: ignore
+
+    @qc.Property(int)  # type: ignore
+    def pval(self):  # type: ignore
         return self.progress_bar.value()
 
     @pval.setter
@@ -99,6 +113,7 @@ class SRDisplay(TaskDisplay):
         self.progress_bar.setValue(val)
 
     def set_state(self, s: SRState):
+        self.curr_state = s
         self.setPalette(s.color)
         if s == self.WAIT and self.n_trials_left:
             if self.n_trials_left == 1:
@@ -110,9 +125,9 @@ class SRDisplay(TaskDisplay):
             self.center_label.setText(s.text)
 
     @classmethod
-    def get_random_wait_time(cls):
-        "Calculate random wait time"
-        return cls.PAUSE_MIN + (cls.PAUSE_RANDOM) * random.random()
+    def get_random_wait_time(cls) -> int:
+        "Calculate random wait time in msec"
+        return int(cls.PAUSE_MIN + (cls.PAUSE_RANDOM) * random.random())
 
     def send_visual_signal(self):
         self.emit_begin("visual")
@@ -121,18 +136,25 @@ class SRDisplay(TaskDisplay):
     def send_visual_auditory_signal(self):
         "TODO: IMPLEMENT AUD"
         self.emit_begin("visual_auditory")
+        winsound.Beep(500, 200)
         self.set_state(self.GO)
 
     def send_visual_startling_signal(self):
         "TODO: IMPLEMENT AUD"
         self.emit_begin("visual_startling")
+        winsound.Beep(500, 200)
         self.set_state(self.GO)
 
     def one_trial(self):
-        """Send a signal to the subject to begin doing the task
+        """Begin one trial
+        Give user the signal to reach the target, and wait until the target
+        is reached and held for an amount of time.
+
+        Send a signal to the subject to begin doing the task
         Schedule the end of the trial
         """
         if self.n_trials_left > 0:  # check if done
+            self.n_trials_left -= 1
             task = random.choice(
                 (
                     self.send_visual_signal,
@@ -141,9 +163,6 @@ class SRDisplay(TaskDisplay):
                 )
             )
             task()
-            qc.QTimer.singleShot(self.HOLD_TIME, self.end_one_trial)
-            self.progress_animation.start()
-            self.n_trials_left -= 1
 
     def end_one_trial(self):
         """Execute clean up after a trial
@@ -151,26 +170,26 @@ class SRDisplay(TaskDisplay):
         """
         self.emit_end()
         self.set_state(self.WAIT)
-        if self.n_trials_left > 1:  # check if schedule next trial
+        if self.n_trials_left > 0:
             qc.QTimer.singleShot(self.get_random_wait_time(), self.one_trial)
-        else:  # if no tasks remaining, end the task
-            self.end_task()
+        else:
+            self.end_block()
 
-    def begin_task(self):
-        """Begin the precision control task
+    def begin_block(self):
+        """Begin a block of the precision control task
 
         Begin sending random {visual, visual + auditory, visual + startling} to the subject per trial,
         each trial lasting 3 seconds.
         Wait a random amount of time before starting the next trial until we finish `n_trials_left`
         """
-        self.emit_begin("task")
+        self.emit_begin("block")
         self.start_stop_btn.setText(self.BTN_END_TXT)
         self.progress_bar.setValue(0)
         self.n_trials_left = self.n_trials.value()
         self.set_state(self.WAIT)
-        qc.QTimer.singleShot(self.get_random_wait_time(), self.one_trial)
+        self.timer_one.start(self.get_random_wait_time())
 
-    def end_task(self):
+    def end_block(self):
         """Finish the task, reset widget to initial states"""
         self.emit_end()
         self.start_stop_btn.setText(self.BTN_START_TXT)
@@ -181,10 +200,27 @@ class SRDisplay(TaskDisplay):
 
     def toggle_start_stop(self):
         if self.start_stop_btn.text() == self.BTN_START_TXT:
-            self.begin_task()
+            self.begin_block()
 
         else:
-            self.end_task()
+            self.end_block()
+
+    @qc.Slot(TEvent)  # type: ignore
+    def handle_input_event(self, event: TEvent):
+        if event == TEvent.ENTER_TARGET:
+            # start 3 sec timer
+
+            if self.curr_state == self.GO and not self.timer_end_one.isActive():
+                self.timer_end_one.start(self.HOLD_TIME)
+                self.progress_animation.start()
+
+        elif event == TEvent.EXIT_TARGET:
+            # stop timer
+            self.timer_end_one.stop()
+            self.progress_animation.stop()
+            self.progress_bar.setValue(0)
+        else:
+            _print("handle_input_event: Unknown event:", event)
 
 
 class StartReactWidget(qw.QWidget, WindowMixin):
@@ -199,12 +235,19 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.setLayout(main_layout)
 
         btn1 = qw.QPushButton(text="Precision")
-        btn1.clicked.connect(self.s_precision_task)
+        btn1.clicked.connect(self.s_precision_task)  # type: ignore
         main_layout.addWidget(btn1)
 
         btn1 = qw.QPushButton(text="MaxROM")
-        btn1.clicked.connect(self.s_max_rom)
+        btn1.clicked.connect(self.s_max_rom)  # type: ignore
         main_layout.addWidget(btn1)
+
+        btn = qw.QPushButton(text="Test audio")
+        btn.clicked.connect(self.s_test_audio)  # type: ignore
+        main_layout.addWidget(btn)
+
+    def s_test_audio(self):
+        winsound.Beep(500, 5000)
 
     def s_precision_task(self):
         "Run the ScopeWidget with the precision task view"
@@ -226,7 +269,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         try:
             self._precision = ScopeWidget(self.dm, config=scope_config)
             self._precision.showMaximized()
-        except Exception as e:
+        except Exception:
             _print(traceback.format_exc())
             self.dm.stop_stream()
 
@@ -250,6 +293,6 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         try:
             self._precision = ScopeWidget(self.dm, config=scope_config)
             self._precision.showMaximized()
-        except Exception as e:
+        except Exception:
             _print(traceback.format_exc())
             self.dm.stop_stream()

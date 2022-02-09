@@ -1,4 +1,5 @@
 from __future__ import annotations
+from enum import Enum
 from functools import partial
 from typing import Callable, Dict, List, Tuple, TypeVar
 import PySide6.QtWidgets as qw
@@ -16,26 +17,33 @@ def set_spinbox(
     step_size: float,
     range: Tuple[float, float],
 ) -> T:
-    spin_box.setSingleStep(step_size)
-    spin_box.setRange(*range)
-    spin_box.setValue(value)
+    spin_box.setSingleStep(step_size)  # type: ignore
+    spin_box.setRange(*range)  # type: ignore
+    spin_box.setValue(value)  # type: ignore
     return spin_box
 
 
+class TEvent(Enum):
+    ENTER_TARGET = 1
+    EXIT_TARGET = 0
+
+
 class TaskDisplay(qw.QWidget):
-    signal_task: qc.SignalInstance = qc.Signal(
-        str
-    )  # emits (event_name) when a GO signal is sent
+    # emits (event_name) of key events in task for logging purposes
+    sigTaskEventLog: qc.SignalInstance = qc.Signal(str)  # type: ignore
     _task_stack: List[str] = []
 
+    # receive input events on state changes
+    sigTaskEventIn: qc.SignalInstance = qc.Signal(TEvent)  # type: ignore
+
     def emit_begin(self, event_name: str):
-        self.signal_task.emit("begin_" + event_name)
+        self.sigTaskEventLog.emit("begin_" + event_name)
         self._task_stack.append(event_name)
 
     def emit_end(self):
         """End the last begin signal"""
         if self._task_stack:
-            self.signal_task.emit("end_" + self._task_stack.pop())
+            self.sigTaskEventLog.emit("end_" + self._task_stack.pop())
 
 
 def generate_edit_form(
@@ -80,19 +88,19 @@ def generate_edit_form(
     widgets: Dict[str, qw.QWidget] = {}
 
     def accept_QLineEdit(key: str):
-        le: qw.QLineEdit = widgets[key]
+        le: qw.QLineEdit = widgets[key]  # type: ignore
         setattr(dc, key, le.text())
 
     def reject_QLineEdit(key: str):
-        le: qw.QLineEdit = widgets[key]
+        le: qw.QLineEdit = widgets[key]  # type: ignore
         le.setText(fields[key].default)
 
     def accept_QSpinBox(key: str):
-        sb: qw.QSpinBox | qw.QDoubleSpinBox = widgets[key]
+        sb: qw.QSpinBox | qw.QDoubleSpinBox = widgets[key]  # type: ignore
         setattr(dc, key, sb.value())
 
     def reject_QSpinBox(key: str):
-        sb: qw.QSpinBox | qw.QDoubleSpinBox = widgets[key]
+        sb: qw.QSpinBox | qw.QDoubleSpinBox = widgets[key]  # type: ignore
         sb.setValue(fields[key].default)
 
     accept_cbs: List[Callable[[], None]] = []
@@ -156,15 +164,15 @@ def generate_edit_form(
             accept()
             dialog.accept()
 
-        button_box.accepted.connect(_accept)
-        button_box.rejected.connect(_reject)
+        button_box.accepted.connect(_accept)  # type: ignore
+        button_box.rejected.connect(_reject)  # type: ignore
 
         return dialog
     else:
         widget = qw.QWidget()
         widget.setLayout(main_layout)
 
-        button_box.accepted.connect(accept)
-        button_box.rejected.connect(reject)
+        button_box.accepted.connect(accept)  # type: ignore
+        button_box.rejected.connect(reject)  # type: ignore
 
         return widget
