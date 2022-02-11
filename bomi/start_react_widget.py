@@ -1,7 +1,10 @@
 from __future__ import annotations
+from dataclasses import dataclass, field, asdict
 
+import json
 import random
 import traceback
+from pathlib import Path
 from typing import NamedTuple
 
 import PySide6.QtCore as qc
@@ -10,7 +13,7 @@ import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 import winsound
 
-from bomi.base_widgets import TEvent, TaskDisplay, set_spinbox
+from bomi.base_widgets import TEvent, TaskDisplay, set_spinbox, generate_edit_form
 from bomi.device_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
@@ -26,14 +29,20 @@ class SRState(NamedTuple):
     duration: float = -1  # duration in seconds
 
 
+@dataclass
 class SRConfig:
-    HOLD_TIME = 1000  # msec
-    PAUSE_MIN = 4000
-    PAUSE_RANDOM = 2000
-    N_TRIALS_DEFAULT = 10
+    HOLD_TIME: int = field(default=500, metadata=dict(range=(500, 5000)))  # msec
+    PAUSE_MIN: int = field(default=2000, metadata=dict(range=(500, 5000)))  # msec
+    PAUSE_RANDOM: int = field(default=0000, metadata=dict(range=(0, 5000)))  # msec
+    N_TRIALS: int = field(default=10, metadata=dict(range=(1, 40)))
+
+    def to_disk(self, savedir: Path):
+        "Write metadata to `savedir`"
+        with (savedir / "start_react_config.json").open("w") as fp:
+            json.dump(asdict(self), fp)
 
 
-class SRDisplay(TaskDisplay, SRConfig):
+class SRDisplay(TaskDisplay, WindowMixin):
     """StartReact Display"""
 
     # States
@@ -45,9 +54,10 @@ class SRDisplay(TaskDisplay, SRConfig):
     BTN_START_TXT = "Begin task"
     BTN_END_TXT = "End task"
 
-    def __init__(self, task_name: str = ""):
+    def __init__(self, task_name: str = "", config=SRConfig()):
         "task_name will be displayed at the top of the widget"
         super().__init__()
+        self.config = config
 
         ### Init UI
         main_layout = qw.QGridLayout()
@@ -71,17 +81,24 @@ class SRDisplay(TaskDisplay, SRConfig):
         self.progress_bar.setValue(100)
         self.progress_bar.setTextVisible(False)
         self.progress_animation = qc.QPropertyAnimation(self, b"pval")
-        self.progress_animation.setDuration(self.HOLD_TIME)
+        self.progress_animation.setDuration(self.config.HOLD_TIME)
         self.progress_animation.setStartValue(0)
         self.progress_animation.setEndValue(100)
         main_layout.addWidget(self.progress_bar, 5, 0)
 
         # Config + Controls
+        self.config_widget = generate_edit_form(
+            SRConfig, name="Task config", dialog_box=True
+        )
         gb = qw.QGroupBox("Task Config")
         form_layout = qw.QFormLayout()
         gb.setLayout(form_layout)
-        self.n_trials = set_spinbox(qw.QSpinBox(), self.N_TRIALS_DEFAULT, 1, (1, 20))
+        self.n_trials = set_spinbox(qw.QSpinBox(), self.config.N_TRIALS, 1, (1, 20))
         form_layout.addRow(qw.QLabel("No. Trials"), self.n_trials)
+
+        btn = qw.QPushButton("Config")
+        btn.clicked.connect(lambda: self.start_widget(self.config_widget))  # type: ignore
+        form_layout.addWidget(btn)
         main_layout.addWidget(gb, 6, 0, 1, 2)
 
         # Buttons
@@ -124,10 +141,9 @@ class SRDisplay(TaskDisplay, SRConfig):
         else:
             self.center_label.setText(s.text)
 
-    @classmethod
-    def get_random_wait_time(cls) -> int:
+    def get_random_wait_time(self) -> int:
         "Calculate random wait time in msec"
-        return int(cls.PAUSE_MIN + (cls.PAUSE_RANDOM) * random.random())
+        return int(self.config.PAUSE_MIN + (self.config.PAUSE_RANDOM) * random.random())
 
     def send_visual_signal(self):
         self.emit_begin("visual")
@@ -211,7 +227,7 @@ class SRDisplay(TaskDisplay, SRConfig):
             # start 3 sec timer
 
             if self.curr_state == self.GO and not self.timer_end_one.isActive():
-                self.timer_end_one.start(self.HOLD_TIME)
+                self.timer_end_one.start(self.config.HOLD_TIME)
                 self.progress_animation.start()
 
         elif event == TEvent.EXIT_TARGET:

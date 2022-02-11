@@ -63,6 +63,7 @@ class PlotHandle:
     plot: pg.PlotItem | pg.ViewBox
     curves: List[pg.PlotCurveItem]
     target: pg.LinearRegionItem | None
+    rest_target: pg.LinearRegionItem | None
 
     @classmethod
     def init(
@@ -75,8 +76,12 @@ class PlotHandle:
             curves.append(plot.plot(pen=pen, name=name))
 
         target = cls.init_target(plot, target_range) if target_range else None
+        rest_target = cls.init_target(plot, (0, 5), label="Rest position", movable=True)
+        # TODO: implement logging of this position
 
-        return PlotHandle(plot=plot, curves=curves, target=target)
+        return PlotHandle(
+            plot=plot, curves=curves, target=target, rest_target=rest_target
+        )
 
     @classmethod
     def init_curve(cls, plot: pg.PlotItem, i: int):
@@ -85,18 +90,19 @@ class PlotHandle:
 
     @staticmethod
     def init_target(
-        plot: pg.PlotItem, target_range: Tuple[float, float]
+        plot: pg.PlotItem,
+        target_range: Tuple[float, float],
+        label="Target",
+        movable=False,
     ) -> pg.LinearRegionItem:
         # Target region
         target = pg.LinearRegionItem(
             values=target_range,
             orientation="horizontal",
-            movable=False,
+            movable=movable,
             brush=TARGET_BRUSH,
         )
-        pg.InfLineLabel(
-            target.lines[0], "Target", position=0.05, anchor=(1, 1), color="k"
-        )
+        pg.InfLineLabel(target.lines[0], label, position=0.05, anchor=(1, 1), color="k")
         plot.addItem(target)
         return target
 
@@ -368,6 +374,10 @@ class ScopeWidget(qw.QWidget):
         self.task_widget = self.config.task_widget
         if self.task_widget is not None:
             layout.addWidget(self.task_widget, 1)
+            if hasattr(self.task_widget, "config"):
+                _cfg = getattr(self.task_widget, "config")
+                _cfg.to_disk(self.savedir)
+
             self.task_widget.sigTaskEventLog.connect(self.propagate_task_event)
 
         ### apply other config

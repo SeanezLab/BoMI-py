@@ -6,7 +6,6 @@ import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 from dataclasses import Field
 
-from bomi.datastructure import Metadata
 
 T = TypeVar("T", qw.QSpinBox, qw.QDoubleSpinBox)
 
@@ -47,7 +46,7 @@ class TaskDisplay(qw.QWidget):
 
 
 def generate_edit_form(
-    dc: Metadata,
+    dc: object,
     name: str = None,
     dialog_box=False,
     callback: Callable[[], None] = None,
@@ -84,7 +83,7 @@ def generate_edit_form(
     layout = qw.QFormLayout()
     gb.setLayout(layout)
 
-    fields: Dict[str, Field] = dc.__dataclass_fields__
+    fields: Dict[str, Field] = dc.__dataclass_fields__  # type: ignore
     widgets: Dict[str, qw.QWidget] = {}
 
     def accept_QLineEdit(key: str):
