@@ -44,8 +44,20 @@ class SRConfig:
             json.dump(asdict(self), fp)
 
 
+class _SoundWorker(qc.QObject):
+    def play_sound(self, val: int):
+        print("Play sound", val)
+        winsound.Beep(500, 200)
+        with open("test.txt", "w+") as fp:
+            fp.write(f"wtf {val}")
+
+
+
 class SRDisplay(TaskDisplay, WindowMixin):
     """StartReact Display"""
+
+    # Take param (dB: int)
+    sigPlaySound: qc.SignalInstance = qc.Signal(int) # type: ignore
 
     # States
     IDLE = SRState(color=Qt.lightGray, text="Get ready!")
@@ -56,10 +68,11 @@ class SRDisplay(TaskDisplay, WindowMixin):
     BTN_START_TXT = "Begin task"
     BTN_END_TXT = "End task"
 
-    def __init__(self, task_name: str, savedir: Path, config=SRConfig()):
+    def __init__(self, task_name: str, savedir: Path, config: SRConfig = SRConfig()):
         "task_name will be displayed at the top of the widget"
         super().__init__()
         self.config = config
+        self.savedir = savedir
 
         # filepointer to write task history
         self.task_history = open(savedir / f"task_history.txt", "w")
@@ -94,8 +107,12 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
         # Config + Controls
         self.config_widget = generate_edit_form(
-            SRConfig, name="Task config", dialog_box=True
+            self.config,
+            name="Task config",
+            dialog_box=True,
+            callback=lambda: self.config.to_disk(savedir),
         )
+
         gb = qw.QGroupBox("Task Config")
         form_layout = qw.QFormLayout()
         gb.setLayout(form_layout)
@@ -129,8 +146,17 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.timer_end_one = qc.QTimer()
         self.timer_end_one.setSingleShot(True)
         self.timer_end_one.timeout.connect(self.end_one_trial)  # type: ignore
-    
+
+        # Thread to play sound
+        self.sound_thread = qc.QThread()
+        self.sound_worker = _SoundWorker()
+        self.sound_worker.moveToThread(self.sound_thread)
+        self.sigPlaySound.connect(self.sound_worker.play_sound)
+        self.sound_thread.start()
+
     def closeEvent(self, event: qg.QCloseEvent) -> None:
+        self.sound_thread.quit()
+        self.sound_thread.wait()
         self.task_history.close()
         return super().closeEvent(event)
 
@@ -139,12 +165,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
             f"target_moved t={default_timer()} tmin={trange[0]} tmax={trange[1]}\n"
         )
 
-    def write_task_event(self, event_name: str, t: float):
-        self.task_history.write(f"{event_name} t={t}\n")
-
-    def closeEvent(self, event: qg.QCloseEvent) -> None:
-        self.task_history.close()
-        return super().closeEvent(event)
 
     @qc.Property(int)  # type: ignore
     def pval(self):  # type: ignore
@@ -176,14 +196,14 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def send_visual_auditory_signal(self):
         "TODO: IMPLEMENT AUD"
+        self.sigPlaySound.emit(100)
         self.emit_begin("visual_auditory")
-        winsound.Beep(500, 200)
         self.set_state(self.GO)
 
     def send_visual_startling_signal(self):
         "TODO: IMPLEMENT AUD"
+        self.sigPlaySound.emit(100)
         self.emit_begin("visual_startling")
-        winsound.Beep(500, 200)
         self.set_state(self.GO)
 
     def one_trial(self):
@@ -265,14 +285,14 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def emit_begin(self, event_name: str):
         self.sigTrialBegin.emit()
-        self.write_task_event("begin_" + event_name, default_timer())
+        self.task_history.write(f"begin_{event_name} t={default_timer()}\n")
         self._task_stack.append(event_name)
 
     def emit_end(self):
         """End the last begin signal"""
         if self._task_stack:
             self.sigTrialEnd.emit()
-            self.write_task_event("end_" + self._task_stack.pop(), default_timer())
+            self.task_history.write(f"begin_{self._task_stack.pop()} t={default_timer()}\n")
 
 
 class StartReactWidget(qw.QWidget, WindowMixin):
