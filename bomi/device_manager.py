@@ -164,7 +164,7 @@ class YostDeviceManager:
         # In the end of the streaming loop, recreate the TSDongle object by rediscovering devices
         port_names: List[str] = []
         ports: List[serial.Serial] = []
-        wl_ids = [s.serial_number for s in self.wireless_sensors]  # List[serial_number]
+        wl_ids: List[int] = [s.serial_number for s in self.wireless_sensors]  # type: ignore
 
         while self.dongles:
             dongle = self.dongles.pop()
@@ -174,13 +174,13 @@ class YostDeviceManager:
                     idx = dongle.wireless_table.index(wl_id)
                     wl_mp[idx] = self.get_device_name(HEX.format(wl_id))
 
-            port_name: str = dongle.serial_port.name
+            port_name: str = dongle.serial_port.name # type: ignore
             port_names.append(port_name)
             self.close_device(dongle)
             del dongle
 
             port = serial.Serial(port_name, 115200, timeout=1)
-            port.wl_mp = wl_mp
+            port.wl_mp = wl_mp # type: ignore
             ports.append(port)
 
             logical_ids = list(wl_mp.keys())
@@ -223,10 +223,10 @@ class YostDeviceManager:
                     for sensor in self.wired_sensors:
                         b = sensor.getStreamingBatch()
                         packet = Packet(
-                            pitch=b[0] * RAD2DEG,
-                            yaw=b[1] * RAD2DEG,
-                            roll=b[2] * RAD2DEG,
-                            battery=b[3],
+                            pitch=b[0] * RAD2DEG,# type: ignore
+                            yaw=b[1] * RAD2DEG,# type: ignore
+                            roll=b[2] * RAD2DEG, # type: ignore
+                            battery=b[3], # type: ignore
                             t=now,
                             name=self._names[sensor.serial_number_hex],
                         )
@@ -245,7 +245,7 @@ class YostDeviceManager:
                                 roll=b[2] * RAD2DEG,
                                 battery=b[3],
                                 t=now,
-                                name=port.wl_mp[logical_id],
+                                name=port.wl_mp[logical_id],# type: ignore
                             )
                             queue.append(packet)
                             i += 1
@@ -254,10 +254,13 @@ class YostDeviceManager:
                         fps = i / (now - start_time)
                         start_time, i = now, 0
                         _print(f"Throughput: {fps:.2f} packets/sec")
+
             except Exception as e:
                 _print("[Streaming loop exception]", e)
+
             except KeyboardInterrupt as e:
                 pass
+
             finally:
                 _print("Streaming loop ended")
                 # stop wired sensor streaming
@@ -267,9 +270,8 @@ class YostDeviceManager:
                 for port in ports:
                     stop_dongle_streaming(port, logical_ids)
                     port.close()
-                    del port
 
-                time.sleep(0.5)
+                time.sleep(0.2)
                 self.discover_devices()
 
         self._streaming = True
@@ -290,7 +292,7 @@ class YostDeviceManager:
             _print(dev.serial_number_hex, "Tared:", success)
 
     def get_battery(self) -> List[int]:
-        b = [d.getBatteryPercentRemaining() for d in self.all_sensors]
+        b = [d.getBatteryPercentRemaining() for d in self.wireless_sensors] # type: ignore
         return b
 
     def has_sensors(self) -> bool:
