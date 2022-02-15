@@ -5,7 +5,8 @@ import json
 import random
 import traceback
 from pathlib import Path
-from typing import NamedTuple
+from timeit import default_timer
+from typing import List, NamedTuple, Tuple
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
@@ -14,6 +15,7 @@ from PySide6.QtCore import Qt
 import winsound
 
 from bomi.base_widgets import TEvent, TaskDisplay, set_spinbox, generate_edit_form
+from bomi.datastructure import get_savedir
 from bomi.device_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
@@ -54,10 +56,14 @@ class SRDisplay(TaskDisplay, WindowMixin):
     BTN_START_TXT = "Begin task"
     BTN_END_TXT = "End task"
 
-    def __init__(self, task_name: str = "", config=SRConfig()):
+    def __init__(self, task_name: str, savedir: Path, config=SRConfig()):
         "task_name will be displayed at the top of the widget"
         super().__init__()
         self.config = config
+
+        # filepointer to write task history
+        self.task_history = open(savedir / f"task_history.txt", "w")
+        self._task_stack: List[str] = []
 
         ### Init UI
         main_layout = qw.QGridLayout()
@@ -111,7 +117,10 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.curr_state = self.IDLE
 
         self.set_state(self.IDLE)
+
+        # Connect task signals and slots
         self.sigTaskEventIn.connect(self.handle_input_event)
+        self.sigTargetMoved.connect(self.on_target_moved)
 
         # Timers to start and end one trial
         self.timer_one = qc.QTimer()
@@ -120,6 +129,22 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.timer_end_one = qc.QTimer()
         self.timer_end_one.setSingleShot(True)
         self.timer_end_one.timeout.connect(self.end_one_trial)  # type: ignore
+    
+    def closeEvent(self, event: qg.QCloseEvent) -> None:
+        self.task_history.close()
+        return super().closeEvent(event)
+
+    def on_target_moved(self, trange: Tuple[int, int]):
+        self.task_history.write(
+            f"target_moved t={default_timer()} tmin={trange[0]} tmax={trange[1]}\n"
+        )
+
+    def write_task_event(self, event_name: str, t: float):
+        self.task_history.write(f"{event_name} t={t}\n")
+
+    def closeEvent(self, event: qg.QCloseEvent) -> None:
+        self.task_history.close()
+        return super().closeEvent(event)
 
     @qc.Property(int)  # type: ignore
     def pval(self):  # type: ignore
@@ -198,7 +223,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         each trial lasting 3 seconds.
         Wait a random amount of time before starting the next trial until we finish `n_trials_left`
         """
-        self.emit_begin("block")
+        self.task_history.write(f"begin_block t={default_timer()}\n")
         self.start_stop_btn.setText(self.BTN_END_TXT)
         self.progress_bar.setValue(0)
         self.n_trials_left = self.n_trials.value()
@@ -207,7 +232,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def end_block(self):
         """Finish the task, reset widget to initial states"""
-        self.emit_end()
+        self.task_history.write(f"end_block t={default_timer()}\n")
+        self._task_stack.clear()
+
         self.start_stop_btn.setText(self.BTN_START_TXT)
         self.n_trials_left = 0
         self.progress_animation.stop()
@@ -217,7 +244,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
     def toggle_start_stop(self):
         if self.start_stop_btn.text() == self.BTN_START_TXT:
             self.begin_block()
-
         else:
             self.end_block()
 
@@ -225,7 +251,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
     def handle_input_event(self, event: TEvent):
         if event == TEvent.ENTER_TARGET:
             # start 3 sec timer
-
             if self.curr_state == self.GO and not self.timer_end_one.isActive():
                 self.timer_end_one.start(self.config.HOLD_TIME)
                 self.progress_animation.start()
@@ -237,6 +262,17 @@ class SRDisplay(TaskDisplay, WindowMixin):
             self.progress_bar.setValue(0)
         else:
             _print("handle_input_event: Unknown event:", event)
+
+    def emit_begin(self, event_name: str):
+        self.sigTrialBegin.emit()
+        self.write_task_event("begin_" + event_name, default_timer())
+        self._task_stack.append(event_name)
+
+    def emit_end(self):
+        """End the last begin signal"""
+        if self._task_stack:
+            self.sigTrialEnd.emit()
+            self.write_task_event("end_" + self._task_stack.pop(), default_timer())
 
 
 class StartReactWidget(qw.QWidget, WindowMixin):
@@ -272,7 +308,6 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         scope_config = ScopeConfig(
             window_title="Precision",
-            task_widget=SRDisplay("Precision Control"),
             show_scope_params=True,
             target_show=True,
             target_range=(35, 40),
@@ -282,8 +317,16 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             show_yaw=False,
         )
 
+        savedir = get_savedir("Precision")  # savedir to write all data
+
         try:
-            self._precision = ScopeWidget(self.dm, config=scope_config)
+            self._precision = ScopeWidget(
+                self.dm,
+                savedir=savedir,
+                task_widget=SRDisplay("Precision Control", savedir),
+                config=scope_config,
+            )
+
             self._precision.showMaximized()
         except Exception:
             _print(traceback.format_exc())
@@ -296,7 +339,6 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         scope_config = ScopeConfig(
             window_title="MaxROM",
-            task_widget=SRDisplay("Max Range of Motion"),
             show_scope_params=True,
             target_show=True,
             target_range=(70, 120),
@@ -306,8 +348,15 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             show_yaw=False,
         )
 
+        savedir = get_savedir("MaxROM")  # savedir to write all data
+
         try:
-            self._precision = ScopeWidget(self.dm, config=scope_config)
+            self._precision = ScopeWidget(
+                self.dm,
+                savedir=savedir,
+                task_widget=SRDisplay("Max Range of Motion", savedir=savedir),
+                config=scope_config,
+            )
             self._precision.showMaximized()
         except Exception:
             _print(traceback.format_exc())

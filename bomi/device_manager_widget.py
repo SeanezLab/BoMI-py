@@ -8,6 +8,7 @@ import pyqtgraph as pg
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
+from bomi.datastructure import get_savedir
 
 from bomi.device_manager import DeviceT, YostDeviceManager
 from bomi.scope_widget import ScopeWidget
@@ -302,7 +303,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
 
         ## Start scope here.
         try:
-            self._sw = ScopeWidget(dm)
+            self._sw = ScopeWidget(dm, get_savedir("Scope"))
             self._sw.showMaximized()
         except Exception as e:
             _print(traceback.format_exc())

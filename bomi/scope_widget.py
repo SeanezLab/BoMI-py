@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from collections import deque
+from pathlib import Path
 from timeit import default_timer
 from typing import Dict, List, Tuple
 
@@ -14,7 +15,7 @@ from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.base_widgets import TEvent, TaskDisplay, generate_edit_form
-from bomi.datastructure import Buffer, Metadata, Packet, get_savedir
+from bomi.datastructure import Buffer, Metadata, Packet
 from bomi.device_manager import YostDeviceManager
 
 
@@ -40,7 +41,6 @@ TARGET_BRUSH = pg.mkBrush(qg.QColor(25, 222, 193, 15))
 class ScopeConfig:
     "Configuration parameters for ScopeWidget"
     window_title: str = "Scope"
-    task_widget: TaskDisplay | None = None
     show_scope_params: bool = True
 
     target_show: bool = False
@@ -122,10 +122,18 @@ class PlotHandle:
 
 
 class ScopeWidget(qw.QWidget):
-    def __init__(self, dm: YostDeviceManager, config: ScopeConfig = ScopeConfig()):
+    def __init__(
+        self,
+        dm: YostDeviceManager,
+        savedir: Path,
+        task_widget: TaskDisplay = None,
+        config: ScopeConfig = ScopeConfig(),
+    ):
         super().__init__()
         self.setWindowTitle(config.window_title)
         self.dm = dm
+        self.savedir = savedir
+        self.task_widget = task_widget
         self.config = config
 
         self.show_labels = list(Buffer.labels)
@@ -134,9 +142,6 @@ class ScopeWidget(qw.QWidget):
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
         self.init_bufsize = 2500  # buffer size
-        self.savedir = get_savedir(
-            self.config.window_title
-        )  # savedir to write all data
         self.buffers: Dict[str, Buffer] = {}
         self.meta = Metadata()
 
@@ -289,10 +294,13 @@ class ScopeWidget(qw.QWidget):
         if self.get_target_show():
             target_range = self.get_target_range()
             self.target_range = target_range
+
+            if self.task_widget:
+                self.task_widget.sigTargetMoved.emit(target_range)
+
             for name in self.dev_names:
                 plot_handle = self.plot_handles[name]
                 plot_handle.update_target(target_range)
-                self.buffers[name].move_target(default_timer(), *target_range)
 
     def get_target_show(self) -> bool:
         return self.param_tshow.value()
@@ -371,14 +379,11 @@ class ScopeWidget(qw.QWidget):
         layout.addWidget(self.meta_gb)
 
         # Create task widget
-        self.task_widget = self.config.task_widget
         if self.task_widget is not None:
             layout.addWidget(self.task_widget, 1)
             if hasattr(self.task_widget, "config"):
                 _cfg = getattr(self.task_widget, "config")
                 _cfg.to_disk(self.savedir)
-
-            self.task_widget.sigTaskEventLog.connect(self.propagate_task_event)
 
         ### apply other config
         config = self.config
@@ -389,12 +394,6 @@ class ScopeWidget(qw.QWidget):
         config.show_rollpitch or self.show_hide_curve("abs(roll) + abs(pitch)", False)
 
         self.start_stream()
-
-    def propagate_task_event(self, event_name: str):
-        # Connect task signal to all buffers
-        t = default_timer()
-        for name in self.dev_names:
-            self.buffers[name].write_task_event(event_name=event_name, t=t)
 
     def start_stream(self):
         """Start the stream and show in the scope

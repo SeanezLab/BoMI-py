@@ -4,7 +4,6 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from timeit import default_timer
 from typing import ClassVar, Dict, List, NamedTuple, TextIO
 
 import numpy as np
@@ -32,14 +31,6 @@ def get_savedir(task_name: str) -> Path:
     return savedir
 
 
-class TaskEventFmt:
-    event = "{event_name} t={t}"
-
-    visual = "visual t={t}"
-    visual_auditory = "visual_auditory t={t}"
-    visual_startle = "visual_startling t={t}"
-
-
 @dataclass
 class Metadata:
     subject_id: str = "unknown"
@@ -65,15 +56,11 @@ class Buffer:
     data: np.ndarray  # 2D array of `labels`
     sensor_fp: TextIO  # filepointer to write CSV data to
 
-    # task data
-    task_history: TextIO  # filepointer to write task history
-
     savedir: Path
 
     def close(self):
         "Close open file pointers"
         self.sensor_fp.close()
-        self.task_history.close()
 
     @classmethod
     def init(cls, bufsize: int, savedir: Path, name: str) -> Buffer:
@@ -86,15 +73,12 @@ class Buffer:
         header = ",".join(("t", *cls.labels)) + "\n"
         sensor_fp.write(header)
 
-        task_history = open(savedir / f"task_history_{name}.csv", "w")
-
         return Buffer(
             ptr=0,
             bufsize=bufsize,
             timestamp=timestamp,
             data=buf,
             sensor_fp=sensor_fp,
-            task_history=task_history,
             savedir=savedir,
         )
 
@@ -108,14 +92,6 @@ class Buffer:
             bufs[dev] = Buffer.init(bufsize=bufsize, savedir=savedir, name=dev)
 
         return bufs
-
-    def move_target(self, t: float, tmin: float, tmax: float):
-        self.task_history.write(f"target_moved t={t} tmin={tmin} tmax={tmax}\n")
-
-    def write_task_event(self, event_name: str, t: float = None):
-        if t == None:
-            t = default_timer()
-        self.task_history.write(f"{event_name} t={t}\n")
 
     def add_packet(self, packet: Packet):
         "Add `Packet` of sensor data"

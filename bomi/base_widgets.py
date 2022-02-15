@@ -29,20 +29,15 @@ class TEvent(Enum):
 
 class TaskDisplay(qw.QWidget):
     # emits (event_name) of key events in task for logging purposes
-    sigTaskEventLog: qc.SignalInstance = qc.Signal(str)  # type: ignore
-    _task_stack: List[str] = []
+    sigTrialBegin: qc.SignalInstance = qc.Signal()  # type: ignore
+    sigTrialEnd: qc.SignalInstance = qc.Signal()  # type: ignore
+
+    sigTargetMoved: qc.SignalInstance = qc.Signal(tuple) # type: ignore
 
     # receive input events on state changes
     sigTaskEventIn: qc.SignalInstance = qc.Signal(TEvent)  # type: ignore
 
-    def emit_begin(self, event_name: str):
-        self.sigTaskEventLog.emit("begin_" + event_name)
-        self._task_stack.append(event_name)
 
-    def emit_end(self):
-        """End the last begin signal"""
-        if self._task_stack:
-            self.sigTaskEventLog.emit("end_" + self._task_stack.pop())
 
 
 def generate_edit_form(
