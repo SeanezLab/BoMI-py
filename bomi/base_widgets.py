@@ -32,12 +32,10 @@ class TaskDisplay(qw.QWidget):
     sigTrialBegin: qc.SignalInstance = qc.Signal()  # type: ignore
     sigTrialEnd: qc.SignalInstance = qc.Signal()  # type: ignore
 
-    sigTargetMoved: qc.SignalInstance = qc.Signal(tuple) # type: ignore
+    sigTargetMoved: qc.SignalInstance = qc.Signal(tuple)  # type: ignore
 
     # receive input events on state changes
     sigTaskEventIn: qc.SignalInstance = qc.Signal(TEvent)  # type: ignore
-
-
 
 
 def generate_edit_form(

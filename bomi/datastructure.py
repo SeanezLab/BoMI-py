@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import ClassVar, Dict, List, NamedTuple, TextIO
+from typing import ClassVar, NamedTuple, TextIO
 
 import numpy as np
 
@@ -50,7 +50,6 @@ class Buffer:
 
     # Sensor data
     labels: ClassVar = ("Roll", "Pitch", "Yaw", "abs(roll) + abs(pitch)")
-    ptr: int
     bufsize: int
     timestamp: np.ndarray  # 1D array of timestamps
     data: np.ndarray  # 2D array of `labels`
@@ -74,7 +73,6 @@ class Buffer:
         sensor_fp.write(header)
 
         return Buffer(
-            ptr=0,
             bufsize=bufsize,
             timestamp=timestamp,
             data=buf,
@@ -82,16 +80,6 @@ class Buffer:
             savedir=savedir,
         )
 
-    @staticmethod
-    def init_buffers(
-        names: List[str], bufsize: int, savedir: Path
-    ) -> Dict[str, Buffer]:
-        """Create the save directory and return a dictionary of {name: Buffer}"""
-        bufs = {}
-        for dev in names:
-            bufs[dev] = Buffer.init(bufsize=bufsize, savedir=savedir, name=dev)
-
-        return bufs
 
     def add_packet(self, packet: Packet):
         "Add `Packet` of sensor data"
@@ -107,16 +95,10 @@ class Buffer:
         self.sensor_fp.write(",".join((str(v) for v in (packet.t, *_packet))) + "\n")
 
         ### Shift buffer when full, never changing buffer size
-        if self.ptr >= self.bufsize:
-            data[:-1] = data[1:]
-            data[-1] = _packet
-            ts[:-1] = ts[1:]
-            ts[-1] = packet.t
-        else:
-            data[self.ptr] = _packet
-            ts[self.ptr] = packet.t
-            self.ptr += 1
-
+        data[:-1] = data[1:]
+        data[-1] = _packet
+        ts[:-1] = ts[1:]
+        ts[-1] = packet.t
 
 if __name__ == "__main__":
     from dis import dis

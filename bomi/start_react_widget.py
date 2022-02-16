@@ -46,10 +46,8 @@ class SRConfig:
 
 class _SoundWorker(qc.QObject):
     def play_sound(self, val: int):
-        print("Play sound", val)
         winsound.Beep(500, 200)
-        with open("test.txt", "w+") as fp:
-            fp.write(f"wtf {val}")
+        _print("Play sound", val)
 
 
 
@@ -106,11 +104,16 @@ class SRDisplay(TaskDisplay, WindowMixin):
         main_layout.addWidget(self.progress_bar, 5, 0)
 
         # Config + Controls
+        def config_callback():
+            print(self.config)
+            self.config.to_disk(savedir)
+            self.progress_animation.setDuration(self.config.HOLD_TIME)
+
         self.config_widget = generate_edit_form(
             self.config,
             name="Task config",
             dialog_box=True,
-            callback=lambda: self.config.to_disk(savedir),
+            callback=config_callback,
         )
 
         gb = qw.QGroupBox("Task Config")
@@ -292,7 +295,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """End the last begin signal"""
         if self._task_stack:
             self.sigTrialEnd.emit()
-            self.task_history.write(f"begin_{self._task_stack.pop()} t={default_timer()}\n")
+            self.task_history.write(f"end_{self._task_stack.pop()} t={default_timer()}\n")
 
 
 class StartReactWidget(qw.QWidget, WindowMixin):
