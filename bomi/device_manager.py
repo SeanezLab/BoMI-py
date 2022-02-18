@@ -94,14 +94,16 @@ class YostDeviceManager:
     Should only be instantiated once and used as a singleton, though this is not enforced.
     """
 
-    def __init__(self, data_dir: str | Path = "data"):
+    def __init__(self, data_dir: str | Path = "data", sampling_frequency: float = 100):
+        self._data_dir: Path = Path(data_dir)
+        self._fs = sampling_frequency
+
         self.dongles: DongleList = []
         self.all_sensors: SensorList = []
         self.wired_sensors: SensorList = []
         self.wireless_sensors: SensorList = []
 
         self._streaming: bool = False
-        self._data_dir: Path = Path(data_dir)
         self._thread: Optional[threading.Thread] = None
 
         # Mapping[serial_number_hex, nickname]. Nickname defaults to serial_number_hex
@@ -184,15 +186,14 @@ class YostDeviceManager:
             ports.append(port)
 
             logical_ids = list(wl_mp.keys())
-            # Check the source to see which slots are setup
-            start_dongle_streaming(port, logical_ids)
+            start_dongle_streaming(port, logical_ids, int(1000_000/self._fs))
 
         ### Setup streaming for wired sensors
         broadcaster = ts_api.global_broadcaster
         broadcaster.setStreamingTiming(
-            interval=0,  # output data as quickly as possible
+            interval=int(1000_000/self._fs),
             duration=0xFFFFFFFF,  # run indefinitely until stop command is issued
-            delay=1_000_000,  # session starts after 1s delay
+            delay=500_000,  # session starts after 500ms delay
             delay_offset=0,  # delay between devices
             filter=self.wired_sensors,
         )
@@ -250,7 +251,7 @@ class YostDeviceManager:
                             queue.append(packet)
                             i += 1
 
-                    if i % 2000 == 0:
+                    if i % 1000 == 0:
                         fps = i / (now - start_time)
                         start_time, i = now, 0
                         _print(f"Throughput: {fps:.2f} packets/sec")

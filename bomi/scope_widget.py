@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from collections import deque
 from pathlib import Path
 from timeit import default_timer
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Deque
 
 import pyqtgraph as pg
 import pyqtgraph.parametertree as ptree
@@ -19,8 +19,8 @@ from bomi.datastructure import Buffer, Metadata, Packet
 from bomi.device_manager import YostDeviceManager
 
 
-# def _print(*args):
-# print("[ScopeWidget]", *args)
+def _print(*args):
+    print("[ScopeWidget]", *args)
 
 
 # Seanez lab colors
@@ -34,7 +34,9 @@ COLORS = [
 
 
 PENS = [pg.mkPen(clr, width=2) for clr in COLORS]
-TARGET_BRUSH = pg.mkBrush(qg.QColor(25, 222, 193, 15))
+
+TARGET_BRUSH_BG = pg.mkBrush(qg.QColor(25, 222, 193, 15))
+TARGET_BRUSH_FG = pg.mkBrush(qg.QColor(254, 136, 33, 50))
 
 
 @dataclass
@@ -100,7 +102,7 @@ class PlotHandle:
             values=target_range,
             orientation="horizontal",
             movable=movable,
-            brush=TARGET_BRUSH,
+            brush=TARGET_BRUSH_BG,
         )
         pg.InfLineLabel(target.lines[0], label, position=0.05, anchor=(1, 1), color="k")
         plot.addItem(target)
@@ -121,6 +123,50 @@ class PlotHandle:
         self.target = None
 
 
+class ScopeWorker(qc.QObject):
+    def __init__(self, queue: Deque[Packet], task_widget: TaskDisplay=None) -> None:
+        super().__init__()
+        self.queue = queue
+        self.task_widget = task_widget
+
+    def update(self):
+        """Update function connected to the timer
+        1. Consume all data currently in the queue
+        2. If successful, update all plots
+        3. If applicable, update task states
+        """
+        q = self.queue
+        qsize = len(q)
+        if not qsize:
+            return
+
+        for _ in range(qsize):  # process current items in queue
+            packet: Packet = q.popleft()
+            self.buffers[packet.name].add_packet(packet)
+
+        # On successful read from queue, update curves
+        now = default_timer()
+        for name in self.dev_names:
+            buf = self.buffers[name]
+            curves = self.plot_handles[name].curves
+            x = -(now - buf.timestamp[: buf.ptr])
+            for i, name in enumerate(buf.labels):
+                if name in self.show_labels:
+                    curves[i].setData(x=x, y=buf.data[: buf.ptr, i])
+
+        ### Update task states if needed
+        # 1. Check if angle is within target range
+        # 2. If true, start the 3 second timer
+        if self.task_widget:
+            tmin, tmax = self.target_range
+            for name in self.dev_names:
+                buf = self.buffers[name]
+                if tmin <= buf.data[-1, -1] <= tmax:
+                    self.task_widget.sigTaskEventIn.emit(TEvent.ENTER_TARGET)
+                else:
+                    self.task_widget.sigTaskEventIn.emit(TEvent.EXIT_TARGET)
+
+
 class ScopeWidget(qw.QWidget):
     def __init__(
         self,
@@ -137,7 +183,7 @@ class ScopeWidget(qw.QWidget):
         self.config = config
 
         self.show_labels = list(Buffer.labels)
-        self.queue: deque[Packet] = deque()
+        self.queue: Deque[Packet] = deque()
 
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
@@ -266,8 +312,10 @@ class ScopeWidget(qw.QWidget):
 
         # init timer
         self.timer = qc.QTimer()
-        self.timer.setInterval(20)
+        self.timer.setInterval(1)
         self.timer.timeout.connect(self.update)  # type: ignore
+        self.fps_counter = 0
+        self.fps_last_time = default_timer()
 
     def show_hide_curve(self, name: str, show: bool):
         i = Buffer.labels.index(name)
@@ -299,8 +347,11 @@ class ScopeWidget(qw.QWidget):
                 self.task_widget.sigTargetMoved.emit(target_range)
 
             for name in self.dev_names:
-                plot_handle = self.plot_handles[name]
-                plot_handle.update_target(target_range)
+                self.plot_handles[name].update_target(target_range)
+    
+    def update_target_color(self, *args, **kwargs):
+        for name in self.dev_names:
+            self.plot_handles[name].update_target_color(*args, **kwargs)
 
     def get_target_show(self) -> bool:
         return self.param_tshow.value()
@@ -381,9 +432,16 @@ class ScopeWidget(qw.QWidget):
         # Create task widget
         if self.task_widget is not None:
             layout.addWidget(self.task_widget, 1)
-            if hasattr(self.task_widget, "config"):
-                _cfg = getattr(self.task_widget, "config")
-                _cfg.to_disk(self.savedir)
+
+            # TODO
+            # def begin_trial_color():
+                # self.update_target_color(TARGET_BRUSH_FG)
+
+            # def end_trial_color():
+                # self.update_target_color(TARGET_BRUSH_BG)
+
+            # self.task_widget.sigTrialBegin.connect(begin_trial_color)
+            # self.task_widget.sigTrialEnd.connect(end_trial_color)
 
         ### apply other config
         config = self.config
@@ -401,7 +459,7 @@ class ScopeWidget(qw.QWidget):
         """
         self.init_data()
         self.dm.start_stream(self.queue)
-        self.timer.start(0)
+        self.timer.start()
 
     def stop_stream(self):
         """Stop the data stream and update timer"""
@@ -414,6 +472,15 @@ class ScopeWidget(qw.QWidget):
         2. If successful, update all plots
         3. If applicable, update task states
         """
+        self.fps_counter += 1
+        if self.fps_counter > 2000:
+            now = default_timer()
+            interval = now - self.fps_last_time
+            fps = self.fps_counter / interval
+            self.fps_counter = 0
+            self.fps_last_time = now
+            _print("FPS: ", fps)
+
         q = self.queue
         qsize = len(q)
         if not qsize:
@@ -428,10 +495,11 @@ class ScopeWidget(qw.QWidget):
         for name in self.dev_names:
             buf = self.buffers[name]
             curves = self.plot_handles[name].curves
-            x = -(now - buf.timestamp[: buf.ptr])
+
+            x = -(now - buf.timestamp)
             for i, name in enumerate(buf.labels):
                 if name in self.show_labels:
-                    curves[i].setData(x=x, y=buf.data[: buf.ptr, i])
+                    curves[i].setData(x=x, y=buf.data[:, i])
 
         ### Update task states if needed
         # 1. Check if angle is within target range
@@ -452,4 +520,5 @@ class ScopeWidget(qw.QWidget):
             for buffer in self.buffers.values():
                 buffer.close()
 
+        self.task_widget and self.task_widget.close()
         return super().closeEvent(event)

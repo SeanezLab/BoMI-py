@@ -273,7 +273,7 @@ class Dongles:
             stop_dongle_streaming(port, logical_ids)
 
 
-def start_dongle_streaming(port: serial.Serial, logical_ids):
+def start_dongle_streaming(port: serial.Serial, logical_ids: List[int], interval_us: int):
 
     for logical_id in logical_ids:
         # set streaming slots
@@ -293,10 +293,10 @@ def start_dongle_streaming(port: serial.Serial, logical_ids):
         )
         read_dongle_port(port)
 
-        # set timing interval=0 duration=0xFFFFFFFF delay=0
+        # set timing interval, duration=0xFFFFFFFF delay=0
         write_dongle_port(
             port,
-            Cmds._setStreamingTiming(0, 0xFFFFFFFF, 0),
+            Cmds._setStreamingTiming(interval_us, 0xFFFFFFFF, 500_000),
             logical_id=logical_id,
         )
         read_dongle_port(port)
