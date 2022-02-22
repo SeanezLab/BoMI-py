@@ -59,7 +59,7 @@ def generate_edit_form(
     Implemented types, their corresponding QWidget and the metadata keys
 
     (str) - QLineEdit
-        - metadata: dict(name=str)
+        - metadata: dict(name=str, completion=[str])
 
     (int) - QSpinBox
         - metadata: dict(name=str, range=(float, float), step=float)
@@ -72,9 +72,7 @@ def generate_edit_form(
 
     name = name if name else dc.__class__.__name__
 
-    gb = qw.QGroupBox(name)
     layout = qw.QFormLayout()
-    gb.setLayout(layout)
 
     fields: Dict[str, Field] = dc.__dataclass_fields__  # type: ignore
     widgets: Dict[str, qw.QWidget] = {}
@@ -102,6 +100,12 @@ def generate_edit_form(
         if field.type == "str":
             widget = qw.QLineEdit(getattr(dc, key))
             widgets[key] = widget
+            if "completion" in field.metadata:
+                model = qc.QStringListModel()
+                model.setStringList(field.metadata["completion"])
+                completer = qw.QCompleter()
+                completer.setModel(model)
+                widget.setCompleter(completer)
 
             accept_cbs.append(partial(accept_QLineEdit, key))
             reject_cbs.append(partial(reject_QLineEdit, key))
@@ -127,6 +131,9 @@ def generate_edit_form(
 
         fieldname = field.metadata.get("name", key.replace("_", " ").title())
         layout.addRow(fieldname, widget)
+
+    gb = qw.QGroupBox(name)
+    gb.setLayout(layout)
 
     main_layout = qw.QVBoxLayout()
     main_layout.addWidget(gb)

@@ -11,6 +11,7 @@ from typing import List, NamedTuple, Tuple
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
+import PySide6.QtMultimedia as qm
 from PySide6.QtCore import Qt
 import winsound
 
@@ -19,6 +20,7 @@ from bomi.datastructure import get_savedir
 from bomi.device_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
+from .audio.player import AudioPlayer
 
 
 def _print(*args):
@@ -45,17 +47,32 @@ class SRConfig:
 
 
 class _SoundWorker(qc.QObject):
-    def play_sound(self, val: int):
-        winsound.Beep(500, 200)
-        _print("Play sound", val)
+    def __init__(self) -> None:
+        super().__init__()
+        self.effect = qm.QSoundEffect(self)
+        self.audioOutput = qm.QAudioOutput()
+        self.effect.setSource(
+            qc.QUrl.fromLocalFile("/Users/tnie/code/bomi/500Hz200ms.wav")
+        )
+        status_changed_callback = lambda: _print(
+            f"stateChanged: {self.effect.status()}"
+        )
+        self.effect.statusChanged.connect(status_changed_callback)  # type: ignore
 
+    def play_sound(self, val: int):
+        self.effect.setVolume(val)
+        self.effect.play()
+
+    # def play_sound(self, val: int):
+    #     winsound.Beep(500, 200)
+    #     _print("Play sound", val)
 
 
 class SRDisplay(TaskDisplay, WindowMixin):
     """StartReact Display"""
 
     # Take param (dB: int)
-    sigPlaySound: qc.SignalInstance = qc.Signal(int) # type: ignore
+    sigPlaySound: qc.SignalInstance = qc.Signal(int)  # type: ignore
 
     # States
     IDLE = SRState(color=Qt.lightGray, text="Get ready!")
@@ -168,7 +185,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
             f"target_moved t={default_timer()} tmin={trange[0]} tmax={trange[1]}\n"
         )
 
-
     @qc.Property(int)  # type: ignore
     def pval(self):  # type: ignore
         return self.progress_bar.value()
@@ -199,7 +215,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def send_visual_auditory_signal(self):
         "TODO: IMPLEMENT AUD"
-        self.sigPlaySound.emit(100)
+        self.sigPlaySound.emit(50)
         self.emit_begin("visual_auditory")
         self.set_state(self.GO)
 
@@ -295,7 +311,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """End the last begin signal"""
         if self._task_stack:
             self.sigTrialEnd.emit()
-            self.task_history.write(f"end_{self._task_stack.pop()} t={default_timer()}\n")
+            self.task_history.write(
+                f"end_{self._task_stack.pop()} t={default_timer()}\n"
+            )
 
 
 class StartReactWidget(qw.QWidget, WindowMixin):
@@ -321,8 +339,13 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         btn.clicked.connect(self.s_test_audio)  # type: ignore
         main_layout.addWidget(btn)
 
+        # self.player = AudioPlayer()
+        # main_layout.addWidget(self.player)
+
+        self.sound_worker = _SoundWorker()
+
     def s_test_audio(self):
-        winsound.Beep(500, 5000)
+        self.sound_worker.play_sound(100)
 
     def s_precision_task(self):
         "Run the ScopeWidget with the precision task view"

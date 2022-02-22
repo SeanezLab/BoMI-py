@@ -4,7 +4,9 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import ClassVar, NamedTuple, TextIO
+
+from timeit import default_timer
+from typing import ClassVar, NamedTuple, TextIO, Tuple, List
 
 import numpy as np
 
@@ -34,6 +36,8 @@ def get_savedir(task_name: str) -> Path:
 @dataclass
 class Metadata:
     subject_id: str = "unknown"
+    joint: str = "unknown"
+    max_rom: int = -1
 
     def dict(self):
         return asdict(self)
@@ -44,42 +48,49 @@ class Metadata:
             json.dump(asdict(self), fp)
 
 
-@dataclass()
-class Buffer:
-    """Manage all data (packets) consumed from the queue"""
+class _Buffer:
+    """Managed buffer"""
 
-    # Sensor data
-    labels: ClassVar = ("Roll", "Pitch", "Yaw", "abs(roll) + abs(pitch)")
-    bufsize: int
-    timestamp: np.ndarray  # 1D array of timestamps
-    data: np.ndarray  # 2D array of `labels`
-    sensor_fp: TextIO  # filepointer to write CSV data to
+    LABELS: ClassVar = ("Roll", "Pitch", "Yaw", "abs(roll) + abs(pitch)")
+    NAME_TEMPLATE = "sensor_{name}.csv"
 
-    savedir: Path
+    def __init__(self, bufsize: int, savedir: Path, name: str):
+        self.bufsize = bufsize
+        # 1D array of timestamps
+        self.timestamp: np.ndarray = np.zeros(bufsize)
+        # 2D array of `labels`
+        self.data: np.ndarray = np.zeros((bufsize, len(self.LABELS)))
+
+        fp = open(savedir / self.NAME_TEMPLATE.format(name=name), "w")
+        header = ",".join(("t", *self.LABELS)) + "\n"
+        fp.write(header)
+
+        # filepointer to write CSV data to
+        self.sensor_fp: TextIO = fp
+        # name of this device
+        self.name: str = name
+
+        self.savedir: Path = savedir
+
+    def __len__(self):
+        return len(self.data)
 
     def close(self):
         "Close open file pointers"
         self.sensor_fp.close()
 
-    @classmethod
-    def init(cls, bufsize: int, savedir: Path, name: str) -> Buffer:
-        timestamp = np.zeros(bufsize)
-        buf = np.zeros((bufsize, len(cls.labels)))
+    def add_packet(self, *_):
+        raise NotImplementedError
 
-        print("Writing data to ", savedir)
 
-        sensor_fp = open(savedir / f"sensor_{name}.csv", "w")
-        header = ",".join(("t", *cls.labels)) + "\n"
-        sensor_fp.write(header)
+class YostBuffer(_Buffer):
+    """Manage all data (packets) consumed from the queue
 
-        return Buffer(
-            bufsize=bufsize,
-            timestamp=timestamp,
-            data=buf,
-            sensor_fp=sensor_fp,
-            savedir=savedir,
-        )
+    YostBuffer holds data from 1 Yost body sensor
+    """
 
+    LABELS: ClassVar = ("Roll", "Pitch", "Yaw", "abs(roll) + abs(pitch)")
+    NAME_TEMPLATE: ClassVar = "yost_sensor_{name}.csv"
 
     def add_packet(self, packet: Packet):
         "Add `Packet` of sensor data"
@@ -99,6 +110,39 @@ class Buffer:
         data[-1] = _packet
         ts[:-1] = ts[1:]
         ts[-1] = packet.t
+
+
+class DelsysBuffer(_Buffer):
+    """Manage data for all Delsys EMG sensors"""
+
+    LABELS: ClassVar = [str(i) for i in range(1, 17)]
+    NAME_TEMPLATE: ClassVar = "EMG_sensor_{name}.csv"
+
+    def add_packet(self, packet: Tuple[float, ...]):
+        data, ts = self.data, self.timestamp
+        # assert len(packet) == 16
+        self.sensor_fp.write(",".join((str(v) for v in packet)) + "\n")
+
+        ### Shift buffer when full, never changing buffer size
+        data[:-1] = data[1:]
+        data[-1] = packet
+        ts[:-1] = ts[1:]
+        ts[-1] = default_timer()
+
+    def add_packets(self, packets: np.ndarray):
+        data, ts = self.data, self.timestamp
+        for packet in packets:
+            self.sensor_fp.write(",".join((str(v) for v in packet)) + "\n")
+
+        n = len(packets)
+        _t = default_timer()
+
+        ### Shift buffer when full, never changing buffer size
+        data[:-n] = data[n:]
+        data[-n:] = packets
+        ts[:-n] = ts[n:]
+        ts[-n:] = [_t] * n
+
 
 if __name__ == "__main__":
     from dis import dis

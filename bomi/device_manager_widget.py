@@ -211,8 +211,7 @@ class DeviceManagerWidget(qw.QWidget, WindowMixin):
         self.yost_dm = yost_device_manager
         self.setMinimumSize(350, 200)
 
-        main_layout = qw.QHBoxLayout()
-        self.setLayout(main_layout)
+        main_layout = qw.QHBoxLayout(self)
 
         ### Device controls
         layout = qw.QVBoxLayout()

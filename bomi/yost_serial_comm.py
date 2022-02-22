@@ -273,7 +273,9 @@ class Dongles:
             stop_dongle_streaming(port, logical_ids)
 
 
-def start_dongle_streaming(port: serial.Serial, logical_ids: List[int], interval_us: int):
+def start_dongle_streaming(
+    port: serial.Serial, logical_ids: List[int], interval_us: int
+):
 
     for logical_id in logical_ids:
         # set streaming slots

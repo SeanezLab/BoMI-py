@@ -176,22 +176,22 @@ class YostDeviceManager:
                     idx = dongle.wireless_table.index(wl_id)
                     wl_mp[idx] = self.get_device_name(HEX.format(wl_id))
 
-            port_name: str = dongle.serial_port.name # type: ignore
+            port_name: str = dongle.serial_port.name  # type: ignore
             port_names.append(port_name)
             self.close_device(dongle)
             del dongle
 
             port = serial.Serial(port_name, 115200, timeout=1)
-            port.wl_mp = wl_mp # type: ignore
+            port.wl_mp = wl_mp  # type: ignore
             ports.append(port)
 
             logical_ids = list(wl_mp.keys())
-            start_dongle_streaming(port, logical_ids, int(1000_000/self._fs))
+            start_dongle_streaming(port, logical_ids, int(1000_000 / self._fs))
 
         ### Setup streaming for wired sensors
         broadcaster = ts_api.global_broadcaster
         broadcaster.setStreamingTiming(
-            interval=int(1000_000/self._fs),
+            interval=int(1000_000 / self._fs),
             duration=0xFFFFFFFF,  # run indefinitely until stop command is issued
             delay=500_000,  # session starts after 500ms delay
             delay_offset=0,  # delay between devices
@@ -224,10 +224,10 @@ class YostDeviceManager:
                     for sensor in self.wired_sensors:
                         b = sensor.getStreamingBatch()
                         packet = Packet(
-                            pitch=b[0] * RAD2DEG,# type: ignore
-                            yaw=b[1] * RAD2DEG,# type: ignore
-                            roll=b[2] * RAD2DEG, # type: ignore
-                            battery=b[3], # type: ignore
+                            pitch=b[0] * RAD2DEG,  # type: ignore
+                            yaw=b[1] * RAD2DEG,  # type: ignore
+                            roll=b[2] * RAD2DEG,  # type: ignore
+                            battery=b[3],  # type: ignore
                             t=now,
                             name=self._names[sensor.serial_number_hex],
                         )
@@ -246,7 +246,7 @@ class YostDeviceManager:
                                 roll=b[2] * RAD2DEG,
                                 battery=b[3],
                                 t=now,
-                                name=port.wl_mp[logical_id],# type: ignore
+                                name=port.wl_mp[logical_id],  # type: ignore
                             )
                             queue.append(packet)
                             i += 1
@@ -293,7 +293,7 @@ class YostDeviceManager:
             _print(dev.serial_number_hex, "Tared:", success)
 
     def get_battery(self) -> List[int]:
-        b = [d.getBatteryPercentRemaining() for d in self.wireless_sensors] # type: ignore
+        b = [d.getBatteryPercentRemaining() for d in self.wireless_sensors]  # type: ignore
         return b
 
     def has_sensors(self) -> bool:
