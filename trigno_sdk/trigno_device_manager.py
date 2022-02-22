@@ -16,8 +16,7 @@ import numpy as np
 from bomi.datastructure import get_savedir, DelsysBuffer
 from bomi.window_mixin import WindowMixin
 
-from trigno_sdk import TrignoClient, EMGSensor, EMGSensorMeta
-from pprint import pprint
+from trigno_sdk.trigno_sdk_client import TrignoClient, EMGSensor, EMGSensorMeta
 
 
 def _print(*args):
@@ -48,7 +47,7 @@ class EMGScope(qw.QWidget):
 
         # init data
         self.queue: Deque[Tuple[float]] = deque()
-        self.buffer: DelsysBuffer = DelsysBuffer(10000, self.savedir, name="EMG")
+        self.buffer: DelsysBuffer = DelsysBuffer(10000, self.savedir)
 
         # init UI
         main_layout = qw.QHBoxLayout(self)
@@ -140,10 +139,13 @@ class TrignoSensor(qw.QWidget):
 
         layout = qw.QFormLayout(self)
 
+        self.active = False
         if not sensor:
             idx_label = qw.QLabel(f"{idx}", self)
             layout.addRow(idx_label)
             return
+
+        self.active = True
 
         idx_label = qw.QLabel(f"{idx} | Serial: {sensor.serial}", self)
         layout.addRow(idx_label)
@@ -159,7 +161,7 @@ class TrignoSensor(qw.QWidget):
         completer = qw.QCompleter()
         completer.setModel(model)
         self.name.setCompleter(completer)
-        layout.addRow("Muscle name:", self.name)
+        layout.addRow("Muscle:", self.name)
 
         # Left or right
         lo = qw.QHBoxLayout()
@@ -217,15 +219,16 @@ class TrignoDeviceManagerWidget(qw.QWidget, WindowMixin):
                 _print("EMG sensor meta file not found", meta_path)
 
         ### Init UI
-        main_layout = qw.QHBoxLayout(self)
-        control_layout = qw.QVBoxLayout()
+        main_layout = qw.QVBoxLayout(self)
+        control_layout = qw.QHBoxLayout()
         main_layout.addLayout(control_layout)
 
-        self.status_label = qw.QLabel("Status")
+        self.status_label = qw.QLabel("Base Station")
         control_layout.addWidget(self.status_label)
         self.update_status()
 
         btn = qw.QPushButton("Connect to Base Station")
+        btn.setStyleSheet("QPushButton { background-color: rgb(0,255,0); }")
         btn.clicked.connect(self.connect)  # type: ignore
         control_layout.addWidget(btn)
 
@@ -238,36 +241,52 @@ class TrignoDeviceManagerWidget(qw.QWidget, WindowMixin):
         control_layout.addWidget(btn)
 
         # Devices UI
-        grid_layout = qw.QGridLayout()
-        main_layout.addLayout(grid_layout)
+        self.grid_layout = qw.QGridLayout()
+        main_layout.addLayout(self.grid_layout)
+
+        self.setMinimumSize(680, 390)
+        self.setup_grid()
+
+    def setup_grid(self):
+        for _ in range(self.grid_layout.count()):
+            try:
+                li = self.grid_layout.takeAt(0)
+                w = li.widget()
+                w.setParent(None)
+                w.deleteLater()
+            except Exception:
+                break
 
         for i in range(16):
-            sensor = trigno_client.sensors[i + 1]
+            sensor = self.trigno_client.sensors[i + 1]
             if sensor:
-                if sensor.serial in trigno_client.sensor_meta:
-                    meta = trigno_client.sensor_meta[sensor.serial]
+                if sensor.serial in self.trigno_client.sensor_meta:
+                    meta = self.trigno_client.sensor_meta[sensor.serial]
                 else:
                     meta = EMGSensorMeta()
-                    trigno_client.sensor_meta[sensor.serial] = meta
+                    self.trigno_client.sensor_meta[sensor.serial] = meta
 
                 sensor_w = TrignoSensor(sensor, meta, i + 1)
             else:
                 sensor_w = TrignoSensor(None, None, i + 1)
 
-            grid_layout.addWidget(sensor_w, i // 4, i % 4)
+            self.grid_layout.addWidget(sensor_w, i // 4, i % 4)
             sensor_w.sigDataChanged.connect(self.handle_data_changed)
 
         self.scope: EMGScope | None = None
 
     def update_status(self):
         self.status_label.setText(
-            f"Status: {'Connected' if self.trigno_client.connected else 'Disconnected'}"
+            f"Base Station: {'Connected' if self.trigno_client.connected else 'Disconnected'}"
         )
 
     @qc.Slot()  # type: ignore
     def connect(self):
-        self.trigno_client.setup()
+        print(self.geometry())
+
+        self.trigno_client.connect()
         self.update_status()
+        self.setup_grid()
 
     @qc.Slot()  # type: ignore
     def handle_data_changed(self):
@@ -281,6 +300,14 @@ class TrignoDeviceManagerWidget(qw.QWidget, WindowMixin):
     @qc.Slot()  # type: ignore
     def start_data_scope(self):
         ## Start scope here.
+        if not self.trigno_client.connected:
+            return self.error_dialog("Trigno Base Station: Not connected.")
+
+        if not self.trigno_client.sensor_idx:
+            return self.error_dialog(
+                "Trigno Base Station: No sensors paired. Please pair using the Trigno Control Utility"
+            )
+
         try:
             self.scope = EMGScope(self.trigno_client, get_savedir("EMGScope"))
             self.scope.show()

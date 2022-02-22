@@ -62,8 +62,6 @@ class _Buffer:
         self.data: np.ndarray = np.zeros((bufsize, len(self.LABELS)))
 
         fp = open(savedir / self.NAME_TEMPLATE.format(name=name), "w")
-        header = ",".join(("t", *self.LABELS)) + "\n"
-        fp.write(header)
 
         # filepointer to write CSV data to
         self.sensor_fp: TextIO = fp
@@ -92,6 +90,11 @@ class YostBuffer(_Buffer):
     LABELS: ClassVar = ("Roll", "Pitch", "Yaw", "abs(roll) + abs(pitch)")
     NAME_TEMPLATE: ClassVar = "yost_sensor_{name}.csv"
 
+    def __init__(self, bufsize: int, savedir: Path, name: str):
+        super().__init__(bufsize, savedir, name)
+        header = ",".join(("t", *self.LABELS)) + "\n"
+        self.sensor_fp.write(header)
+
     def add_packet(self, packet: Packet):
         "Add `Packet` of sensor data"
         data, ts = self.data, self.timestamp
@@ -116,7 +119,12 @@ class DelsysBuffer(_Buffer):
     """Manage data for all Delsys EMG sensors"""
 
     LABELS: ClassVar = [str(i) for i in range(1, 17)]
-    NAME_TEMPLATE: ClassVar = "EMG_sensor_{name}.csv"
+    NAME_TEMPLATE: ClassVar = "sensor_{name}.csv"
+
+    def __init__(self, bufsize: int, savedir: Path):
+        super().__init__(bufsize, savedir, "EMG")
+        header = ",".join(self.LABELS) + "\n"
+        self.sensor_fp.write(header)
 
     def add_packet(self, packet: Tuple[float, ...]):
         data, ts = self.data, self.timestamp

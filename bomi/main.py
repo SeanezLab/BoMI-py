@@ -14,6 +14,7 @@ from bomi.start_react_widget import StartReactWidget
 from bomi.window_mixin import WindowMixin
 from bomi.version import __version__
 
+from trigno_sdk import TrignoDeviceManagerWidget, TrignoClient
 
 __appname__ = "BoMI"
 __all__ = ["MainWindow", "main"]
@@ -35,6 +36,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
     def __init__(self):
         super().__init__()
         self.yost_dm = YostDeviceManager()
+        self.trigno_client = TrignoClient()
 
         self.init_ui()
         self.init_actions()
@@ -56,10 +58,22 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         vsplit.addWidget(l)
 
         ### Device manager group
-        vsplit.addWidget(wrap_gb("Device Manager", DeviceManagerWidget(self.yost_dm)))
+        vsplit.addWidget(
+            wrap_gb("Yost Device Manager", DeviceManagerWidget(self.yost_dm))
+        )
+
+        ### Trigno Device manager group
+        vsplit.addWidget(
+            wrap_gb(
+                "Trigno Device Manager", TrignoDeviceManagerWidget(self.trigno_client)
+            )
+        )
+
+        hsplit = qw.QSplitter(Qt.Horizontal)
+        vsplit.addWidget(hsplit)
 
         ### StartReact Group
-        vsplit.addWidget(wrap_gb("StartReact", StartReactWidget(self.yost_dm)))
+        hsplit.addWidget(wrap_gb("StartReact", StartReactWidget(self.yost_dm)))
 
         ### Cursor Task group
         btn_reach = qw.QPushButton(text="Reaching")
@@ -68,7 +82,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         btn_paint = qw.QPushButton(text="Painter")
         btn_paint.clicked.connect(partial(self.start_widget, PainterWidget()))  # type: ignore
 
-        vsplit.addWidget(wrap_gb("Cursor Tasks", btn_reach, btn_paint))
+        hsplit.addWidget(wrap_gb("Cursor Tasks", btn_reach, btn_paint))
 
         ### Misc group
         btn2 = qw.QPushButton(text="Show sample plot")
@@ -77,7 +91,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         btn3 = qw.QPushButton(text="Show sample 3D plot")
         btn3.clicked.connect(partial(self.start_widget, Sample3DWidget()))  # type: ignore
 
-        vsplit.addWidget(wrap_gb("Others", btn2, btn3))
+        hsplit.addWidget(wrap_gb("Others", btn2, btn3))
 
     def init_actions(self):
         quitAct = qg.QAction("Exit", self)

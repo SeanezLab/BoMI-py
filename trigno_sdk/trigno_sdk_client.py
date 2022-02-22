@@ -105,8 +105,6 @@ class TrignoClient:
         self.streaming: bool = False
         self.worker_thread: threading.Thread | None = None
 
-        self.setup()
-
     def __call__(self, cmd: str):
         return self.send_cmd(cmd)
 
@@ -119,19 +117,24 @@ class TrignoClient:
     def __len__(self) -> int:
         return 0
 
-    def setup(self):
-        "Called once during init to setup base station"
+    def connect(self) -> bool:
+        """Called once during init to setup base station.
+        Returns True if connection successful
+        """
         if self.connected:
-            return
+            return True
 
         try:
+            self.command_sock.settimeout(1)
             self.command_sock.connect((self.host_ip, COMMAND_PORT))
+            self.command_sock.settimeout(3)
             buf = recv(self.command_sock)
             _print(buf.decode())
             self.emg_data_sock.connect((self.host_ip, EMG_DATA_PORT))
             self.connected = True
-        except Exception:
-            _print(traceback.format_exc())
+        except TimeoutError as e:
+            _print("Failed to connect to Base Station", e)
+            return False
 
         cmd = lambda _cmd: self.send_cmd(_cmd).decode()
         assert cmd("ENDIAN LITTLE"), "OK"  # Use little endian
@@ -157,6 +160,7 @@ class TrignoClient:
         self.base_serial = cmd("BASE SERIAL?")
 
         self.query_devices()
+        return True
 
     def query_device(self, i: int):
         "Checks for devices connected to the base and updates `self.sensors`"
@@ -227,10 +231,10 @@ class TrignoClient:
         self.streaming = True
 
     def stop_stream(self):
-        assert self.connected
         self.streaming = False
         self.worker_thread and self.worker_thread.join()
-        self.send_cmd("STOP")
+        if self.connected:
+            self.send_cmd("STOP")
 
     def recv_emg(self):
         BYTES_PER = 4 * 16  # 16 devices, 4 byte float
@@ -250,7 +254,8 @@ class TrignoClient:
 
     def close(self):
         self.stop_stream()
-        self.send_cmd("QUIT")
+        if self.connected:
+            self.send_cmd("QUIT")
         self.command_sock.close()
         self.emg_data_sock.close()
         self.sensor_idx = []
