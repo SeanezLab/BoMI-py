@@ -60,8 +60,8 @@ class DSChannel:
 
 @dataclass
 class EMGSensor:
-    """Delsys EMG Sensor properties queried from the Base Station
-    """
+    """Delsys EMG Sensor properties queried from the Base Station"""
+
     type: str
     serial: str
     firmware: str
@@ -72,13 +72,16 @@ class EMGSensor:
     channel_count: int
     channels: List[DSChannel]
 
+
 @dataclass
 class EMGSensorMeta:
     """Metadata associated with a EMG sensor
     Most importantly sensor placement
     """
+
     muscle_name: str = ""
     side: str = ""
+
 
 class TrignoClient:
     """
@@ -97,7 +100,7 @@ class TrignoClient:
         self.sensor_idx: List[int] = []
         self.n_sensors = 0
 
-        self.sensor_meta: Dict[str, EMGSensorMeta] = {} # Mapping[serial, meta]
+        self.sensor_meta: Dict[str, EMGSensorMeta] = {}  # Mapping[serial, meta]
 
         self.streaming: bool = False
         self.worker_thread: threading.Thread | None = None
@@ -120,7 +123,7 @@ class TrignoClient:
         "Called once during init to setup base station"
         if self.connected:
             return
-        
+
         try:
             self.command_sock.connect((self.host_ip, COMMAND_PORT))
             buf = recv(self.command_sock)
@@ -129,7 +132,6 @@ class TrignoClient:
             self.connected = True
         except Exception:
             _print(traceback.format_exc())
-
 
         cmd = lambda _cmd: self.send_cmd(_cmd).decode()
         assert cmd("ENDIAN LITTLE"), "OK"  # Use little endian
@@ -153,13 +155,13 @@ class TrignoClient:
         self.base_firmware = cmd("BASE FIRMWARE?")
         # firmware version of the connected base station
         self.base_serial = cmd("BASE SERIAL?")
-        
+
         self.query_devices()
 
     def query_device(self, i: int):
         "Checks for devices connected to the base and updates `self.sensors`"
         assert self.connected
-        
+
         cmd = lambda _cmd: self.send_cmd(_cmd).decode()
 
         ## Only look at PAIRED and ACTIVE sensors
@@ -202,7 +204,7 @@ class TrignoClient:
     def query_devices(self):
         """Query the Base Station for all 16 devices"""
         assert self.connected
-        
+
         for i in range(1, 17):
             self.sensors[i] = self.query_device(i)
 
@@ -253,17 +255,15 @@ class TrignoClient:
         self.emg_data_sock.close()
         self.sensor_idx = []
         self.sensors = []
-    
+
     def save_meta(self, fpath: Path):
-        """Save metadata as JSON to fpath
-        """
+        """Save metadata as JSON to fpath"""
         tmp = {k: asdict(v) for k, v in self.sensor_meta.items()}
         with open(fpath, "w") as fp:
             json.dump(tmp, fp, indent=2)
-    
+
     def load_meta(self, fpath: Path):
-        """Load JSON metadata from fpath
-        """
+        """Load JSON metadata from fpath"""
         with open(fpath, "r") as fp:
             tmp: Dict = json.load(fp)
 
@@ -272,7 +272,6 @@ class TrignoClient:
 
     def __del__(self):
         self.close()
-        
 
 
 if __name__ == "__main__":
