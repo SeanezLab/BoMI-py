@@ -277,7 +277,7 @@ class TrignoDeviceManagerWidget(qw.QWidget, WindowMixin):
 
     def update_status(self):
         self.status_label.setText(
-            f"Base Station: {'Connected' if self.trigno_client.connected else 'Disconnected'}"
+            f"Base Station: {self.trigno_client.host_ip if self.trigno_client.connected else 'Disconnected'}"
         )
 
     @qc.Slot()  # type: ignore
