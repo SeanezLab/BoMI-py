@@ -60,7 +60,7 @@ class AudioCalibrationWidget(qw.QWidget):
         layout.addRow(qw.QLabel("Frequency (Hz)"), self.m_freq)
 
         self.m_duration = qw.QSpinBox()
-        self.m_duration.setRange(200, 5000)
+        self.m_duration.setRange(10, 5000)
         self.m_duration.setValue(self.player.duration_ms)
         self.m_duration.valueChanged.connect(self.freq_duration_changed)
         layout.addRow(qw.QLabel("Duration (ms)"), self.m_duration)

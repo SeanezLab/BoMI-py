@@ -19,8 +19,8 @@ from bomi.datastructure import get_savedir
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
+from bomi.audio.player import TonePlayer, AudioCalibrationWidget
 from trigno_sdk.client import TrignoClient
-from .audio.player import AudioPlayer
 
 
 def _print(*args):
@@ -44,31 +44,6 @@ class SRConfig:
         "Write metadata to `savedir`"
         with (savedir / "start_react_config.json").open("w") as fp:
             json.dump(asdict(self), fp)
-
-
-class _SoundWorker(qc.QObject):
-    def __init__(self) -> None:
-        super().__init__()
-        self.effect = qm.QSoundEffect(self)
-        self.effect.setSource(
-            qc.QUrl.fromLocalFile("/Users/tnie/code/bomi/500Hz50ms.wav")
-        )
-        status_changed_callback = lambda: _print(
-            f"stateChanged: {self.effect.status()}"
-        )
-        self.effect.statusChanged.connect(status_changed_callback)  # type: ignore
-
-    def play_sound(self, val: int):
-        self.effect.setVolume(val)
-        self.effect.play()
-
-
-class AudioCalibrationWidget(qw.QWidget):
-    PLAY_LABEL = "Play"
-    RESUME_LABEL = "Resume"
-
-    def __init__(self):
-        super().__init__()
 
 
 class SRDisplay(TaskDisplay, WindowMixin):
@@ -170,16 +145,12 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.timer_end_one.setSingleShot(True)
         self.timer_end_one.timeout.connect(self.end_one_trial)  # type: ignore
 
-        # Thread to play sound
-        self.sound_thread = qc.QThread()
-        self.sound_worker = _SoundWorker()
-        self.sound_worker.moveToThread(self.sound_thread)
-        self.sigPlaySound.connect(self.sound_worker.play_sound)
-        self.sound_thread.start()
+        # tone sound
+        self.tone_player = TonePlayer()
+        self.tone_player.set_freq_duration(500, 50)
+        self.sigPlaySound.connect(self.tone_player.play)
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
-        self.sound_thread.quit()
-        self.sound_thread.wait()
         self.task_history.close()
         return super().closeEvent(event)
 
@@ -341,17 +312,8 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         btn1.clicked.connect(self.s_max_rom)  # type: ignore
         main_layout.addWidget(btn1)
 
-        btn = qw.QPushButton(text="Test audio")
-        btn.clicked.connect(self.s_test_audio)  # type: ignore
-        main_layout.addWidget(btn)
-
-        # self.player = AudioPlayer()
-        # main_layout.addWidget(self.player)
-
-        self.sound_worker = _SoundWorker()
-
-    def s_test_audio(self):
-        self.sound_worker.play_sound(100)
+        self.audio_calib = AudioCalibrationWidget()
+        main_layout.addWidget(self.audio_calib)
 
     def check_sensors(self) -> bool:
         if not self.dm.has_sensors():
@@ -359,16 +321,14 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             return False
 
         if not self.trigno_client.connected:
-            self.error_dialog(
-                "Trigno Client not connected to Base Station. Please click Connect to Base Station"
+            return self.msg_dialog(
+                "Trigno Client not connected to Base Station. Continue StartReact without EMG recording?"
             )
-            return False
 
         if not self.trigno_client.n_sensors:
-            self.error_dialog(
-                "Trigno Client didn't find any sensors. Please pair and configure them."
+            return self.msg_dialog(
+                "Trigno Client didn't find any sensors. Continue StartReact without EMG recording?"
             )
-            return False
 
         return True
 

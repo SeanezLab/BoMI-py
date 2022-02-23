@@ -139,7 +139,10 @@ class ScopeWidget(qw.QWidget):
         self.savedir = savedir
         self.task_widget = task_widget
         self.config = config
-        self.trigno_client = trigno_client
+        if trigno_client and trigno_client.n_sensors:
+            self.trigno_client = trigno_client
+        else:
+            self.trigno_client = None
 
         self.show_labels = list(YostBuffer.LABELS)
         self.queue: Deque[Packet] = deque()

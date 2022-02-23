@@ -11,6 +11,12 @@ class WindowMixin(object):
 
         self._err_dialog.showMessage(msg)
 
+    def msg_dialog(self, msg: str) -> bool:
+        "Display msg"
+        return qw.QMessageBox.Yes == qw.QMessageBox.question(
+            self, "BoMI Confirmation", msg, qw.QMessageBox.Yes | qw.QMessageBox.No
+        )
+
     def no_yost_sensors_error(self):
         return self.error_dialog(
             "No Yost sensors available. Plug in the devices, then click on 'Discover devices'"
@@ -21,7 +27,7 @@ class WindowMixin(object):
         attr = str(type(obj))
         setattr(self, attr, obj)
 
-        # Mockey patch QWidget's `closeEvent` to delete the object on close
+        # Monkey patch QWidget's `closeEvent` to delete the object on close
         def closeEvent(event: qg.QCloseEvent):
             delattr(self, attr)
             obj._closeEvent(event)
