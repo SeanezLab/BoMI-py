@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import traceback
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Final, List, Optional, Tuple
+from typing import Final, Tuple
 
 import pyqtgraph as pg
 import PySide6.QtCore as qc
@@ -152,7 +151,7 @@ class YostWidget(qw.QWidget, WindowMixin):
     def s_tare_all(self):
         dm = self.yost_dm
         if not dm.has_sensors():
-            return self.no_sensors_error()
+            return self.no_yost_sensors_error()
 
         dm.tare_all_devices()
 
@@ -165,7 +164,7 @@ class YostWidget(qw.QWidget, WindowMixin):
     def s_data_charts(self):
         dm = self.yost_dm
         if not dm.has_sensors():
-            return self.no_sensors_error()
+            return self.no_yost_sensors_error()
 
         ## Start scope here.
         try:

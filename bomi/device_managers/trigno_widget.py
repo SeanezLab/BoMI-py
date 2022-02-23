@@ -370,7 +370,7 @@ class TrignoWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()  # type: ignore
     def save_meta(self):
-        self.trigno_client.save_meta("emg_meta.json")
+        self.trigno_client.save_meta("emg_meta.json", slim=True)
 
     @qc.Slot()  # type: ignore
     def start_data_scope(self):

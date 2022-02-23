@@ -19,6 +19,7 @@ from bomi.datastructure import get_savedir
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
+from trigno_sdk.client import TrignoClient
 from .audio.player import AudioPlayer
 
 
@@ -49,7 +50,6 @@ class _SoundWorker(qc.QObject):
     def __init__(self) -> None:
         super().__init__()
         self.effect = qm.QSoundEffect(self)
-        self.audioOutput = qm.QAudioOutput()
         self.effect.setSource(
             qc.QUrl.fromLocalFile("/Users/tnie/code/bomi/500Hz50ms.wav")
         )
@@ -61,6 +61,14 @@ class _SoundWorker(qc.QObject):
     def play_sound(self, val: int):
         self.effect.setVolume(val)
         self.effect.play()
+
+
+class AudioCalibrationWidget(qw.QWidget):
+    PLAY_LABEL = "Play"
+    RESUME_LABEL = "Resume"
+
+    def __init__(self):
+        super().__init__()
 
 
 class SRDisplay(TaskDisplay, WindowMixin):
@@ -314,9 +322,12 @@ class SRDisplay(TaskDisplay, WindowMixin):
 class StartReactWidget(qw.QWidget, WindowMixin):
     """GUI to manage StartReact tasks"""
 
-    def __init__(self, device_manager: YostDeviceManager):
+    def __init__(
+        self, device_manager: YostDeviceManager, trigno_client: TrignoClient = None
+    ):
         super().__init__()
         self.dm = device_manager
+        self.trigno_client = trigno_client
 
         ### Init UI
         main_layout = qw.QVBoxLayout()
@@ -342,10 +353,29 @@ class StartReactWidget(qw.QWidget, WindowMixin):
     def s_test_audio(self):
         self.sound_worker.play_sound(100)
 
+    def check_sensors(self) -> bool:
+        if not self.dm.has_sensors():
+            self.no_yost_sensors_error()
+            return False
+
+        if not self.trigno_client.connected:
+            self.error_dialog(
+                "Trigno Client not connected to Base Station. Please click Connect to Base Station"
+            )
+            return False
+
+        if not self.trigno_client.n_sensors:
+            self.error_dialog(
+                "Trigno Client didn't find any sensors. Please pair and configure them."
+            )
+            return False
+
+        return True
+
     def s_precision_task(self):
         "Run the ScopeWidget with the precision task view"
-        if not self.dm.has_sensors():
-            return self.no_sensors_error()
+        if not self.check_sensors():
+            return
 
         scope_config = ScopeConfig(
             window_title="Precision",
@@ -366,6 +396,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
                 savedir=savedir,
                 task_widget=SRDisplay("Precision Control", savedir),
                 config=scope_config,
+                trigno_client=self.trigno_client,
             )
 
             self._precision.showMaximized()
@@ -375,8 +406,8 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
     def s_max_rom(self):
         "Run the ScopeWidget with the MaxROM task view"
-        if not self.dm.has_sensors():
-            return self.no_sensors_error()
+        if not self.check_sensors():
+            return
 
         scope_config = ScopeConfig(
             window_title="MaxROM",
@@ -397,6 +428,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
                 savedir=savedir,
                 task_widget=SRDisplay("Max Range of Motion", savedir=savedir),
                 config=scope_config,
+                trigno_client=self.trigno_client,
             )
             self._precision.showMaximized()
         except Exception:

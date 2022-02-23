@@ -1,4 +1,3 @@
-import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 import pyqtgraph as pg
@@ -65,8 +64,8 @@ class Sample3DWidget(qw.QWidget):
         rows = 100
         x = np.linspace(-8, 8, cols + 1).reshape(cols + 1, 1)
         y = np.linspace(-8, 8, rows + 1).reshape(1, rows + 1)
-        d = (x ** 2 + y ** 2) * 0.1
-        d2 = d ** 0.5 + 0.1
+        d = (x**2 + y**2) * 0.1
+        d2 = d**0.5 + 0.1
 
         ## precompute height values for all frames
         phi = np.arange(0, np.pi * 2, np.pi / 20.0)

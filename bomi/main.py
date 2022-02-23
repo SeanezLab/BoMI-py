@@ -70,7 +70,9 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         vsplit.addWidget(hsplit)
 
         ### StartReact Group
-        hsplit.addWidget(wrap_gb("StartReact", StartReactWidget(self.yost_dm)))
+        hsplit.addWidget(
+            wrap_gb("StartReact", StartReactWidget(self.yost_dm, self.trigno_client))
+        )
 
         ### Cursor Task group
         btn_reach = qw.QPushButton(text="Reaching")

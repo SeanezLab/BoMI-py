@@ -11,9 +11,9 @@ class WindowMixin(object):
 
         self._err_dialog.showMessage(msg)
 
-    def no_sensors_error(self):
+    def no_yost_sensors_error(self):
         return self.error_dialog(
-            "No sensors available. Plug in the devices, then click on 'Discover devices'"
+            "No Yost sensors available. Plug in the devices, then click on 'Discover devices'"
         )
 
     def start_widget(self, obj: qw.QWidget, maximize=True):

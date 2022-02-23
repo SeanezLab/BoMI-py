@@ -17,6 +17,7 @@ from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 from bomi.base_widgets import TEvent, TaskDisplay, generate_edit_form
 from bomi.datastructure import YostBuffer, SubjectMetadata, Packet
 from bomi.device_managers import YostDeviceManager
+from trigno_sdk.client import TrignoClient
 
 
 def _print(*args):
@@ -130,6 +131,7 @@ class ScopeWidget(qw.QWidget):
         savedir: Path,
         task_widget: TaskDisplay = None,
         config: ScopeConfig = ScopeConfig(),
+        trigno_client: TrignoClient = None,
     ):
         super().__init__()
         self.setWindowTitle(config.window_title)
@@ -137,6 +139,7 @@ class ScopeWidget(qw.QWidget):
         self.savedir = savedir
         self.task_widget = task_widget
         self.config = config
+        self.trigno_client = trigno_client
 
         self.show_labels = list(YostBuffer.LABELS)
         self.queue: Deque[Packet] = deque()
@@ -414,6 +417,10 @@ class ScopeWidget(qw.QWidget):
         Clear the queue and buffers
         """
         self.init_data()
+
+        dummy_queue = _DummyQueue()
+        if self.trigno_client:
+            self.trigno_client.handle_stream(dummy_queue, self.savedir)
         self.dm.start_stream(self.queue)
         self.timer.start()
 
@@ -421,6 +428,7 @@ class ScopeWidget(qw.QWidget):
         """Stop the data stream and update timer"""
         self.dm.stop_stream()
         hasattr(self, "timer") and self.timer.stop()
+        self.trigno_client and self.trigno_client.stop_stream()
 
     def update(self):
         """Update function connected to the timer
@@ -475,3 +483,8 @@ class ScopeWidget(qw.QWidget):
 
         self.task_widget and self.task_widget.close()
         return super().closeEvent(event)
+
+
+class _DummyQueue:
+    def append(self, _):
+        ...
