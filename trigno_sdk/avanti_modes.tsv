@@ -1,0 +1,134 @@
+Mode	Mode Description	Data Output	Selectable Range	Selectable Bandwidth	Slot Occupancy
+0	EMG plus Accelerometer (+/- 2g)	4 Channels, All Ports	1	1	1
+1	EMG plus Accelerometer (+/- 4g)	4 Channels, All Ports	1	1	1
+2	EMG plus Accelerometer (+/- 8g)	4 Channels, All Ports	1	1	1
+3	EMG plus Accelerometer (+/- 16g)	4 Channels, All Ports	1	1	1
+4	EMG plus Gyroscope (+/- 250dps)	4 Channels, All Ports	1	1	1
+5	EMG plus Gyroscope (+/- 500dps)	4 Channels, All Ports	1	1	1
+6	EMG plus Gyroscope (+/- 1000dps)	4 Channels, All Ports	1	1	1
+7	EMG plus Gyroscope (+/- 2000dps)	4 Channels, All Ports	1	1	1
+8	EMG plus IMU (+/- 2g, +/- 250dps)	10 channels	1	0	1
+9	EMG plus IMU (+/- 4g, +/- 250dps)	10 channels	1	0	1
+10	EMG plus IMU (+/- 8g, +/- 250dps)	10 channels	1	0	1
+11	EMG plus IMU (+/- 16g, +/- 250dps)	10 channels	1	0	1
+12	EMG plus IMU (+/- 2g, +/- 500dps)	10 channels	1	0	1
+13	EMG plus IMU (+/- 4g, +/- 500dps)	10 channels	1	0	1
+14	EMG plus IMU (+/- 8g, +/- 500dps)	10 channels	1	0	1
+15	EMG plus IMU (+/- 16g, +/- 500dps)	10 channels	1	0	1
+16	EMG plus IMU (+/- 2g, +/- 1000dps)	10 channels	1	0	1
+17	EMG plus IMU (+/- 4g, +/- 1000dps)	10 channels	1	0	1
+18	EMG plus IMU (+/- 8g, +/- 1000dps)	10 channels	1	0	1
+19	EMG plus IMU (+/- 16g, +/- 1000dps)	10 channels	1	0	1
+20	EMGS pelluesc tIaMbUle  (+/- 2g, +/- 2000dps)	10 channels	1	0	1
+21	EMG plus IMU (+/- 4g, +/- 2000dps)	10 channels	1	0	1
+22	EMSlGo tp Olucsc IuMpaUn (c+y/ - 8g, +/- 2000dps)	10 channels	1	0	1
+23	EMG plus IMU (+/- 16g, +/- 2000dps)	10 channels	1	0	1
+39	EMG plus Orientation	5 channels	1	0	1
+40	EMG (2148Hz)	1 Channel, All Ports	1	1	1
+42	EMG (1926Hz) plus ACC (74Hz, 2g)	4 Channels, All Ports	1	1	1
+44	EMG (1926Hz) plus ACC (74Hz, 8g)	4 Channels, All Ports	1	1	1
+45	EMG (1926Hz) plus ACC (74Hz,16g)	4 Channels, All Ports	1	1	1
+46	EMG (1926Hz) plus Gryo (74Hz, 250dps)	4 Channels, All Ports	1	1	1
+47	EMG (1926Hz) plus Gryo (74Hz, 500dps)	4 Channels, All Ports	1	1	1
+48	EMG (1926Hz) plus Gryo (74Hz, 1000dps)	4 Channels, All Ports	1	1	1
+49	EMG (1926Hz) plus Gryo (74Hz, 2000dps)	4 Channels, All Ports	1	1	1
+50	EMG (1259Hz) plus Acc (148Hz, 2g) and Gyro (148Hz, 250dps)	7 Channels	1	0	1
+51	EMG (1259Hz) plus Acc (148Hz, 4g) and Gyro (148Hz, 250dps)	7 Channels	1	0	1
+52	EMG (1259Hz) plus Acc (148Hz, 8g) and Gyro (148Hz, 250dps)	7 Channels	1	0	1
+53	EMG (1259Hz) plus Acc (148Hz, 16g) and Gyro (148Hz, 250dps)	7 Channels	1	0	1
+54	EMG (1259Hz) plus Acc (148Hz, 2g) and Gyro (148Hz, 250dps)	7 Channels	1	0	1
+55	EMG (1259Hz) plus Acc (148Hz, 4g) and Gyro (148Hz, 500dps)	7 Channels	1	0	1
+56	EMG (1259Hz) plus Acc (148Hz, 8g) and Gyro (148Hz, 500dps)	7 Channels	1	0	1
+57	EMG (1259Hz) plus Acc (148Hz, 16g) and Gyro (148Hz, 500dps)	7 Channels	1	0	1
+58	EMG (1259Hz) plus Acc (148Hz, 2g) and Gyro (148Hz, 1000dps)	7 Channels	1	0	1
+59	EMG (1259Hz) plus Acc (148Hz, 4g) and Gyro (148Hz, 1000dps)	7 Channels	1	0	1
+60	EMG (1259Hz) plus Acc (148Hz, 8g) and Gyro (148Hz, 1000dps)	7 Channels	1	0	1
+61	EMG (1259Hz) plus Acc (148Hz, 16g) and Gyro (148Hz, 1000dps)	7 Channels	1	0	1
+62	EMG (1259Hz) plus Acc (148Hz, 2g) and Gyro (148Hz, 2000dps)	7 Channels	1	0	1
+63	EMG (1259Hz) plus Acc (148Hz, 4g) and Gyro (148Hz, 2000dps)	7 Channels	1	0	1
+64	EMG (1259Hz) plus Acc (148Hz, 8g) and Gyro (148Hz, 2000dps)	7 Channels	1	0	1
+65	EMG (1259Hz) plus Acc (148Hz, 16g) and Gyro (148Hz, 2000dps)	7 Channels	1	0	1
+66	EMG (1778Hz) plus Orientation (74Hz, 16bits)	5 Channels	1	0	1
+67	EMG (1482Hz) plus Orientation (74Hz, 32bits)	5 Channels	1	0	1
+68	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 2g) and Gryo (296Hz, 250dps)	7 Channels	1	0	1
+69	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 4g) and Gryo (296Hz, 250dps)	7 Channels	1	0	1
+70	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 8g) and Gryo (296Hz, 250dps)	7 Channels	1	0	1
+71	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 16g) and Gryo (296Hz, 250dps)	7 Channels	1	0	1
+72	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 2g) and Gryo (296Hz, 500dps)	7 Channels	1	0	1
+73	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 4g) and Gryo (296Hz, 500dps)	7 Channels	1	0	1
+74	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 8g) and Gryo (296Hz, 500dps)	7 Channels	1	0	1
+75	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 16g) and Gryo (296Hz, 500dps)	7 Channels	1	0	1
+76	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 2g) and Gryo (296Hz, 1000dps)	7 Channels	1	0	1
+77	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 4g) and Gryo (296Hz, 1000dps)	7 Channels	1	0	1
+78	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 8g) and Gryo (296Hz, 1000dps)	7 Channels	1	0	1
+79	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 16g) and Gryo (296Hz, 1000dps)	7 Channels	1	0	1
+80	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 2g) and Gryo (296Hz, 2000dps)	7 Channels	1	0	1
+81	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 4g) and Gryo (296Hz, 2000dps)	7 Channels	1	0	1
+82	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 8g) and Gryo (296Hz, 2000dps)	7 Channels	1	0	1
+83	EMG (148Hz RMS, 100ms win) plus Acc (296Hz, 16g) and Gryo (296Hz, 2000dps)	7 Channels	1	0	1
+84	EMG (4370Hz)	1 Channel, All Ports	1	1	2
+86	EMG (1259Hz) plus Acc (518Hz, 2g) and Gryo (519Hz, 250dps)	7 Channels	1	0	2
+87	EMG (1259Hz) plus Acc (518Hz, 4g) and Gryo (519Hz, 250dps)	7 Channels	1	0	2
+88	EMG (1259Hz) plus Acc (518Hz, 8g) and Gryo (519Hz, 250dps)	7 Channels	1	0	2
+89	EMG (1259Hz) plus Acc (518Hz, 16g) and Gryo (519Hz, 250dps)	7 Channels	1	0	2
+90	EMG (1259Hz) plus Acc (518Hz, 2g) and Gryo (519Hz, 500dps)	7 Channels	1	0	2
+91	EMG (1259Hz) plus Acc (518Hz, 4g) and Gryo (519Hz, 500dps)	7 Channels	1	0	2
+92	EMG (1259Hz) plus Acc (518Hz, 8g) and Gryo (519Hz, 500dps)	7 Channels	1	0	2
+94	EMG (1259Hz) plus Acc (518Hz, 2g) and Gryo (519Hz, 1000dps)	7 Channels	1	0	2
+95	EMG (1259Hz) plus Acc (518Hz, 4g) and Gryo (519Hz, 1000dps)	7 Channels	1	0	2
+96	EMG (1259Hz) plus Acc (518Hz, 8g) and Gryo (519Hz, 1000dps)	7 Channels	1	0	2
+97	EMG (1259Hz) plus Acc (518Hz, 16g) and Gryo (519Hz, 1000dps)	7 Channels	1	0	2
+98	EMG (1259Hz) plus Acc (518Hz, 2g) and Gryo (519Hz, 2000dps)	7 Channels	1	0	2
+99	EMG (1259Hz) plus Acc (518Hz, 4g) and Gryo (519Hz, 2000dps)	7 Channels	1	0	2
+100	EMG (1259Hz) plus Acc (518Hz, 8g) and Gryo (519Hz, 2000dps)	7 Channels	1	0	2
+101	EMG (1259Hz) plus Acc (518Hz, 16g) and Gryo (519Hz, 2000dps)	7 Channels	1	0	2
+102	EMG (1259Hz) plus Acc (963Hz, 2g) and Gyro (74Hz, 250dps)	7 Channels	1	0	2
+103	EMG (1259Hz) plus Acc (963Hz, 4g) and Gyro (74Hz, 250dps)	7 Channels	1	0	2
+104	EMG (1259Hz) plus Acc (963Hz, 8g) and Gyro (74Hz, 250dps)	7 Channels	1	0	2
+105	EMG (1259Hz) plus Acc (963Hz, 16g) and Gyro (74Hz, 250dps)	7 Channels	1	0	2
+106	EMG (1259Hz) plus Acc (963Hz, 2g) and Gyro (74Hz, 500dps)	7 Channels	1	0	2
+107	EMG (1259Hz) plus Acc (963Hz, 4g) and Gyro (74Hz, 500dps)	7 Channels	1	0	2
+108	EMG (1259Hz) plus Acc (963Hz, 8g) and Gyro (74Hz, 500dps)	7 Channels	1	0	2
+109	EMG (1259Hz) plus Acc (963Hz, 16g) and Gyro (74Hz, 500dps)	7 Channels	1	0	2
+110	EMG (1259Hz) plus Acc (963Hz, 2g) and Gyro (74Hz, 1000dps)	7 Channels	1	0	2
+111	EMG (1259Hz) plus Acc (963Hz, 4g) and Gyro (74Hz, 1000dps)	7 Channels	1	0	2
+112	EMG (1259Hz) plus Acc (963Hz, 8g) and Gyro (74Hz, 1000dps)	7 Channels	1	0	2
+113	EMG (1259Hz) plus Acc (963Hz, 16g) and Gyro (74Hz, 1000dps)	7 Channels	1	0	2
+114	EMG (1259Hz) plus Acc (963Hz, 2g) and Gyro (74Hz, 2000dps)	7 Channels	1	0	2
+115	EMG (1259Hz) plus Acc (963Hz, 4g) and Gyro (74Hz, 2000dps)	7 Channels	1	0	2
+116	EMG (1259Hz) plus Acc (963Hz, 8g) and Gyro (74Hz, 2000dps)	7 Channels	1	0	2
+117	EMG (1259Hz) plus Acc (963Hz, 16g) and Gyro (74Hz, 2000dps)	7 Channels	1	0	2
+118	EMG (1259Hz) plus Acc (296Hz, 2g) and Gyro (741Hz, 250dps)	7 Channels	1	0	2
+119	EMG (1259Hz) plus Acc (296Hz, 4g) and Gyro (741Hz, 250dps)	7 Channels	1	0	2
+120	EMG (1259Hz) plus Acc (296Hz, 8g) and Gyro (741Hz, 250dps)	7 Channels	1	0	2
+121	EMG (1259Hz) plus Acc (296Hz, 16g) and Gyro (741Hz, 250dps)	7 Channels	1	0	2
+122	EMG (1259Hz) plus Acc (296Hz, 2g) and Gyro (741Hz, 500dps)	7 Channels	1	0	2
+123	EMG (1259Hz) plus Acc (296Hz, 4g) and Gyro (741Hz, 500dps)	7 Channels	1	0	2
+124	EMG (1259Hz) plus Acc (296Hz, 8g) and Gyro (741Hz, 500dps)	7 Channels	1	0	2
+125	EMG (1259Hz) plus Acc (296Hz, 16g) and Gyro (741Hz, 500dps)	7 Channels	1	0	2
+126	EMG (1259Hz) plus Acc (296Hz, 2g) and Gyro (741Hz, 1000dps)	7 Channels	1	0	2
+127	EMG (1259Hz) plus Acc (296Hz, 4g) and Gyro (741Hz, 1000dps)	7 Channels	1	0	2
+128	EMG (1259Hz) plus Acc (296Hz, 8g) and Gyro (741Hz, 1000dps)	7 Channels	1	0	2
+129	EMG (1259Hz) plus Acc (296Hz, 16g) and Gyro (741Hz, 1000dps)	7 Channels	1	0	2
+130	EMG (1259Hz) plus Acc (296Hz, 2g) and Gyro (741Hz, 2000dps)	7 Channels	1	0	2
+131	EMG (1259Hz) plus Acc (296Hz, 4g) and Gyro (741Hz, 2000dps)	7 Channels	1	0	2
+132	EMG (1259Hz) plus Acc (296Hz, 8g) and Gyro (741Hz, 2000dps)	7 Channels	1	0	2
+133	EMG (1259Hz) plus Acc (296Hz, 16g) and Gyro (741Hz, 2000dps)	7 Channels	1	0	2
+134	EMG (2370Hz) plus Orientation (222Hz, 32bits)	5 Channels	1	1	2
+153	EMG (4000Hz) plus Acc (74Hz, 2g) and Gyro (74Hz, 250dps)	7 Channels	1	1	2
+154	EMG (4000Hz) plus Acc (74Hz, 4g) and Gyro (74Hz, 250dps)	7 Channels	1	1	2
+155	EMG (4000Hz) plus Acc (74Hz, 8g) and Gyro (74Hz, 250dps)	7 Channels	1	1	2
+156	EMG (4000Hz) plus Acc (74Hz, 16g) and Gyro (74Hz, 250dps)	7 Channels	1	1	2
+157	EMG (4000Hz) plus Acc (74Hz, 2g) and Gyro (74Hz, 500dps)	7 Channels	1	1	2
+158	EMG (4000Hz) plus Acc (74Hz, 4g) and Gyro (74Hz, 500dps)	7 Channels	1	1	2
+159	EMG (4000Hz) plus Acc (74Hz, 8g) and Gyro (74Hz, 500dps)	7 Channels	1	1	2
+161	EMG (4000Hz) plus Acc (74Hz, 2g) and Gyro (74Hz, 1000dps)Mode #	7 Channels	1	1	2
+162	EMG (4000Hz) plus Acc (74Hz, 4g) and Gyro (74Hz, 1000dps)	7 Channels	1	1	2
+163	EMG (4000Hz) plus Acc (74Hz, 8g) and Gyro (74Hz, 1000dps)	7 Channels	1	1	2
+164	EMG (4000Hz) plus Acc (74Hz, 16g) and Gyro (74Hz, 1000dps)	7 Channels	1	1	2
+165	EMG (4000Hz) plus Acc (74Hz, 2g) and Gyro (74Hz, 2000dps)	7 Channels	1	1	2
+166	EMG (4000Hz) plus Acc (74Hz, 4g) and Gyro (74Hz, 2000dps)	7 Channels	1	1	2
+167	EMG (4000Hz) plus Acc (74Hz, 8g) and Gyro (74Hz, 2000dps)	7 Channels	1	1	2
+168	EMG (4000Hz) plus Acc (74Hz, 16g) and Gyro (74Hz, 2000dps)	7 Channels	1	1	2
+169	EMG (4000Hz) plus Orientation (74Hz, 16bits)	5 Channels	1	1	2
+170	EMG (3740Hz) plus Orientation (74Hz, 32bits)	5 Channels	1	1	2

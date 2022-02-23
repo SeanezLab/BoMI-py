@@ -1,7 +1,7 @@
 from __future__ import annotations
-from collections import deque
+from collections import defaultdict, deque
 
-from typing import Deque, Dict, NamedTuple, Tuple
+from typing import Deque, Dict, List, NamedTuple, Tuple
 from pathlib import Path
 from timeit import default_timer
 import traceback
@@ -16,11 +16,22 @@ import numpy as np
 from bomi.datastructure import get_savedir, DelsysBuffer
 from bomi.window_mixin import WindowMixin
 
-from trigno_sdk.trigno_sdk_client import TrignoClient, EMGSensor, EMGSensorMeta
+from trigno_sdk.client import TrignoClient, EMGSensor, EMGSensorMeta
+
+__all__ = ("TrignoClient", "TrignoWidget", "MUSCLES")
 
 
 def _print(*args):
     print("[TrignoDeviceManager]", *args)
+
+
+MUSCLES = (
+    "RF (Rectus Femoris)",
+    "ST (Semitendinosus)",
+    "VLat (Vastus Lateralis)",
+    "MG (Gastrocnemius Med)",
+    "TA (Transversus Abdominis)",
+)
 
 
 class COLORS:
@@ -36,7 +47,11 @@ class PlotHandle(NamedTuple):
     curve: pg.PlotCurveItem
 
 
-class EMGScope(qw.QWidget):
+class EMGLayoutError(ValueError):
+    ...
+
+
+class EMGScope(qw.QWidget, WindowMixin):
     sigNameChanged: qc.SignalInstance = qc.Signal()
 
     def __init__(self, dm: TrignoClient, savedir: Path):
@@ -45,45 +60,115 @@ class EMGScope(qw.QWidget):
         self.dm = dm
         self.savedir = savedir
 
-        # init data
+        ### init data
         self.queue: Deque[Tuple[float]] = deque()
         self.buffer: DelsysBuffer = DelsysBuffer(10000, self.savedir)
 
-        # init UI
+        ### init UI
         main_layout = qw.QHBoxLayout(self)
         splitter = qw.QSplitter()
         main_layout.addWidget(splitter)
 
-        self.glw = glw = pg.GraphicsLayoutWidget()
-        glw.setBackground("white")
-        splitter.addWidget(glw)
+        self.glw: pg.GraphicsLayout | pg.GraphicsView = pg.GraphicsLayoutWidget()
+        self.glw.setBackground("white")
+        splitter.addWidget(self.glw)
 
-        row = 1
-        self.plot_handles: Dict[int, PlotHandle] = {}
-        plot_style = {"color": "k"}  # label style
-        for idx in dm.sensor_idx:
+        self.init_plots()
+
+    def calc_layout(self) -> Dict[str, Dict[str, int]]:
+        _layout = defaultdict(lambda: {"L": 0, "R": 0, "N/A": 0})
+
+        def add_check(muscle_name: str, side: str):
+            if _layout[muscle_name][side] != 0:
+                raise EMGLayoutError(
+                    f"Multiple EMG sensors assigned to the same muscle (name: {muscle_name}, side: {side}). Please fix the sensor configuration."
+                )
+            _layout[muscle_name][side] = idx
+
+        for idx in self.dm.sensor_idx:
             sensor = self.dm.sensors[idx]
             meta = self.dm.sensor_meta[sensor.serial]
+            if meta.side == "L":
+                add_check(meta.muscle_name, "L")
+            elif meta.side == "R":
+                add_check(meta.muscle_name, "R")
+            else:
+                add_check(meta.muscle_name, "N/A")
+        return _layout
 
-            plot: pg.PlotItem = glw.addPlot(row=row, col=0)
-            row += 1
+    def init_plots(self):
+        """
+        1. Create a mapping from muscle name to sensor idx corresponding to
+        the {left, right, n/a} sides
+
+        for each muscle:
+            * if have {left, right}, create pair of plots
+            * If only have one, create one horizontal plot
+        """
+        _layout = self.calc_layout()
+
+        self.plot_handles: Dict[int, PlotHandle] = {}
+        plot_style = {"color": "k"}  # label style
+
+        def _setup_emg_plot(plot: pg.PlotItem, idx: int):
             plot.setXRange(-5, 0)
             plot.setYRange(-0.1, 0.1)
             plot.setLabel("bottom", "Time", units="s", **plot_style)
             plot.setLabel("left", "Voltage", units="V", **plot_style)
-            plot.setTitle(meta.muscle_name, **plot_style)
             plot.setDownsampling(mode="peak")
 
             curve = plot.plot()
             self.plot_handles[idx] = PlotHandle(plot=plot, curve=curve)
 
+        pairs: List[Tuple[int, int]] = []
+        singles: List[int] = []
+        for mp in _layout.values():
+            if mp["L"] and mp["R"]:
+                pairs.append((mp["L"], mp["R"]))
+            else:
+                for idx in mp.values():
+                    if idx != 0:
+                        singles.append(idx)
+
+        row = 1
+        for L, R in pairs:
+            _setup_emg_plot(self.glw.addPlot(row=row, col=0, colspan=1), L)
+            _setup_emg_plot(self.glw.addPlot(row=row, col=1, colspan=1), R)
+            row += 1
+
+        for idx in singles:
+            _setup_emg_plot(self.glw.addPlot(row=row, col=0, colspan=2), idx)
+            row += 1
+
+        # for row, mp in enumerate(_layout.values()):
+        # if mp["N/A"]:
+        # idx = mp["N/A"]
+        # plot: pg.PlotItem = self.glw.addPlot(row=row, col=0, colspan=2)
+        # _setup_emg_plot(plot, idx)
+        # else:
+        # if mp["L"]:
+        # idx = mp["L"]
+        # plot: pg.PlotItem = self.glw.addPlot(row=row, col=0, colspan=1)
+        # _setup_emg_plot(plot, idx)
+
+        # if mp["R"]:
+        # idx = mp["R"]
+        # plot: pg.PlotItem = self.glw.addPlot(row=row, col=1, colspan=1)
+        # _setup_emg_plot(plot, idx)
+
         def update_title():
-            for idx in dm.sensor_idx:
+            "Update plot titles according to the sensor metadata"
+            for idx in self.dm.sensor_idx:
                 sensor = self.dm.sensors[idx]
                 meta = self.dm.sensor_meta[sensor.serial]
+                if meta.side:
+                    title = f"{meta.muscle_name} ({meta.side})"
+                else:
+                    title = meta.muscle_name
                 handle = self.plot_handles[idx]
-                handle.plot.setTitle(meta.muscle_name, **plot_style)
+                handle.plot.setTitle(title, **plot_style)
 
+        update_title()
         self.sigNameChanged.connect(update_title)
 
         # Timer
@@ -92,7 +177,7 @@ class EMGScope(qw.QWidget):
         self.timer.timeout.connect(self.update)  # type: ignore
 
     def showEvent(self, event: qg.QShowEvent) -> None:
-        self.dm.handle_stream(self.queue)
+        self.dm.handle_stream(self.queue, savedir=self.savedir)
         self.timer.start()
         return super().showEvent(event)
 
@@ -186,23 +271,13 @@ class TrignoSensor(qw.QWidget):
             meta.side = next(filter(lambda r: r.isChecked(), self.radios)).text()
             if meta.side == "N/A":
                 meta.side = ""
-            print(meta)
             self.sigDataChanged.emit()
 
         self.name.editingFinished.connect(data_changed)  # type: ignore
         [r.toggled.connect(data_changed) for r in self.radios]  # type: ignore
 
 
-MUSCLES = (
-    "RF (Rectus Femoris)",
-    "ST (Semitendinosus)",
-    "VLat (Vastus Lateralis)",
-    "MG (Gastrocnemius Med)",
-    "TA (Transversus Abdominis)",
-)
-
-
-class TrignoDeviceManagerWidget(qw.QWidget, WindowMixin):
+class TrignoWidget(qw.QWidget, WindowMixin):
     """A GUI for the Trigno SDK Client"""
 
     def __init__(self, trigno_client: TrignoClient = None):
@@ -220,25 +295,25 @@ class TrignoDeviceManagerWidget(qw.QWidget, WindowMixin):
 
         ### Init UI
         main_layout = qw.QVBoxLayout(self)
-        control_layout = qw.QHBoxLayout()
+        control_layout = qw.QGridLayout()
         main_layout.addLayout(control_layout)
 
         self.status_label = qw.QLabel("Base Station")
-        control_layout.addWidget(self.status_label)
+        control_layout.addWidget(self.status_label, 0, 0)
         self.update_status()
 
-        btn = qw.QPushButton("Connect to Base Station")
+        self.connect_btn = btn = qw.QPushButton("Connect to Base Station")
         btn.setStyleSheet("QPushButton { background-color: rgb(0,255,0); }")
         btn.clicked.connect(self.connect)  # type: ignore
-        control_layout.addWidget(btn)
+        control_layout.addWidget(btn, 0, 1)
 
         btn = qw.QPushButton("Data charts")
         btn.clicked.connect(self.start_data_scope)  # type: ignore
-        control_layout.addWidget(btn)
+        control_layout.addWidget(btn, 0, 2)
 
         btn = qw.QPushButton("Save metadata")
         btn.clicked.connect(self.save_meta)  # type: ignore
-        control_layout.addWidget(btn)
+        control_layout.addWidget(btn, 0, 3)
 
         # Devices UI
         self.grid_layout = qw.QGridLayout()
@@ -282,11 +357,11 @@ class TrignoDeviceManagerWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()  # type: ignore
     def connect(self):
-        print(self.geometry())
-
-        self.trigno_client.connect()
+        with pg.BusyCursor():
+            self.trigno_client.connect()
         self.update_status()
         self.setup_grid()
+        self.connect_btn.setText("Reconnect to Base Station")
 
     @qc.Slot()  # type: ignore
     def handle_data_changed(self):
@@ -311,6 +386,9 @@ class TrignoDeviceManagerWidget(qw.QWidget, WindowMixin):
         try:
             self.scope = EMGScope(self.trigno_client, get_savedir("EMGScope"))
             self.scope.show()
+        except EMGLayoutError as e:
+            self.error_dialog(str(e))
+            self.trigno_client.stop_stream()
         except Exception as e:
             _print(traceback.format_exc())
             self.trigno_client.stop_stream()
@@ -318,6 +396,6 @@ class TrignoDeviceManagerWidget(qw.QWidget, WindowMixin):
 
 if __name__ == "__main__":
     app = qw.QApplication()
-    win = TrignoDeviceManagerWidget()
+    win = TrignoWidget()
     win.show()
     app.exec()

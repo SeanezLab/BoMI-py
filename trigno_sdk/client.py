@@ -1,4 +1,6 @@
 """
+Implements a TCP Client to the Trigno SDK Server
+
 To use the SDK 
 
 Connect to the Trigno SDK Server via TCP/IP
@@ -20,7 +22,7 @@ to this point when two <CR><LF> are received
 
 """
 
-import traceback
+import pkg_resources
 from typing import Deque, Dict, Tuple, List, Optional
 from pathlib import Path
 from dataclasses import dataclass, asdict
@@ -28,10 +30,23 @@ import threading
 import json
 import struct
 import socket
+from io import StringIO
 
-from pprint import pprint
+__all__ = ("TrignoClient", "EMGSensorMeta", "EMGSensor", "DSChannel")
 
-from bomi.base_widgets import T
+# Load Avanti Modes file. Must use Unix line endings
+def load_avanti_modes():
+    raw = pkg_resources.resource_string(__name__, "avanti_modes.tsv").decode()
+    buf = StringIO(raw.strip())
+    keys = buf.readline().strip().split("\t")[1:]
+    modes = {}
+    for _line in buf.readlines():
+        line = _line.strip().split("\t")
+        modes[int(line[0])] = {k: v for k, v in zip(keys, line[1:])}
+    return modes
+
+
+AVANTI_MODES = load_avanti_modes()
 
 COMMAND_PORT = 50040  # receives control commands, sends replies to commands
 EMG_DATA_PORT = 50043  # sends EMG and primary non-EMG data
@@ -64,6 +79,7 @@ class EMGSensor:
 
     type: str
     serial: str
+    mode: int
     firmware: str
     emg_channels: int
     aux_channels: int
@@ -89,6 +105,8 @@ class TrignoClient:
     Handles device management and data streaming
     """
 
+    AVANTI_MODES = AVANTI_MODES
+
     def __init__(self, host_ip: str = IP_ADDR):
         self.connected = False
         self.host_ip = host_ip
@@ -109,33 +127,36 @@ class TrignoClient:
         return self.send_cmd(cmd)
 
     def __repr__(self):
-        return f"<DelsysClient n_sensors={self.n_sensors}>"
+        return (
+            f"<DelsysClient host_ip={self.host_ip} "
+            f"connected={self.connected}"
+            f"n_sensors={self.n_sensors}>"
+        )
 
     def __getitem__(self, idx: int):
         return self.sensors[idx]
 
     def __len__(self) -> int:
-        return 0
+        return len(self.sensors)
 
-    def connect(self) -> bool:
+    def connect(self):
         """Called once during init to setup base station.
         Returns True if connection successful
         """
-        if self.connected:
-            return True
+        if not self.connected:
+            try:
+                self.command_sock.settimeout(1)
+                self.command_sock.connect((self.host_ip, COMMAND_PORT))
+                self.command_sock.settimeout(3)
+                buf = recv(self.command_sock)
+                _print(buf.decode())
+                self.emg_data_sock.connect((self.host_ip, EMG_DATA_PORT))
+                self.connected = True
+            except TimeoutError as e:
+                _print("Failed to connect to Base Station", e)
+                return
 
-        try:
-            self.command_sock.settimeout(1)
-            self.command_sock.connect((self.host_ip, COMMAND_PORT))
-            self.command_sock.settimeout(3)
-            buf = recv(self.command_sock)
-            _print(buf.decode())
-            self.emg_data_sock.connect((self.host_ip, EMG_DATA_PORT))
-            self.connected = True
-        except TimeoutError as e:
-            _print("Failed to connect to Base Station", e)
-            return False
-
+        self.connected = True
         cmd = lambda _cmd: self.send_cmd(_cmd).decode()
         assert cmd("ENDIAN LITTLE"), "OK"  # Use little endian
 
@@ -160,7 +181,6 @@ class TrignoClient:
         self.base_serial = cmd("BASE SERIAL?")
 
         self.query_devices()
-        return True
 
     def query_device(self, i: int):
         "Checks for devices connected to the base and updates `self.sensors`"
@@ -176,6 +196,7 @@ class TrignoClient:
             return
 
         _type = cmd(f"SENSOR {i} TYPE?")
+        _mode = int(cmd(f"SENSOR {i} MODE?"))
         _serial = cmd(f"SENSOR {i} SERIAL?")
         firmware = cmd(f"SENSOR {i} FIRMWARE?")
         emg_channels = int(cmd(f"SENSOR {i} EMGCHANNELCOUNT?"))
@@ -195,8 +216,9 @@ class TrignoClient:
             )
 
         return EMGSensor(
-            type=_type,
             serial=_serial,
+            type=_type,
+            mode=_mode,
             firmware=firmware,
             emg_channels=emg_channels,
             aux_channels=aux_channels,
@@ -236,26 +258,48 @@ class TrignoClient:
         if self.connected:
             self.send_cmd("STOP")
 
-    def recv_emg(self):
-        BYTES_PER = 4 * 16  # 16 devices, 4 byte float
-        buf = recv(self.emg_data_sock, BYTES_PER)
-        emgs = struct.unpack("<ffffffffffffffff", buf)
-        return emgs
+    def recv_emg(self) -> Tuple[float, ...]:
+        """
+        Receive one EMG frame
+        """
+        buf = recv(self.emg_data_sock, 4 * 16)  # 16 devices, 4 byte float
+        return struct.unpack("<ffffffffffffffff", buf)
 
-    def handle_stream(self, queue: Deque[Tuple[float]]):
+    def handle_stream(self, queue: Deque[Tuple[float]], savedir: Path = None):
+        """
+        If `queue` is passed, append data into the queue.
+        If `savedir` is passed, write to `savedir/sensor_EMG.csv`.
+            Also persist metadata in `savedir` before and after stream
+        """
         assert self.connected
         self.start_stream()
-        self.worker_thread = threading.Thread(target=self.stream_worker, args=(queue,))
+        self.save_meta(savedir / "trigno_meta.json")
+        self.worker_thread = threading.Thread(
+            target=self.stream_worker, args=(queue, savedir)
+        )
         self.worker_thread.start()
 
-    def stream_worker(self, queue: Deque[Tuple[float]]):
-        while self.streaming:
-            queue.append(self.recv_emg())
+    def stream_worker(self, queue: Deque[Tuple[float]], savedir: Path = None):
+        """
+        Stream worker calls `recv_emg` continuously until `self.streaming = False`
+        """
+        if not savedir:
+            while self.streaming:
+                queue.append(self.recv_emg())
+        else:
+            with open(Path(savedir) / "trigno_emg.csv", "w") as fp:
+                while self.streaming:
+                    emg = self.recv_emg()
+                    queue.append(emg)
+                    fp.write(",".join([str(v) for v in emg]) + "\n")
+
+            self.save_meta(savedir / "trigno_meta.json")
 
     def close(self):
         self.stop_stream()
         if self.connected:
             self.send_cmd("QUIT")
+            self.connected = False
         self.command_sock.close()
         self.emg_data_sock.close()
         self.sensor_idx = []
@@ -264,6 +308,7 @@ class TrignoClient:
     def save_meta(self, fpath: Path):
         """Save metadata as JSON to fpath"""
         tmp = {k: asdict(v) for k, v in self.sensor_meta.items()}
+        tmp["idx2serial"] = {idx: self.sensors[idx].serial for idx in self.sensor_idx}
         with open(fpath, "w") as fp:
             json.dump(tmp, fp, indent=2)
 
@@ -271,6 +316,9 @@ class TrignoClient:
         """Load JSON metadata from fpath"""
         with open(fpath, "r") as fp:
             tmp: Dict = json.load(fp)
+
+        if "idx2serial" in tmp:
+            del tmp["idx2serial"]
 
         for k, v in tmp.items():
             self.sensor_meta[k] = EMGSensorMeta(**v)
@@ -280,6 +328,8 @@ class TrignoClient:
 
 
 if __name__ == "__main__":
+    from dis import dis
+
     dm = TrignoClient()
     print(dm)
     breakpoint()

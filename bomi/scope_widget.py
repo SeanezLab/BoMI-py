@@ -15,8 +15,8 @@ from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.base_widgets import TEvent, TaskDisplay, generate_edit_form
-from bomi.datastructure import YostBuffer, Metadata, Packet
-from bomi.device_manager import YostDeviceManager
+from bomi.datastructure import YostBuffer, SubjectMetadata, Packet
+from bomi.device_managers import YostDeviceManager
 
 
 def _print(*args):
@@ -145,7 +145,7 @@ class ScopeWidget(qw.QWidget):
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
         self.init_bufsize = 2500  # buffer size
         self.buffers: Dict[str, YostBuffer] = {}
-        self.meta = Metadata()
+        self.meta = SubjectMetadata()
 
         def write_meta():
             print("write_meta", self.meta.dict())
@@ -472,9 +472,6 @@ class ScopeWidget(qw.QWidget):
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         with pg.BusyCursor():
             self.stop_stream()
-
-            for buffer in self.buffers.values():
-                buffer.close()
 
         self.task_widget and self.task_widget.close()
         return super().closeEvent(event)

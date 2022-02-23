@@ -12,7 +12,7 @@ import threespace_api as ts_api
 from serial.serialutil import SerialException
 
 from bomi.datastructure import Packet
-from bomi.yost_serial_comm import (
+from bomi.device_managers.yost_serial_comm import (
     read_dongle_port,
     start_dongle_streaming,
     stop_dongle_streaming,

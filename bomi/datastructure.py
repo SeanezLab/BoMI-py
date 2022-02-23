@@ -4,9 +4,8 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-
 from timeit import default_timer
-from typing import ClassVar, NamedTuple, TextIO, Tuple, List
+from typing import ClassVar, NamedTuple, TextIO, Tuple
 
 import numpy as np
 
@@ -34,7 +33,7 @@ def get_savedir(task_name: str) -> Path:
 
 
 @dataclass
-class Metadata:
+class SubjectMetadata:
     subject_id: str = "unknown"
     joint: str = "unknown"
     max_rom: int = -1
@@ -45,14 +44,17 @@ class Metadata:
     def to_disk(self, savedir: Path):
         "Write metadata to `savedir`"
         with (savedir / "meta.json").open("w") as fp:
-            json.dump(asdict(self), fp)
+            json.dump(asdict(self), fp, indent=2)
 
 
-class _Buffer:
-    """Managed buffer"""
+class YostBuffer:
+    """Manage all data (packets) consumed from the queue
+
+    YostBuffer holds data from 1 Yost body sensor
+    """
 
     LABELS: ClassVar = ("Roll", "Pitch", "Yaw", "abs(roll) + abs(pitch)")
-    NAME_TEMPLATE = "sensor_{name}.csv"
+    NAME_TEMPLATE: ClassVar = "yost_sensor_{name}.csv"
 
     def __init__(self, bufsize: int, savedir: Path, name: str):
         self.bufsize = bufsize
@@ -69,35 +71,18 @@ class _Buffer:
         self.name: str = name
 
         self.savedir: Path = savedir
+        header = ",".join(("t", *self.LABELS)) + "\n"
+        self.sensor_fp.write(header)
 
     def __len__(self):
         return len(self.data)
 
-    def close(self):
+    def __del__(self):
         "Close open file pointers"
         self.sensor_fp.close()
 
-    def add_packet(self, *_):
-        raise NotImplementedError
-
-
-class YostBuffer(_Buffer):
-    """Manage all data (packets) consumed from the queue
-
-    YostBuffer holds data from 1 Yost body sensor
-    """
-
-    LABELS: ClassVar = ("Roll", "Pitch", "Yaw", "abs(roll) + abs(pitch)")
-    NAME_TEMPLATE: ClassVar = "yost_sensor_{name}.csv"
-
-    def __init__(self, bufsize: int, savedir: Path, name: str):
-        super().__init__(bufsize, savedir, name)
-        header = ",".join(("t", *self.LABELS)) + "\n"
-        self.sensor_fp.write(header)
-
     def add_packet(self, packet: Packet):
         "Add `Packet` of sensor data"
-        data, ts = self.data, self.timestamp
         _packet = (
             packet.roll,
             packet.pitch,
@@ -109,50 +94,44 @@ class YostBuffer(_Buffer):
         self.sensor_fp.write(",".join((str(v) for v in (packet.t, *_packet))) + "\n")
 
         ### Shift buffer when full, never changing buffer size
-        data[:-1] = data[1:]
-        data[-1] = _packet
-        ts[:-1] = ts[1:]
-        ts[-1] = packet.t
+        self.data[:-1] = self.data[1:]
+        self.data[-1] = _packet
+        self.timestamp[:-1] = self.timestamp[1:]
+        self.timestamp[-1] = packet.t
 
 
-class DelsysBuffer(_Buffer):
+class DelsysBuffer:
     """Manage data for all Delsys EMG sensors"""
 
-    LABELS: ClassVar = [str(i) for i in range(1, 17)]
-    NAME_TEMPLATE: ClassVar = "sensor_{name}.csv"
-
     def __init__(self, bufsize: int, savedir: Path):
-        super().__init__(bufsize, savedir, "EMG")
-        header = ",".join(self.LABELS) + "\n"
-        self.sensor_fp.write(header)
+        self.bufsize = bufsize
+
+        # 1D array of timestamps
+        self.timestamp: np.ndarray = np.zeros(bufsize)
+
+        # 2D array of `labels`
+        self.data: np.ndarray = np.zeros((bufsize, 16))
 
     def add_packet(self, packet: Tuple[float, ...]):
-        data, ts = self.data, self.timestamp
         # assert len(packet) == 16
-        self.sensor_fp.write(",".join((str(v) for v in packet)) + "\n")
 
         ### Shift buffer when full, never changing buffer size
-        data[:-1] = data[1:]
-        data[-1] = packet
-        ts[:-1] = ts[1:]
-        ts[-1] = default_timer()
+        self.data[:-1] = self.data[1:]
+        self.data[-1] = packet
+        self.timestamp[:-1] = self.timestamp[1:]
+        self.timestamp[-1] = default_timer()
 
     def add_packets(self, packets: np.ndarray):
-        data, ts = self.data, self.timestamp
-        for packet in packets:
-            self.sensor_fp.write(",".join((str(v) for v in packet)) + "\n")
-
         n = len(packets)
-        _t = default_timer()
 
         ### Shift buffer when full, never changing buffer size
-        data[:-n] = data[n:]
-        data[-n:] = packets
-        ts[:-n] = ts[n:]
-        ts[-n:] = [_t] * n
+        self.data[:-n] = self.data[n:]
+        self.data[-n:] = packets
+        self.timestamp[:-n] = self.timestamp[n:]
+        self.timestamp[-n:] = [default_timer()] * n
 
 
 if __name__ == "__main__":
     from dis import dis
 
-    dis(Packet)
+    dis(DelsysBuffer.add_packets)

@@ -4,8 +4,9 @@ import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
 
-from bomi.device_manager import YostDeviceManager
-from bomi.device_manager_widget import DeviceManagerWidget
+from bomi.device_managers.yost_manager import YostDeviceManager
+from bomi.device_managers.yost_widget import YostWidget
+
 from bomi.painter_widget import PainterWidget
 from bomi.reaching_widget import ReachingWidget
 from bomi.sample_3d_widget import Sample3DWidget
@@ -14,7 +15,7 @@ from bomi.start_react_widget import StartReactWidget
 from bomi.window_mixin import WindowMixin
 from bomi.version import __version__
 
-from trigno_sdk import TrignoDeviceManagerWidget, TrignoClient
+from bomi.device_managers.trigno_widget import TrignoWidget, TrignoClient
 
 __appname__ = "BoMI"
 __all__ = ["MainWindow", "main"]
@@ -44,7 +45,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
         self.status_msg("Welcome to Seanez Lab")
         self.setWindowTitle(__appname__)
-        self.setMinimumSize(650, 400)
+        self.setMinimumSize(650, 850)
 
     def status_msg(self, msg: str):
         self.statusBar().showMessage(msg)
@@ -58,15 +59,11 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         vsplit.addWidget(l)
 
         ### Device manager group
-        vsplit.addWidget(
-            wrap_gb("Yost Device Manager", DeviceManagerWidget(self.yost_dm))
-        )
+        vsplit.addWidget(wrap_gb("Yost Device Manager", YostWidget(self.yost_dm)))
 
         ### Trigno Device manager group
         vsplit.addWidget(
-            wrap_gb(
-                "Trigno Device Manager", TrignoDeviceManagerWidget(self.trigno_client)
-            )
+            wrap_gb("Trigno Device Manager", TrignoWidget(self.trigno_client))
         )
 
         hsplit = qw.QSplitter(Qt.Horizontal)

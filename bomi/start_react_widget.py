@@ -13,11 +13,10 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 import PySide6.QtMultimedia as qm
 from PySide6.QtCore import Qt
-import winsound
 
 from bomi.base_widgets import TEvent, TaskDisplay, set_spinbox, generate_edit_form
 from bomi.datastructure import get_savedir
-from bomi.device_manager import YostDeviceManager
+from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
 from .audio.player import AudioPlayer
@@ -52,7 +51,7 @@ class _SoundWorker(qc.QObject):
         self.effect = qm.QSoundEffect(self)
         self.audioOutput = qm.QAudioOutput()
         self.effect.setSource(
-            qc.QUrl.fromLocalFile("/Users/tnie/code/bomi/500Hz200ms.wav")
+            qc.QUrl.fromLocalFile("/Users/tnie/code/bomi/500Hz50ms.wav")
         )
         status_changed_callback = lambda: _print(
             f"stateChanged: {self.effect.status()}"
@@ -62,10 +61,6 @@ class _SoundWorker(qc.QObject):
     def play_sound(self, val: int):
         self.effect.setVolume(val)
         self.effect.play()
-
-    # def play_sound(self, val: int):
-    #     winsound.Beep(500, 200)
-    #     _print("Play sound", val)
 
 
 class SRDisplay(TaskDisplay, WindowMixin):
