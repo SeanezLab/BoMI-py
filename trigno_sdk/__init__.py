@@ -1,1 +1,2 @@
-from .client import TrignoClient, EMGSensor, EMGSensorMeta, DSChannel
+from .client import TrignoClient
+from .datastructure import EMGSensor, EMGSensorMeta, DSChannel

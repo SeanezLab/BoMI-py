@@ -22,17 +22,20 @@ to this point when two <CR><LF> are received
 
 """
 
+from timeit import default_timer
 import pkg_resources
-from typing import Deque, Dict, Tuple, List, Optional
+from typing import Deque, Dict, Tuple, List
 from pathlib import Path
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 import threading
 import json
 import struct
 import socket
 from io import StringIO
 
-__all__ = ("TrignoClient", "EMGSensorMeta", "EMGSensor", "DSChannel")
+from .datastructure import DSChannel, EMGSensor, EMGSensorMeta
+
+__all__ = "TrignoClient"
 
 # Load Avanti Modes file. Must use Unix line endings
 def load_avanti_modes():
@@ -64,41 +67,6 @@ def recv(sock: socket.socket, maxlen=1024) -> bytes:
     return buf.strip()
 
 
-@dataclass
-class DSChannel:
-    "A channel on a given sensor"
-    gain: float  # gain
-    samples: int  # native samples per frame
-    rate: float  # native sample rate in Hz
-    units: str  # unit of the data
-
-
-@dataclass
-class EMGSensor:
-    """Delsys EMG Sensor properties queried from the Base Station"""
-
-    type: str
-    serial: str
-    mode: int
-    firmware: str
-    emg_channels: int
-    aux_channels: int
-
-    start_idx: int
-    channel_count: int
-    channels: List[DSChannel]
-
-
-@dataclass
-class EMGSensorMeta:
-    """Metadata associated with a EMG sensor
-    Most importantly sensor placement
-    """
-
-    muscle_name: str = ""
-    side: str = ""
-
-
 class TrignoClient:
     """
     DelsysClient interfaces with the Delsys SDK server via its TCP sockets.
@@ -114,13 +82,14 @@ class TrignoClient:
         self.command_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.emg_data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        self.sensors: List[Optional[EMGSensor]] = [None] * 17  # use 1 indexing
+        self.sensors: List[EMGSensor | None] = [None] * 17  # use 1 indexing
         self.sensor_idx: List[int] = []
         self.n_sensors = 0
 
         self.sensor_meta: Dict[str, EMGSensorMeta] = {}  # Mapping[serial, meta]
 
         self.streaming: bool = False
+        self.start_time = 0.0
         self.worker_thread: threading.Thread | None = None
 
     def __call__(self, cmd: str):
@@ -250,6 +219,7 @@ class TrignoClient:
     def start_stream(self):
         assert self.connected
         self.send_cmd("START")
+        self.start_time = default_timer()
         self.streaming = True
 
     def stop_stream(self):
@@ -305,10 +275,16 @@ class TrignoClient:
         self.sensor_idx = []
         self.sensors = []
 
-    def save_meta(self, fpath: Path):
+    def save_meta(self, fpath: Path, slim=False):
         """Save metadata as JSON to fpath"""
         tmp = {k: asdict(v) for k, v in self.sensor_meta.items()}
-        tmp["idx2serial"] = {idx: self.sensors[idx].serial for idx in self.sensor_idx}
+
+        if not slim:
+            tmp["idx2sensor"] = {
+                int(idx): asdict(self.sensors[idx]) for idx in self.sensor_idx
+            }
+            tmp["start_time"] = self.start_time
+
         with open(fpath, "w") as fp:
             json.dump(tmp, fp, indent=2)
 
@@ -317,14 +293,22 @@ class TrignoClient:
         with open(fpath, "r") as fp:
             tmp: Dict = json.load(fp)
 
-        if "idx2serial" in tmp:
-            del tmp["idx2serial"]
+        if "idx2sensor" in tmp:
+            del tmp["idx2sensor"]
+
+        if "start_time" in tmp:
+            del tmp["start_time"]
 
         for k, v in tmp.items():
             self.sensor_meta[k] = EMGSensorMeta(**v)
 
     def __del__(self):
         self.close()
+
+
+def load_full_emg_meta(fpath: Path):
+    with open(fpath, "r") as fp:
+        tmp: Dict = json.load(fp)
 
 
 if __name__ == "__main__":
