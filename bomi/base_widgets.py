@@ -62,7 +62,7 @@ def generate_edit_form(
         - metadata: dict(name=str, completion=[str])
 
     (int) - QSpinBox
-        - metadata: dict(name=str, range=(float, float), step=float)
+        - metadata: dict(name=str, range=(int, int), step=int)
 
     (float) - QDoubleSpinBox
         - metadata: dict(name=str, range=(float, float), step=float)
@@ -106,6 +106,7 @@ def generate_edit_form(
                 completer = qw.QCompleter()
                 completer.setModel(model)
                 widget.setCompleter(completer)
+            widget.setText(getattr(dc, key))
 
             accept_cbs.append(partial(accept_QLineEdit, key))
             reject_cbs.append(partial(reject_QLineEdit, key))
@@ -113,13 +114,13 @@ def generate_edit_form(
         elif field.type in ("float", "int"):
             widget = qw.QSpinBox() if field.type == "int" else qw.QDoubleSpinBox()
             widgets[key] = widget
-            widget.setValue(getattr(dc, key))
             if "step" in field.metadata:
                 widget.setSingleStep(field.metadata["step"])
             if "range" in field.metadata:
                 _range = field.metadata["range"]
                 assert len(_range) == 2
                 widget.setRange(*_range)
+            widget.setValue(getattr(dc, key))
 
             accept_cbs.append(partial(accept_QSpinBox, key))
             reject_cbs.append(partial(reject_QSpinBox, key))

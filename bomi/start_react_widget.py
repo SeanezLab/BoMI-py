@@ -14,7 +14,7 @@ import PySide6.QtWidgets as qw
 import PySide6.QtMultimedia as qm
 from PySide6.QtCore import Qt
 
-from bomi.base_widgets import TEvent, TaskDisplay, set_spinbox, generate_edit_form
+from bomi.base_widgets import TEvent, TaskDisplay, generate_edit_form
 from bomi.datastructure import get_savedir
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
@@ -32,13 +32,31 @@ class SRState(NamedTuple):
     text: str
     duration: float = -1  # duration in seconds
 
+    def __hash__(self):
+        return hash(self.text)
+
+
+"""
+TODO: Move SRConfig to StartReact widget, out of SRDisplay
+Persist to disk
+"""
+
 
 @dataclass
 class SRConfig:
+    """
+    Configuration for a StartReact task
+    """
+
     HOLD_TIME: int = field(default=500, metadata=dict(range=(500, 5000)))  # msec
     PAUSE_MIN: int = field(default=2000, metadata=dict(range=(500, 5000)))  # msec
     PAUSE_RANDOM: int = field(default=0000, metadata=dict(range=(0, 5000)))  # msec
-    N_TRIALS: int = field(default=10, metadata=dict(range=(1, 40)))
+    N_TRIALS: int = field(default=10, metadata=dict(range=(1, 40), name="No. Trials"))
+
+    tone_frequency: int = field(default=500, metadata=dict(range=(1, 1000)))
+    tone_duration: int = field(default=50, metadata=dict(range=(10, 500)))
+    auditory_volume: int = field(default=5, metadata=dict(range=(1, 100)))
+    startle_volume: int = field(default=100, metadata=dict(range=(1, 100)))
 
     def to_disk(self, savedir: Path):
         "Write metadata to `savedir`"
@@ -49,9 +67,6 @@ class SRConfig:
 class SRDisplay(TaskDisplay, WindowMixin):
     """StartReact Display"""
 
-    # Take param (dB: int)
-    sigPlaySound: qc.SignalInstance = qc.Signal(int)  # type: ignore
-
     # States
     IDLE = SRState(color=Qt.lightGray, text="Get ready!")
     GO = SRState(color=Qt.green, text="Reach the target and hold!")
@@ -61,7 +76,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
     BTN_START_TXT = "Begin task"
     BTN_END_TXT = "End task"
 
-    def __init__(self, task_name: str, savedir: Path, config: SRConfig = SRConfig()):
+    def __init__(self, task_name: str, savedir: Path, config: SRConfig):
         "task_name will be displayed at the top of the widget"
         super().__init__()
         self.config = config
@@ -98,30 +113,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.progress_animation.setEndValue(100)
         main_layout.addWidget(self.progress_bar, 5, 0)
 
-        # Config + Controls
-        def config_callback():
-            print(self.config)
-            self.config.to_disk(savedir)
-            self.progress_animation.setDuration(self.config.HOLD_TIME)
-
-        self.config_widget = generate_edit_form(
-            self.config,
-            name="Task config",
-            dialog_box=True,
-            callback=config_callback,
-        )
-
-        gb = qw.QGroupBox("Task Config")
-        form_layout = qw.QFormLayout()
-        gb.setLayout(form_layout)
-        self.n_trials = set_spinbox(qw.QSpinBox(), self.config.N_TRIALS, 1, (1, 20))
-        form_layout.addRow(qw.QLabel("No. Trials"), self.n_trials)
-
-        btn = qw.QPushButton("Config")
-        btn.clicked.connect(lambda: self.start_widget(self.config_widget))  # type: ignore
-        form_layout.addWidget(btn)
-        main_layout.addWidget(gb, 6, 0, 1, 2)
-
         # Buttons
         self.start_stop_btn = qw.QPushButton(self.BTN_START_TXT)
         self.start_stop_btn.clicked.connect(self.toggle_start_stop)  # type: ignore
@@ -146,9 +137,14 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.timer_end_one.timeout.connect(self.end_one_trial)  # type: ignore
 
         # tone sound
-        self.tone_player = TonePlayer()
-        self.tone_player.set_freq_duration(500, 50)
-        self.sigPlaySound.connect(self.tone_player.play)
+        self.auditory_tone = TonePlayer(
+            self.config.tone_frequency, self.config.tone_duration
+        )
+        self.auditory_tone.set_volume(self.config.auditory_volume)
+        self.startle_tone = TonePlayer(
+            self.config.tone_frequency, self.config.tone_duration
+        )
+        self.startle_tone.set_volume(self.config.startle_volume)
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         self.task_history.close()
@@ -189,13 +185,13 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def send_visual_auditory_signal(self):
         "TODO: IMPLEMENT AUD"
-        self.sigPlaySound.emit(50)
+        self.auditory_tone.play()
         self.emit_begin("visual_auditory")
         self.set_state(self.GO)
 
     def send_visual_startling_signal(self):
         "TODO: IMPLEMENT AUD"
-        self.sigPlaySound.emit(100)
+        self.startle_tone.play()
         self.emit_begin("visual_startling")
         self.set_state(self.GO)
 
@@ -236,10 +232,11 @@ class SRDisplay(TaskDisplay, WindowMixin):
         each trial lasting 3 seconds.
         Wait a random amount of time before starting the next trial until we finish `n_trials_left`
         """
+        _print("Begin block")
         self.task_history.write(f"begin_block t={default_timer()}\n")
         self.start_stop_btn.setText(self.BTN_END_TXT)
         self.progress_bar.setValue(0)
-        self.n_trials_left = self.n_trials.value()
+        self.n_trials_left = self.config.N_TRIALS
         self.set_state(self.WAIT)
         self.timer_one.start(self.get_random_wait_time())
 
@@ -300,9 +297,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.dm = device_manager
         self.trigno_client = trigno_client
 
+        self.config = SRConfig()
+
         ### Init UI
-        main_layout = qw.QVBoxLayout()
-        self.setLayout(main_layout)
+        main_layout = qw.QVBoxLayout(self)
 
         btn1 = qw.QPushButton(text="Precision")
         btn1.clicked.connect(self.s_precision_task)  # type: ignore
@@ -311,6 +309,15 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         btn1 = qw.QPushButton(text="MaxROM")
         btn1.clicked.connect(self.s_max_rom)  # type: ignore
         main_layout.addWidget(btn1)
+
+        self.config_widget = generate_edit_form(
+            self.config,
+            name="Task config",
+            dialog_box=True,
+        )
+        self.config_btn = qw.QPushButton("Configure")
+        self.config_btn.clicked.connect(lambda: self.config_widget.show())
+        main_layout.addWidget(self.config_btn)
 
         self.audio_calib = AudioCalibrationWidget()
         main_layout.addWidget(self.audio_calib)
@@ -354,7 +361,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             self._precision = ScopeWidget(
                 self.dm,
                 savedir=savedir,
-                task_widget=SRDisplay("Precision Control", savedir),
+                task_widget=SRDisplay("Precision Control", savedir, self.config),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )
@@ -386,7 +393,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             self._precision = ScopeWidget(
                 self.dm,
                 savedir=savedir,
-                task_widget=SRDisplay("Max Range of Motion", savedir=savedir),
+                task_widget=SRDisplay("Max Range of Motion", savedir, self.config),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )
