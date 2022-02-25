@@ -85,7 +85,7 @@ class AudioCalibrationWidget(qw.QWidget):
 
         self.m_playButton = qw.QPushButton()
         self.m_playButton.clicked.connect(self.play)  # type: ignore
-        self.m_playButton.setText("Play")
+        self.m_playButton.setText("Play Tone")
         layout.addWidget(self.m_playButton)
 
     @Slot()  # type: ignore
