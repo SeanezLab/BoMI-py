@@ -13,6 +13,11 @@ def _print(*args):
 class TonePlayer(qc.QObject):
     """TonePlayer generates a tone at a given frequency and duration,
     and can play the tone asynchronously when `play` is called.
+
+    TonePlayer needs to regenerate and reload the audio when the frequency
+    or duration is changed, so if different tones need to be played at low
+    latency, create multiple TonePlayer objects and initialized them differently
+    to cache all tones.
     """
 
     def __init__(self, freq: int = 500, duration_ms: int = 500):
@@ -45,6 +50,10 @@ class TonePlayer(qc.QObject):
 
 
 class AudioCalibrationWidget(qw.QWidget):
+    """
+    Widget to try tones at different freq, duration and volume
+    """
+
     def __init__(self):
         super().__init__()
         self.player = TonePlayer()
@@ -69,7 +78,8 @@ class AudioCalibrationWidget(qw.QWidget):
         self.m_volumeSlider = qw.QSlider(
             Qt.Horizontal, minimum=0, maximum=100, singleStep=10
         )
-        self.m_volumeSlider.valueChanged.connect(self.volume_changed)  # type: ignore
+        self.m_volumeSlider.valueChanged.connect(self.update_volume_label)  # type: ignore
+        self.m_volumeSlider.sliderReleased.connect(self.update_volume)  # type: ignore
         self.m_volumeSlider.setValue(int(self.player.effect.volume() * 100))
         layout.addRow(self.m_volumeLabel, self.m_volumeSlider)
 
@@ -86,10 +96,13 @@ class AudioCalibrationWidget(qw.QWidget):
     def play(self):
         self.player.effect.play()
 
-    @Slot(int)  # type: ignore
-    def volume_changed(self, value: int):
-        self.player.effect.setVolume(value / 100.0)
-        self.m_volumeLabel.setText(f"Volume: {value}")
+    @Slot()  # type: ignore
+    def update_volume_label(self):
+        self.m_volumeLabel.setText(f"Volume: {self.m_volumeSlider.value()}")
+
+    @Slot()  # type: ignore
+    def update_volume(self):
+        self.player.effect.setVolume(self.m_volumeSlider.value() / 100.0)
 
 
 if __name__ == "__main__":
