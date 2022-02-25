@@ -7,15 +7,21 @@ import pyqtgraph as pg
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
-from bomi.datastructure import get_savedir
 
+from bomi.datastructure import get_savedir
+from bomi.device_managers.table_model import (
+    TableModel,
+    ColumnProps,
+    prop_getter,
+    make_getter,
+    make_setter,
+)
 from bomi.device_managers.yost_manager import DeviceT, YostDeviceManager
 from bomi.scope_widget import ScopeWidget
 from bomi.window_mixin import WindowMixin
 
-from .table_model import TableModel, ColumnProps, prop_getter, make_getter, make_setter
 
-__all__ = "YostWidget"
+__all__ = ("YostWidget",)
 
 
 def _print(*args):

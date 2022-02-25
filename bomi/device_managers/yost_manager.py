@@ -213,8 +213,8 @@ class YostDeviceManager:
             Handle reading batch data from sensors and putting them into the queue
             Should execute in a new thread
             """
-            i = 0
-            start_time = default_timer()
+            fps_packet_counter = 0
+            fps_start_time = default_timer()
 
             try:
                 while self._streaming:
@@ -232,7 +232,7 @@ class YostDeviceManager:
                             name=self._names[sensor.serial_number_hex],
                         )
                         queue.append(packet)
-                        i += 1
+                        fps_packet_counter += 1
 
                     # read streaming batch from wireless sensors through
                     # a dongle's serial port
@@ -249,11 +249,12 @@ class YostDeviceManager:
                                 name=port.wl_mp[logical_id],  # type: ignore
                             )
                             queue.append(packet)
-                            i += 1
+                            fps_packet_counter += 1
 
-                    if i % 1000 == 0:
-                        fps = i / (now - start_time)
-                        start_time, i = now, 0
+                    if fps_packet_counter % 1000 == 0:
+                        fps = fps_packet_counter / (now - fps_start_time)
+                        fps_start_time = now
+                        fps_packet_counter = 0
                         _print(f"Throughput: {fps:.2f} packets/sec")
 
             except Exception as e:
@@ -263,7 +264,7 @@ class YostDeviceManager:
                 pass
 
             finally:
-                _print("Streaming loop ended")
+                _print("Yost streaming loop ended")
                 # stop wired sensor streaming
                 ts_api.global_broadcaster.stopStreaming(filter=self.wired_sensors)
 
