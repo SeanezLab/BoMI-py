@@ -22,9 +22,12 @@ def set_spinbox(
     return spin_box
 
 
-class TEvent(Enum):
+class TaskEvent(Enum):
+    OUTSIDE = 0
     ENTER_TARGET = 1
-    EXIT_TARGET = 0
+    EXIT_TARGET = 2
+    ENTER_BASE = 3
+    EXIT_BASE = 4
 
 
 class TaskDisplay(qw.QWidget):
@@ -33,9 +36,10 @@ class TaskDisplay(qw.QWidget):
     sigTrialEnd: qc.SignalInstance = qc.Signal()  # type: ignore
 
     sigTargetMoved: qc.SignalInstance = qc.Signal(tuple)  # type: ignore
+    sigBaseMoved: qc.SignalInstance = qc.Signal(tuple)  # type: ignore
 
     # receive input events on state changes
-    sigTaskEventIn: qc.SignalInstance = qc.Signal(TEvent)  # type: ignore
+    sigTaskEventIn: qc.SignalInstance = qc.Signal(TaskEvent)  # type: ignore
 
 
 def generate_edit_form(

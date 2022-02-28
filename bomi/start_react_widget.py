@@ -11,15 +11,16 @@ from typing import List, NamedTuple, Tuple
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
-import PySide6.QtMultimedia as qm
 from PySide6.QtCore import Qt
 
-from bomi.base_widgets import TEvent, TaskDisplay, generate_edit_form
+from bomi.base_widgets import TaskEvent, TaskDisplay, TaskEvent, generate_edit_form
 from bomi.datastructure import get_savedir
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
 from bomi.audio.player import TonePlayer, AudioCalibrationWidget
+import bomi.colors as bcolors
+
 from trigno_sdk.client import TrignoClient
 
 
@@ -29,8 +30,7 @@ def _print(*args):
 
 class SRState(NamedTuple):
     color: qg.QColor
-    text: str
-    duration: float = -1  # duration in seconds
+    text: str  # Must be different for different states
 
     def __hash__(self):
         return hash(self.text)
@@ -53,8 +53,12 @@ class SRConfig:
     PAUSE_RANDOM: int = field(default=0000, metadata=dict(range=(0, 5000)))  # msec
     N_TRIALS: int = field(default=10, metadata=dict(range=(1, 40), name="No. Trials"))
 
-    tone_frequency: int = field(default=500, metadata=dict(range=(1, 1000)))
-    tone_duration: int = field(default=50, metadata=dict(range=(10, 500)))
+    tone_frequency: int = field(
+        default=500, metadata=dict(range=(1, 1000), name="Tone Frequency (Hz)")
+    )
+    tone_duration: int = field(
+        default=50, metadata=dict(range=(10, 500), name="Tone Duration (ms) ")
+    )
     auditory_volume: int = field(default=5, metadata=dict(range=(1, 100)))
     startle_volume: int = field(default=100, metadata=dict(range=(1, 100)))
 
@@ -69,8 +73,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     # States
     IDLE = SRState(color=Qt.lightGray, text="Get ready!")
-    GO = SRState(color=Qt.green, text="Reach the target and hold!")
-    WAIT = SRState(color=qg.QColor(254, 219, 65), text="Wait...")
+    GO = SRState(color=bcolors.LIGHT_BLUE, text="Reach the target!")
+    SUCCESS = SRState(color=bcolors.GREEN, text="Success! Return to rest position.")
+    WAIT = SRState(color=Qt.lightGray, text="Get ready!")
     TASK_DONE = SRState(color=Qt.lightGray, text="All done!")
 
     BTN_START_TXT = "Begin task"
@@ -121,6 +126,10 @@ class SRDisplay(TaskDisplay, WindowMixin):
         ### Task states
         self.n_trials_left = 0
         self.curr_state = self.IDLE
+        self.state_bg_timer = qc.QTimer()  # timer to reset widget background
+        self.state_bg_timer.setSingleShot(True)
+        self.state_bg_timer.timeout.connect(lambda: self.setPalette(Qt.lightGray))  # type: ignore
+        self.state_bg_timer.setInterval(500)
 
         self.set_state(self.IDLE)
 
@@ -129,12 +138,12 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.sigTargetMoved.connect(self.on_target_moved)
 
         # Timers to start and end one trial
-        self.timer_one = qc.QTimer()
-        self.timer_one.setSingleShot(True)
-        self.timer_one.timeout.connect(self.one_trial)  # type: ignore
-        self.timer_end_one = qc.QTimer()
-        self.timer_end_one.setSingleShot(True)
-        self.timer_end_one.timeout.connect(self.end_one_trial)  # type: ignore
+        self.timer_one_trial_begin = qc.QTimer()
+        self.timer_one_trial_begin.setSingleShot(True)
+        self.timer_one_trial_begin.timeout.connect(self.one_trial_begin)  # type: ignore
+        self.timer_one_trial_end = qc.QTimer()
+        self.timer_one_trial_end.setSingleShot(True)
+        self.timer_one_trial_end.timeout.connect(self.one_trial_end)  # type: ignore
 
         # tone sound
         self.auditory_tone = TonePlayer(
@@ -147,6 +156,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.startle_tone.set_volume(self.config.startle_volume)
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
+        self.timer_one_trial_begin.stop()
+        self.timer_one_trial_end.stop()
+        self.state_bg_timer.stop()
         self.task_history.close()
         return super().closeEvent(event)
 
@@ -165,15 +177,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def set_state(self, s: SRState):
         self.curr_state = s
+        self.state_bg_timer.start()
         self.setPalette(s.color)
-        if s == self.WAIT and self.n_trials_left:
-            if self.n_trials_left == 1:
-                txt = f" {self.n_trials_left} cycle left"
-            else:
-                txt = f" {self.n_trials_left} cycles left"
-            self.center_label.setText(s.text + txt)
-        else:
-            self.center_label.setText(s.text)
+        self.center_label.setText(s.text)
 
     def get_random_wait_time(self) -> int:
         "Calculate random wait time in msec"
@@ -184,18 +190,17 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.set_state(self.GO)
 
     def send_visual_auditory_signal(self):
-        "TODO: IMPLEMENT AUD"
         self.auditory_tone.play()
         self.emit_begin("visual_auditory")
         self.set_state(self.GO)
 
     def send_visual_startling_signal(self):
-        "TODO: IMPLEMENT AUD"
         self.startle_tone.play()
         self.emit_begin("visual_startling")
         self.set_state(self.GO)
 
-    def one_trial(self):
+    @qc.Slot()  # type: ignore
+    def one_trial_begin(self):
         """Begin one trial
         Give user the signal to reach the target, and wait until the target
         is reached and held for an amount of time.
@@ -205,24 +210,22 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """
         if self.n_trials_left > 0:  # check if done
             self.n_trials_left -= 1
-            task = random.choice(
+            random.choice(
                 (
                     self.send_visual_signal,
                     self.send_visual_auditory_signal,
                     self.send_visual_startling_signal,
                 )
-            )
-            task()
+            )()
 
-    def end_one_trial(self):
+    @qc.Slot()  # type: ignore
+    def one_trial_end(self):
         """Execute clean up after a trial
         If there are more cycles remaining, schedule one more
         """
         self.emit_end()
-        self.set_state(self.WAIT)
-        if self.n_trials_left > 0:
-            qc.QTimer.singleShot(self.get_random_wait_time(), self.one_trial)
-        else:
+        self.set_state(self.SUCCESS)
+        if self.n_trials_left <= 0:
             self.end_block()
 
     def begin_block(self):
@@ -238,7 +241,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.progress_bar.setValue(0)
         self.n_trials_left = self.config.N_TRIALS
         self.set_state(self.WAIT)
-        self.timer_one.start(self.get_random_wait_time())
+        self.timer_one_trial_begin.start(self.get_random_wait_time())
 
     def end_block(self):
         """Finish the task, reset widget to initial states"""
@@ -257,21 +260,32 @@ class SRDisplay(TaskDisplay, WindowMixin):
         else:
             self.end_block()
 
-    @qc.Slot(TEvent)  # type: ignore
-    def handle_input_event(self, event: TEvent):
-        if event == TEvent.ENTER_TARGET:
+    @qc.Slot(TaskEvent)  # type: ignore
+    def handle_input_event(self, event: TaskEvent):
+        """Receive task events from the ScopeWidget"""
+        if event == TaskEvent.ENTER_TARGET:
             # start 3 sec timer
-            if self.curr_state == self.GO and not self.timer_end_one.isActive():
-                self.timer_end_one.start(self.config.HOLD_TIME)
+            if self.curr_state == self.GO and not self.timer_one_trial_end.isActive():
+                self.timer_one_trial_end.start(self.config.HOLD_TIME)
                 self.progress_animation.start()
+            _print("Enter target")
 
-        elif event == TEvent.EXIT_TARGET:
+        elif event == TaskEvent.EXIT_TARGET:
             # stop timer
-            self.timer_end_one.stop()
+            self.timer_one_trial_end.stop()
             self.progress_animation.stop()
             self.progress_bar.setValue(0)
-        else:
-            _print("handle_input_event: Unknown event:", event)
+            _print("Exit target")
+
+        elif event == TaskEvent.ENTER_BASE:
+            if self.curr_state == self.SUCCESS:
+                self.set_state(self.WAIT)
+                if self.n_trials_left > 0:
+                    self.timer_one_trial_begin.start(self.get_random_wait_time())
+            _print("Enter base")
+
+        elif event == TaskEvent.EXIT_BASE:
+            _print("Exit base")
 
     def emit_begin(self, event_name: str):
         self.sigTrialBegin.emit()
@@ -349,6 +363,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             show_scope_params=True,
             target_show=True,
             target_range=(35, 40),
+            base_show=True,
             yrange=(0, 90),
             show_roll=False,
             show_pitch=False,
@@ -381,6 +396,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             show_scope_params=True,
             target_show=True,
             target_range=(70, 120),
+            base_show=True,
             yrange=(0, 110),
             show_roll=False,
             show_pitch=False,

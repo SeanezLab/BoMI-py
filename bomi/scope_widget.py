@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from collections import deque
+from enum import Enum
 from pathlib import Path
 from timeit import default_timer
 from typing import Dict, List, Tuple, Deque
@@ -14,9 +15,10 @@ import PySide6.QtWidgets as qw
 from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
-from bomi.base_widgets import TEvent, TaskDisplay, generate_edit_form
+from bomi.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
 from bomi.datastructure import YostBuffer, SubjectMetadata, Packet
 from bomi.device_managers import YostDeviceManager
+import bomi.colors as bcolors
 from trigno_sdk.client import TrignoClient
 
 
@@ -24,17 +26,7 @@ def _print(*args):
     print("[ScopeWidget]", *args)
 
 
-# Seanez lab colors
-COLORS = [
-    qg.QColor(253, 0, 58),  # red
-    qg.QColor(25, 222, 193),  # green/cyan
-    qg.QColor(19, 10, 241),  # dark blue
-    qg.QColor(254, 136, 33),  # orange
-    qg.QColor(177, 57, 255),  # purple
-]
-
-
-PENS = [pg.mkPen(clr, width=2) for clr in COLORS]
+PENS = [pg.mkPen(clr, width=2) for clr in bcolors.COLORS]
 
 TARGET_BRUSH_BG = pg.mkBrush(qg.QColor(25, 222, 193, 15))
 TARGET_BRUSH_FG = pg.mkBrush(qg.QColor(254, 136, 33, 50))
@@ -48,6 +40,9 @@ class ScopeConfig:
 
     target_show: bool = False
     target_range: Tuple[float, float] = (70, 80)
+
+    base_show: bool = False
+    base_range: Tuple[float, float] = (0, 5)
 
     xrange: Tuple[float, float] = (-6, 0)
     yrange: Tuple[float, float] = (-180, 180)
@@ -64,27 +59,38 @@ class ScopeConfig:
 class PlotHandle:
     "Holds a PlotItem and its curves"
     plot: pg.PlotItem | pg.ViewBox
-    curves: List[pg.PlotCurveItem]
+    curves: List[pg.PlotCurveItem | pg.PlotDataItem]
     target: pg.LinearRegionItem | None
-    rest_target: pg.LinearRegionItem | None
+    base: pg.LinearRegionItem | None
+
+    TARGET_NAME = "Target"
+    BASE_NAME = "Rest position"
 
     @classmethod
     def init(
-        cls, plot: pg.PlotItem, target_range: Tuple[float, float] = None
+        cls,
+        plot: pg.PlotItem,
+        target_range: Tuple[float, float] = None,
+        base_range: Tuple[float, float] = None,
     ) -> PlotHandle:
         "Create curves on the given plot object"
-        # init curves
-        curves = []
-        for pen, name in zip(PENS, YostBuffer.LABELS):
-            curves.append(plot.plot(pen=pen, name=name))
+        curves = [
+            plot.plot(pen=pen, name=name) for pen, name in zip(PENS, YostBuffer.LABELS)
+        ]
 
-        target = cls.init_target(plot, target_range) if target_range else None
-        rest_target = cls.init_target(plot, (0, 5), label="Rest position", movable=True)
-        # TODO: implement logging of this position
-
-        return PlotHandle(
-            plot=plot, curves=curves, target=target, rest_target=rest_target
+        target = (
+            cls.init_line_region(plot, target_range, label=cls.TARGET_NAME)
+            if target_range
+            else None
         )
+
+        base = (
+            cls.init_line_region(plot, base_range, label=cls.BASE_NAME)
+            if base_range
+            else None
+        )
+
+        return PlotHandle(plot=plot, curves=curves, target=target, base=base)
 
     @classmethod
     def init_curve(cls, plot: pg.PlotItem, i: int):
@@ -92,36 +98,72 @@ class PlotHandle:
         return plot.plot(pen=PENS[i], name=YostBuffer.LABELS[i])
 
     @staticmethod
-    def init_target(
+    def init_line_region(
         plot: pg.PlotItem,
         target_range: Tuple[float, float],
         label="Target",
         movable=False,
     ) -> pg.LinearRegionItem:
-        # Target region
-        target = pg.LinearRegionItem(
+        "Create a Region on the plot (target or base)"
+        region = pg.LinearRegionItem(
             values=target_range,
             orientation="horizontal",
             movable=movable,
             brush=TARGET_BRUSH_BG,
         )
-        pg.InfLineLabel(target.lines[0], label, position=0.05, anchor=(1, 1), color="k")
-        plot.addItem(target)
-        return target
+        pg.InfLineLabel(region.lines[0], label, position=0.05, anchor=(1, 1), color="k")
+        plot.addItem(region)
+        return region
 
+    ### [[[ Target methods
     def update_target(self, target_range: Tuple[float, float]):
+        "Update the 'target' region's position"
         if self.target is None:
-            self.target = self.init_target(self.plot, target_range)
-        self.target.lines[0].setValue(target_range[0])
-        self.target.lines[1].setValue(target_range[1])
+            self.target = self.init_line_region(
+                self.plot, target_range, label=self.TARGET_NAME
+            )
+        else:
+            self.target.lines[0].setValue(target_range[0])
+            self.target.lines[1].setValue(target_range[1])
 
     def update_target_color(self, *args, **argv):
         if self.target:
             self.target.setBrush(*args, **argv)
 
     def clear_target(self):
+        "Remove the 'target' line region"
         self.plot.removeItem(self.target)
         self.target = None
+
+    ### Target methods]]]
+
+    ### [[[ Base methods
+    def update_base(self, base_range: Tuple[float, float]):
+        "Update the 'base' region's position"
+        if self.base is None:
+            self.base = self.init_line_region(
+                self.plot, base_range, label=self.BASE_NAME
+            )
+        else:
+            self.base.lines[0].setValue(base_range[0])
+            self.base.lines[1].setValue(base_range[1])
+
+    def update_base_color(self, *args, **argv):
+        if self.base:
+            self.base.setBrush(*args, **argv)
+
+    def clear_base(self):
+        "Remove the 'base' line region"
+        self.plot.removeItem(self.base)
+        self.base = None
+
+    ### Base methods]]]
+
+
+class AngleState(Enum):
+    OUTSIDE = 0
+    IN_TARGET = 1
+    IN_BASE = 2
 
 
 class ScopeWidget(qw.QWidget):
@@ -153,6 +195,10 @@ class ScopeWidget(qw.QWidget):
         self.buffers: Dict[str, YostBuffer] = {}
         self.meta = SubjectMetadata()
 
+        self.last_state: AngleState = (
+            AngleState.OUTSIDE
+        )  # keep track of last angle state
+
         def write_meta():
             print("write_meta", self.meta.dict())
             self.meta.to_disk(self.savedir)
@@ -163,69 +209,96 @@ class ScopeWidget(qw.QWidget):
         )
 
         ### Parameter tree
+        ptparams = [
+            dict(name="streaming", title="Streaming", type="bool", value=True),
+            ActionParameter(name="tare", title="Tare"),
+            dict(
+                name="target",
+                title="Target",
+                type="group",
+                children=[
+                    dict(
+                        name="tshow",
+                        title="Show",
+                        type="bool",
+                        value=config.target_show,
+                    ),
+                    dict(
+                        name="tmax",
+                        title="Max",
+                        type="float",
+                        value=config.target_range[1],
+                    ),
+                    dict(
+                        name="tmin",
+                        title="Min",
+                        type="float",
+                        value=config.target_range[0],
+                    ),
+                ],
+            ),
+            dict(
+                name="base",
+                title="Base",
+                type="group",
+                children=[
+                    dict(
+                        name="bshow",
+                        title="Show",
+                        type="bool",
+                        value=config.base_show,
+                    ),
+                    dict(
+                        name="bmax",
+                        title="Max",
+                        type="float",
+                        value=config.base_range[1],
+                    ),
+                    dict(
+                        name="bmin",
+                        title="Min",
+                        type="float",
+                        value=config.base_range[0],
+                    ),
+                ],
+            ),
+            dict(
+                name="show",
+                title="Show",
+                type="group",
+                children=[
+                    dict(
+                        name="show_roll",
+                        title="Show roll",
+                        type="bool",
+                        value=config.show_roll,
+                    ),
+                    dict(
+                        name="show_pitch",
+                        title="Show pitch",
+                        type="bool",
+                        value=config.show_pitch,
+                    ),
+                    dict(
+                        name="show_yaw",
+                        title="Show yaw",
+                        type="bool",
+                        value=config.show_yaw,
+                    ),
+                    dict(
+                        name="show_rollpitch",
+                        title="Show abs(roll) + abs(pitch)",
+                        type="bool",
+                        value=config.show_rollpitch,
+                    ),
+                ],
+            ),
+        ]
+
         self.params: ptree.Parameter = ptree.Parameter.create(
             name="Scope Controls",
             type="group",
-            children=[
-                dict(name="streaming", title="Streaming", type="bool", value=True),
-                ActionParameter(name="tare", title="Tare"),
-                dict(
-                    name="target",
-                    title="Target",
-                    type="group",
-                    children=[
-                        dict(
-                            name="tshow",
-                            title="Show",
-                            type="bool",
-                            value=config.target_show,
-                        ),
-                        dict(
-                            name="tmax",
-                            title="Max",
-                            type="float",
-                            value=config.target_range[1],
-                        ),
-                        dict(
-                            name="tmin",
-                            title="Min",
-                            type="float",
-                            value=config.target_range[0],
-                        ),
-                    ],
-                ),
-                dict(
-                    name="show",
-                    title="Show",
-                    type="group",
-                    children=[
-                        dict(
-                            name="show_roll",
-                            title="Show roll",
-                            type="bool",
-                            value=config.show_roll,
-                        ),
-                        dict(
-                            name="show_pitch",
-                            title="Show pitch",
-                            type="bool",
-                            value=config.show_pitch,
-                        ),
-                        dict(
-                            name="show_yaw",
-                            title="Show yaw",
-                            type="bool",
-                            value=config.show_yaw,
-                        ),
-                        dict(
-                            name="show_rollpitch",
-                            title="Show abs(roll) + abs(pitch)",
-                            type="bool",
-                            value=config.show_rollpitch,
-                        ),
-                    ],
-                ),
-            ],
+            children=ptparams,
         )
 
         key2label = {  # map from config name to the corresponding Buffer.labels
@@ -242,6 +315,13 @@ class ScopeWidget(qw.QWidget):
                     name = key2label[name]
                     self.show_hide_curve(name, data)
 
+        self.params.child("show").sigTreeStateChanged.connect(onShowHideChange)
+
+        def toggle_stream(_, on: bool):
+            self.start_stream() if on else self.stop_stream()
+
+        self.params.child("streaming").sigValueChanged.connect(toggle_stream)
+
         def updateTarget(_, val):
             # for "tshow", val is bool, for ("tmax", "tmin"), probably a value, but doesn't matter
             if val:
@@ -249,21 +329,36 @@ class ScopeWidget(qw.QWidget):
             else:
                 self.clear_targets()
 
-        def toggle_stream(_, on: bool):
-            self.start_stream() if on else self.stop_stream()
-
-        self.params.child("streaming").sigValueChanged.connect(toggle_stream)
         self.params.child("target", "tshow").sigValueChanged.connect(updateTarget)
         self.params.child("target", "tmax").sigValueChanged.connect(updateTarget)
         self.params.child("target", "tmin").sigValueChanged.connect(updateTarget)
-        self.params.child("show").sigTreeStateChanged.connect(onShowHideChange)
+
+        def updateBase(_, val):
+            if val:
+                self.update_base()
+            else:
+                self.clear_base()
+
+        self.params.child("base", "bshow").sigValueChanged.connect(updateBase)
+        self.params.child("base", "bmax").sigValueChanged.connect(updateBase)
+        self.params.child("base", "bmin").sigValueChanged.connect(updateBase)
 
         # keep references of these params for more efficient query
         self.param_tshow: Parameter = self.params.child("target", "tshow")
         self.param_tmax: Parameter = self.params.child("target", "tmax")
         self.param_tmin: Parameter = self.params.child("target", "tmin")
-        self.target_changed: bool = True
-        self.target_range: Tuple[float, float] = self.get_target_range()
+        self.target_range: Tuple[float, float] = (
+            self.param_tmin.value(),
+            self.param_tmax.value(),
+        )
+
+        self.param_bshow: Parameter = self.params.child("base", "bshow")
+        self.param_bmax: Parameter = self.params.child("base", "bmax")
+        self.param_bmin: Parameter = self.params.child("base", "bmin")
+        self.base_range: Tuple[float, float] = (
+            self.param_bmin.value(),
+            self.param_bmax.value(),
+        )
 
         def tare():
             with pg.BusyCursor():
@@ -278,6 +373,61 @@ class ScopeWidget(qw.QWidget):
         self.timer.timeout.connect(self.update)  # type: ignore
         self.fps_counter = 0
         self.fps_last_time = default_timer()
+
+    ### [[[ Targets methods
+    def clear_targets(self):
+        for name in self.dev_names:
+            plot_handle = self.plot_handles[name]
+            plot_handle.clear_target()
+
+    def update_targets(self):
+        "Handle updating target position (range)"
+        if self.param_tshow.value():
+            target_range = (
+                self.param_tmin.value(),
+                self.param_tmax.value(),
+            )
+            self.target_range = target_range
+
+            if self.task_widget:
+                self.task_widget.sigTargetMoved.emit(target_range)
+
+            for name in self.dev_names:
+                self.plot_handles[name].update_target(target_range)
+
+    def update_target_color(self, *args, **kwargs):
+        "Handle updating target color on plot"
+        for name in self.dev_names:
+            self.plot_handles[name].update_target_color(*args, **kwargs)
+
+    ### Targets methods ]]]
+
+    ### [[[ Base methods
+    def clear_base(self):
+        for name in self.dev_names:
+            plot_handle = self.plot_handles[name]
+            plot_handle.clear_base()
+
+    def update_base(self):
+        "Handle updating target position (range)"
+        if self.param_bshow.value():
+            self.base_range = base_range = (
+                self.param_bmin.value(),
+                self.param_bmax.value(),
+            )
+
+            if self.task_widget:
+                self.task_widget.sigBaseMoved.emit(base_range)
+
+            for name in self.dev_names:
+                self.plot_handles[name].update_base(base_range)
+
+    def update_base_color(self, *args, **kwargs):
+        "Handle updating target color on plot"
+        for name in self.dev_names:
+            self.plot_handles[name].update_base_color(*args, **kwargs)
+
+    ### Base methods ]]]
 
     def show_hide_curve(self, name: str, show: bool):
         i = YostBuffer.LABELS.index(name)
@@ -294,35 +444,6 @@ class ScopeWidget(qw.QWidget):
                 handle.plot.removeItem(handle.curves[i])
 
             self.show_labels.remove(name)
-
-    def clear_targets(self):
-        for name in self.dev_names:
-            plot_handle = self.plot_handles[name]
-            plot_handle.clear_target()
-
-    def update_targets(self):
-        if self.get_target_show():
-            target_range = self.get_target_range()
-            self.target_range = target_range
-
-            if self.task_widget:
-                self.task_widget.sigTargetMoved.emit(target_range)
-
-            for name in self.dev_names:
-                self.plot_handles[name].update_target(target_range)
-
-    def update_target_color(self, *args, **kwargs):
-        for name in self.dev_names:
-            self.plot_handles[name].update_target_color(*args, **kwargs)
-
-    def get_target_show(self) -> bool:
-        return self.param_tshow.value()
-
-    def get_target_range(self) -> Tuple[float, float]:
-        return (
-            self.param_tmin.value(),
-            self.param_tmax.value(),
-        )
 
     def showEvent(self, event: qg.QShowEvent) -> None:
         """Override showEvent to initialise data params and UI after the window is shown.
@@ -395,25 +516,29 @@ class ScopeWidget(qw.QWidget):
         if self.task_widget is not None:
             layout.addWidget(self.task_widget, 1)
 
-            # TODO
-            # def begin_trial_color():
-            # self.update_target_color(TARGET_BRUSH_FG)
+            def _trial_begin():
+                self.flash(bcolors.LIGHT_BLUE)
 
-            # def end_trial_color():
-            # self.update_target_color(TARGET_BRUSH_BG)
+            def _trial_end():
+                self.flash(bcolors.GREEN)
 
-            # self.task_widget.sigTrialBegin.connect(begin_trial_color)
-            # self.task_widget.sigTrialEnd.connect(end_trial_color)
+            self.task_widget.sigTrialBegin.connect(_trial_begin)
+            self.task_widget.sigTrialEnd.connect(_trial_end)
 
         ### apply other config
         config = self.config
         config.target_show and self.update_targets()
+        config.base_show and self.update_base()
         config.show_roll or self.show_hide_curve("Roll", False)
         config.show_pitch or self.show_hide_curve("Pitch", False)
         config.show_yaw or self.show_hide_curve("Yaw", False)
         config.show_rollpitch or self.show_hide_curve("abs(roll) + abs(pitch)", False)
 
         self.start_stream()
+
+    def flash(self, color="green", duration_ms=500):
+        self.glw.setBackground(color)
+        qc.QTimer.singleShot(duration_ms, lambda: self.glw.setBackground("white"))
 
     def start_stream(self):
         """Start the stream and show in the scope
@@ -450,8 +575,8 @@ class ScopeWidget(qw.QWidget):
 
         q = self.queue
         qsize = len(q)
-        if not qsize:
-            return
+        # if not qsize:
+        # return
 
         for _ in range(qsize):  # process current items in queue
             packet: Packet = q.popleft()
@@ -470,15 +595,28 @@ class ScopeWidget(qw.QWidget):
 
         ### Update task states if needed
         # 1. Check if angle is within target range
-        # 2. If true, start the 3 second timer
+        # 2. Check if angle is within base range
         if self.task_widget:
             tmin, tmax = self.target_range
+            bmin, bmax = self.base_range
             for name in self.dev_names:
-                buf = self.buffers[name]
-                if tmin <= buf.data[-1, -1] <= tmax:
-                    self.task_widget.sigTaskEventIn.emit(TEvent.ENTER_TARGET)
-                else:
-                    self.task_widget.sigTaskEventIn.emit(TEvent.EXIT_TARGET)
+                angle = self.buffers[name].data[-1, -1]
+
+                if self.last_state == AngleState.IN_TARGET:
+                    if not tmin <= angle <= tmax:
+                        self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_TARGET)
+                        self.last_state = AngleState.OUTSIDE
+                elif self.last_state == AngleState.IN_BASE:
+                    if not bmin <= angle <= bmax:
+                        self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_BASE)
+                        self.last_state = AngleState.OUTSIDE
+                else:  # Outside base and target
+                    if tmin <= angle <= tmax:
+                        self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_TARGET)
+                        self.last_state = AngleState.IN_TARGET
+                    elif bmin <= angle <= bmax:
+                        self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_BASE)
+                        self.last_state = AngleState.IN_BASE
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         with pg.BusyCursor():
@@ -488,6 +626,18 @@ class ScopeWidget(qw.QWidget):
         return super().closeEvent(event)
 
 
-class _DummyQueue:
+class _DummyQueue(deque):
+    def __init__(self):
+        ...
+
     def append(self, _):
+        ...
+
+    def appendleft(self, _):
+        ...
+
+    def pop(self) -> None:
+        ...
+
+    def popleft(self) -> None:
         ...
