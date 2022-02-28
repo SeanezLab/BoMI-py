@@ -52,7 +52,7 @@ class EMGLayoutError(ValueError):
 
 
 class EMGScope(qw.QWidget, WindowMixin):
-    sigNameChanged: qc.SignalInstance = qc.Signal()
+    sigNameChanged: qc.SignalInstance = qc.Signal()  # type: ignore
 
     def __init__(self, dm: TrignoClient, savedir: Path):
         super().__init__()
@@ -86,7 +86,7 @@ class EMGScope(qw.QWidget, WindowMixin):
             _layout[muscle_name][side] = idx
 
         for idx in self.dm.sensor_idx:
-            sensor = self.dm.sensors[idx]
+            sensor: EMGSensor = self.dm.sensors[idx]  # type: ignore
             meta = self.dm.sensor_meta[sensor.serial]
             if meta.side == "L":
                 add_check(meta.muscle_name, "L")
@@ -112,7 +112,6 @@ class EMGScope(qw.QWidget, WindowMixin):
 
         def _setup_emg_plot(plot: pg.PlotItem, idx: int):
             plot.setXRange(-5, 0)
-            plot.setYRange(-0.1, 0.1)
             plot.setLabel("bottom", "Time", units="s", **plot_style)
             plot.setLabel("left", "Voltage", units="V", **plot_style)
             plot.setDownsampling(mode="peak")
@@ -299,6 +298,7 @@ class TrignoWidget(qw.QWidget, WindowMixin):
         main_layout.addLayout(control_layout)
 
         self.status_label = qw.QLabel("Base Station")
+        self.status_label.setToolTip(repr(self.trigno_client))
         control_layout.addWidget(self.status_label, 0, 0)
         self.update_status()
 
@@ -362,6 +362,7 @@ class TrignoWidget(qw.QWidget, WindowMixin):
         self.update_status()
         self.setup_grid()
         self.connect_btn.setText("Reconnect to Base Station")
+        self.status_label.setToolTip(repr(self.trigno_client))
 
     @qc.Slot()  # type: ignore
     def handle_data_changed(self):

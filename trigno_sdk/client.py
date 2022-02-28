@@ -35,7 +35,7 @@ from io import StringIO
 
 from .datastructure import DSChannel, EMGSensor, EMGSensorMeta
 
-__all__ = "TrignoClient"
+__all__ = ("TrignoClient",)
 
 # Load Avanti Modes file. Must use Unix line endings
 def load_avanti_modes():
@@ -63,8 +63,16 @@ def _print(*args, **kwargs):
 
 
 def recv(sock: socket.socket, maxlen=1024) -> bytes:
-    buf = sock.recv(maxlen)
-    return buf.strip()
+    "For receiving from the COMMAND_PORT"
+    return sock.recv(maxlen).strip()
+
+
+def recv_sz(sock: socket.socket, sz: int) -> bytes:
+    "For receiving from the EMG_DATA_PORT"
+    buf = b""
+    while len(buf) < sz:
+        buf += sock.recv(sz - len(buf))
+    return buf
 
 
 class TrignoClient:
@@ -96,10 +104,13 @@ class TrignoClient:
         return self.send_cmd(cmd)
 
     def __repr__(self):
-        return (
-            f"<DelsysClient host_ip={self.host_ip} "
-            f"connected={self.connected}"
-            f"n_sensors={self.n_sensors}>"
+        return "<{_class} @{_id:x} {_attrs}>".format(
+            _class=self.__class__.__name__,
+            _id=id(self) & 0xFFFFFF,
+            _attrs=" ".join(
+                "{}={!r}".format(k, v)
+                for k, v in sorted(self.__dict__.items(), key=lambda pair: pair[0])
+            ),
         )
 
     def __getitem__(self, idx: int):
@@ -110,7 +121,9 @@ class TrignoClient:
 
     def connect(self):
         """Called once during init to setup base station.
-        Returns True if connection successful
+
+        Set little endian
+        Sets backwards compatibility off (resample lower Fs channels to the highest Fs used)
         """
         if not self.connected:
             try:
@@ -127,7 +140,10 @@ class TrignoClient:
 
         self.connected = True
         cmd = lambda _cmd: self.send_cmd(_cmd).decode()
-        assert cmd("ENDIAN LITTLE"), "OK"  # Use little endian
+
+        # Change settings
+        assert cmd("ENDIAN LITTLE") == "OK"  # Use little endian
+        assert cmd("BACKWARDS COMPATIBILITY OFF") == "OK"
 
         ### Queries
         self.backwards_compatibility = cmd("BACKWARDS COMPATIBILITY?")
@@ -152,7 +168,11 @@ class TrignoClient:
         self.query_devices()
 
     def query_device(self, i: int):
-        "Checks for devices connected to the base and updates `self.sensors`"
+        """
+        Checks for devices connected to the base and updates `self.sensors`
+        Also updates some settings
+            - Force mode 40 (EMG only at 2146 Hz)
+        """
         assert self.connected
 
         cmd = lambda _cmd: self.send_cmd(_cmd).decode()
@@ -165,7 +185,11 @@ class TrignoClient:
             return
 
         _type = cmd(f"SENSOR {i} TYPE?")
+        # Force mode 40: EMG (2148Hz)
+        res = cmd(f"SENSOR {i} SETMODE 40")
+        _print(res)
         _mode = int(cmd(f"SENSOR {i} MODE?"))
+
         _serial = cmd(f"SENSOR {i} SERIAL?")
         firmware = cmd(f"SENSOR {i} FIRMWARE?")
         emg_channels = int(cmd(f"SENSOR {i} EMGCHANNELCOUNT?"))
@@ -232,7 +256,7 @@ class TrignoClient:
         """
         Receive one EMG frame
         """
-        buf = recv(self.emg_data_sock, 4 * 16)  # 16 devices, 4 byte float
+        buf = recv_sz(self.emg_data_sock, 4 * 16)  # 16 devices, 4 byte float
         return struct.unpack("<ffffffffffffffff", buf)
 
     def handle_stream(self, queue: Deque[Tuple[float]], savedir: Path = None):
@@ -259,7 +283,11 @@ class TrignoClient:
         else:
             with open(Path(savedir) / "trigno_emg.csv", "w") as fp:
                 while self.streaming:
-                    emg = self.recv_emg()
+                    try:
+                        emg = self.recv_emg()
+                    except struct.error as e:
+                        _print("Failed to parse packet", e)
+                        continue
                     queue.append(emg)
                     fp.write(",".join([str(v) for v in emg]) + "\n")
 
@@ -281,7 +309,7 @@ class TrignoClient:
 
         if not slim:
             tmp["idx2sensor"] = {
-                int(idx): asdict(self.sensors[idx]) for idx in self.sensor_idx
+                str(idx): asdict(self.sensors[idx]) for idx in self.sensor_idx
             }
             tmp["start_time"] = self.start_time
 

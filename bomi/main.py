@@ -45,7 +45,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
         self.status_msg("Welcome to Seanez Lab")
         self.setWindowTitle(__appname__)
-        self.setMinimumSize(650, 850)
+        self.setMinimumSize(650, 1000)
 
     def status_msg(self, msg: str):
         self.statusBar().showMessage(msg)

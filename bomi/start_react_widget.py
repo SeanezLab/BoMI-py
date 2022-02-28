@@ -59,7 +59,7 @@ class SRConfig:
     tone_duration: int = field(
         default=50, metadata=dict(range=(10, 500), name="Tone Duration (ms) ")
     )
-    auditory_volume: int = field(default=5, metadata=dict(range=(1, 100)))
+    auditory_volume: int = field(default=1, metadata=dict(range=(1, 100)))
     startle_volume: int = field(default=100, metadata=dict(range=(1, 100)))
 
     def to_disk(self, savedir: Path):
