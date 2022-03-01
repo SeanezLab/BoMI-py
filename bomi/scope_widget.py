@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from collections import deque
+from queue import Queue
 from enum import Enum
 from pathlib import Path
 from timeit import default_timer
-from typing import Dict, List, Tuple, Deque
+from typing import Dict, List, Tuple
 
 import pyqtgraph as pg
 import pyqtgraph.parametertree as ptree
@@ -187,7 +187,7 @@ class ScopeWidget(qw.QWidget):
             self.trigno_client = None
 
         self.show_labels = list(YostBuffer.LABELS)
-        self.queue: Deque[Packet] = deque()
+        self.queue: Queue[Packet] = Queue()
 
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
@@ -369,7 +369,7 @@ class ScopeWidget(qw.QWidget):
 
         # init timer
         self.timer = qc.QTimer()
-        self.timer.setInterval(1)
+        self.timer.setInterval(0)
         self.timer.timeout.connect(self.update)  # type: ignore
         self.fps_counter = 0
         self.fps_last_time = default_timer()
@@ -456,7 +456,8 @@ class ScopeWidget(qw.QWidget):
 
     def init_data(self):
         ### data
-        self.queue.clear()
+        while self.queue.qsize():
+            self.queue.get()
         self.dev_names = self.dm.get_all_sensor_names()
         self.dev_sn = self.dm.get_all_sensor_serial()
 
@@ -574,12 +575,12 @@ class ScopeWidget(qw.QWidget):
             _print("FPS: ", fps)
 
         q = self.queue
-        qsize = len(q)
+        qsize = q.qsize()
         # if not qsize:
         # return
 
         for _ in range(qsize):  # process current items in queue
-            packet: Packet = q.popleft()
+            packet: Packet = q.get()
             self.buffers[packet.name].add_packet(packet)
 
         # On successful read from queue, update curves
@@ -626,18 +627,12 @@ class ScopeWidget(qw.QWidget):
         return super().closeEvent(event)
 
 
-class _DummyQueue(deque):
+class _DummyQueue(Queue):
     def __init__(self):
         ...
 
-    def append(self, _):
+    def put(self, _):
         ...
 
-    def appendleft(self, _):
-        ...
-
-    def pop(self) -> None:
-        ...
-
-    def popleft(self) -> None:
+    def get(self) -> None:
         ...

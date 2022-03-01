@@ -24,8 +24,9 @@ to this point when two <CR><LF> are received
 
 from timeit import default_timer
 import pkg_resources
-from typing import Deque, Dict, Tuple, List
+from typing import Dict, Tuple, List
 from pathlib import Path
+from queue import Queue
 from dataclasses import asdict
 import threading
 import json
@@ -259,7 +260,7 @@ class TrignoClient:
         buf = recv_sz(self.emg_data_sock, 4 * 16)  # 16 devices, 4 byte float
         return struct.unpack("<ffffffffffffffff", buf)
 
-    def handle_stream(self, queue: Deque[Tuple[float]], savedir: Path = None):
+    def handle_stream(self, queue: Queue[Tuple[float]], savedir: Path):
         """
         If `queue` is passed, append data into the queue.
         If `savedir` is passed, write to `savedir/sensor_EMG.csv`.
@@ -273,13 +274,13 @@ class TrignoClient:
         )
         self.worker_thread.start()
 
-    def stream_worker(self, queue: Deque[Tuple[float]], savedir: Path = None):
+    def stream_worker(self, queue: Queue[Tuple[float]], savedir: Path = None):
         """
         Stream worker calls `recv_emg` continuously until `self.streaming = False`
         """
         if not savedir:
             while self.streaming:
-                queue.append(self.recv_emg())
+                queue.put(self.recv_emg())
         else:
             with open(Path(savedir) / "trigno_emg.csv", "w") as fp:
                 while self.streaming:
@@ -288,7 +289,7 @@ class TrignoClient:
                     except struct.error as e:
                         _print("Failed to parse packet", e)
                         continue
-                    queue.append(emg)
+                    queue.put(emg)
                     fp.write(",".join([str(v) for v in emg]) + "\n")
 
             self.save_meta(savedir / "trigno_meta.json")
@@ -311,7 +312,7 @@ class TrignoClient:
             tmp["idx2sensor"] = {
                 str(idx): asdict(self.sensors[idx]) for idx in self.sensor_idx
             }
-            tmp["start_time"] = self.start_time
+            tmp["start_time"] = self.start_time  # type: ignore
 
         with open(fpath, "w") as fp:
             json.dump(tmp, fp, indent=2)

@@ -1,11 +1,12 @@
 import struct
 import math
 import threading
+import multiprocessing
+import queue
 import time
-from collections import deque
 from pathlib import Path
 from timeit import default_timer
-from typing import Dict, Final, List, Optional, Tuple
+from typing import Dict, Final, List, Optional, Tuple, NamedTuple
 
 import serial
 import threespace_api as ts_api
@@ -29,6 +30,11 @@ RAD2DEG: Final = 180 / math.pi
 DeviceT = ts_api.TSDongle | ts_api._TSSensor
 DongleList = List[ts_api.TSDongle]
 SensorList = List[ts_api._TSSensor]
+
+
+class DongleStruct(NamedTuple):
+    port_name: str  # port name, e.g. "COM3"
+    wl_mp: Dict[int, str]  # mapping from logical ID to device name
 
 
 def discover_all_devices() -> Tuple[DongleList, SensorList, SensorList, SensorList]:
@@ -103,7 +109,7 @@ class YostDeviceManager:
         self.wired_sensors: SensorList = []
         self.wireless_sensors: SensorList = []
 
-        self._streaming: bool = False
+        self._done_streaming = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
         # Mapping[serial_number_hex, nickname]. Nickname defaults to serial_number_hex
@@ -151,7 +157,7 @@ class YostDeviceManager:
         _print(f"{serial_number_hex} nicknamed {name}")
         self._names[serial_number_hex] = name
 
-    def start_stream(self, queue: deque[Packet]):
+    def start_stream(self, queue: queue.Queue[Packet]):
         if not self.has_sensors():
             _print("No sensors found. Aborting stream")
             return
@@ -160,13 +166,11 @@ class YostDeviceManager:
 
         ### We use the threespace_api to setup/read/stop streaming for wired sensors
         ### For wireless sensors + dongles, we communicate with the dongle serial port directly
-
         ### Setup streaming for wireless sensors
         # As a workaround, destroy the TSDongle objects and create our own serial port
         # In the end of the streaming loop, recreate the TSDongle object by rediscovering devices
-        port_names: List[str] = []
-        ports: List[serial.Serial] = []
         wl_ids: List[int] = [s.serial_number for s in self.wireless_sensors]  # type: ignore
+        dongle_structs: List[DongleStruct] = []
 
         while self.dongles:
             dongle = self.dongles.pop()
@@ -177,115 +181,34 @@ class YostDeviceManager:
                     wl_mp[idx] = self.get_device_name(HEX.format(wl_id))
 
             port_name: str = dongle.serial_port.name  # type: ignore
-            port_names.append(port_name)
             self.close_device(dongle)
             del dongle
 
-            port = serial.Serial(port_name, 115200, timeout=1)
-            port.wl_mp = wl_mp  # type: ignore
-            ports.append(port)
-
-            logical_ids = list(wl_mp.keys())
-            start_dongle_streaming(port, logical_ids, int(1000_000 / self._fs))
-
-        ### Setup streaming for wired sensors
-        broadcaster = ts_api.global_broadcaster
-        broadcaster.setStreamingTiming(
-            interval=int(1000_000 / self._fs),
-            duration=0xFFFFFFFF,  # run indefinitely until stop command is issued
-            delay=500_000,  # session starts after 500ms delay
-            delay_offset=0,  # delay between devices
-            filter=self.wired_sensors,
-        )
-        broadcaster.setStreamingSlots(
-            slot0="getTaredOrientationAsEulerAngles",
-            slot1="getBatteryPercentRemaining",
-            filter=self.wired_sensors,
-        )
-        broadcaster.startStreaming(filter=self.wired_sensors)
+            dongle_structs.append(DongleStruct(port_name=port_name, wl_mp=wl_mp))
 
         _print("Start streaming")
-
-        # Orientation in Euler angles given in (pitch, yaw, roll)
-
-        def handle_stream():
-            """
-            Handle reading batch data from sensors and putting them into the queue
-            Should execute in a new thread
-            """
-            fps_packet_counter = 0
-            fps_start_time = default_timer()
-
-            try:
-                while self._streaming:
-                    now = default_timer()
-
-                    # read streaming batch from wired sensors
-                    for sensor in self.wired_sensors:
-                        b = sensor.getStreamingBatch()
-                        packet = Packet(
-                            pitch=b[0] * RAD2DEG,  # type: ignore
-                            yaw=b[1] * RAD2DEG,  # type: ignore
-                            roll=b[2] * RAD2DEG,  # type: ignore
-                            battery=b[3],  # type: ignore
-                            t=now,
-                            name=self._names[sensor.serial_number_hex],
-                        )
-                        queue.append(packet)
-                        fps_packet_counter += 1
-
-                    # read streaming batch from wireless sensors through
-                    # a dongle's serial port
-                    for port in ports:
-                        failed, logical_id, raw = read_dongle_port(port)
-                        if failed == 0 and raw and len(raw) == 13:
-                            b = struct.unpack(">fffB", raw)
-                            packet = Packet(
-                                pitch=b[0] * RAD2DEG,
-                                yaw=b[1] * RAD2DEG,
-                                roll=b[2] * RAD2DEG,
-                                battery=b[3],
-                                t=now,
-                                name=port.wl_mp[logical_id],  # type: ignore
-                            )
-                            queue.append(packet)
-                            fps_packet_counter += 1
-
-                    if fps_packet_counter % 1000 == 0:
-                        fps = fps_packet_counter / (now - fps_start_time)
-                        fps_start_time = now
-                        fps_packet_counter = 0
-                        _print(f"Throughput: {fps:.2f} packets/sec")
-
-            except Exception as e:
-                _print("[Streaming loop exception]", e)
-
-            except KeyboardInterrupt as e:
-                pass
-
-            finally:
-                _print("Yost streaming loop ended")
-                # stop wired sensor streaming
-                ts_api.global_broadcaster.stopStreaming(filter=self.wired_sensors)
-
-                # stop dongle streaming
-                for port in ports:
-                    stop_dongle_streaming(port, logical_ids)
-                    port.close()
-
-                time.sleep(0.2)
-                self.discover_devices()
-
-        self._streaming = True
-        self._thread = threading.Thread(target=handle_stream)
+        self._done_streaming.clear()
+        # self._thread = threading.Thread(target=handle_stream)
+        self._thread = threading.Thread(
+            target=_handle_stream,
+            args=(
+                queue,
+                self._done_streaming,
+                self._fs,
+                dongle_structs,
+                self.wired_sensors,
+                self._names,
+            ),
+        )
         self._thread.start()
 
     def stop_stream(self):
         _print("Stopping stream")
-        if self._thread and self._streaming:
-            self._streaming = False
+        if self._thread and not self._done_streaming.is_set():
+            self._done_streaming.set()
             self._thread.join()
             self._thread = None
+            self.discover_devices()
         _print("Stream stopped")
 
     def tare_all_devices(self):
@@ -335,6 +258,109 @@ class YostDeviceManager:
     def __del__(self):
         self.stop_stream()
         self.close_all_devices()
+
+
+def _handle_stream(
+    queue: queue.Queue[Packet],
+    done: threading.Event,
+    fs: int,
+    dongle_structs: List[DongleStruct],
+    wired_sensors,
+    _names: Dict[str, str],
+):
+    """
+    Handle reading batch data from sensors and putting them into the queue
+    Should execute in a new thread
+    """
+    ## Setup streaming
+    ports: List[serial.Serial] = []
+    for dstruct in dongle_structs:
+        port = serial.Serial(dstruct.port_name, 115200, timeout=1)
+        port.wl_mp = dstruct.wl_mp  # type: ignore
+        ports.append(port)
+
+        logical_ids = list(dstruct.wl_mp.keys())
+        # start_dongle_streaming(port, logical_ids, int(1000_000 / self._fs))
+        start_dongle_streaming(port, logical_ids, 0)
+
+    ### Setup streaming for wired sensors
+    broadcaster = ts_api.global_broadcaster
+    broadcaster.setStreamingTiming(
+        interval=int(1000_000 / fs),
+        duration=0xFFFFFFFF,  # run indefinitely until stop command is issued
+        delay=500_000,  # session starts after 500ms delay
+        delay_offset=0,  # delay between devices
+        filter=wired_sensors,
+    )
+    broadcaster.setStreamingSlots(
+        slot0="getTaredOrientationAsEulerAngles",
+        slot1="getBatteryPercentRemaining",
+        filter=wired_sensors,
+    )
+    broadcaster.startStreaming(filter=wired_sensors)
+    fps_packet_counter = 0
+    fps_start_time = default_timer()
+
+    # Orientation in Euler angles given in (pitch, yaw, roll)
+    try:
+        while not done.is_set():
+            now = default_timer()
+
+            # read streaming batch from wired sensors
+            for sensor in wired_sensors:
+                b = sensor.getStreamingBatch()
+                packet = Packet(
+                    pitch=b[0] * RAD2DEG,  # type: ignore
+                    yaw=b[1] * RAD2DEG,  # type: ignore
+                    roll=b[2] * RAD2DEG,  # type: ignore
+                    battery=b[3],  # type: ignore
+                    t=now,
+                    name=_names[sensor.serial_number_hex],
+                )
+                queue.put(packet)
+                fps_packet_counter += 1
+
+            # read streaming batch from wireless sensors through
+            # a dongle's serial port
+            for port in ports:
+                failed, logical_id, raw = read_dongle_port(port)
+                if failed == 0 and raw and len(raw) == 13:
+                    b = struct.unpack(">fffB", raw)
+                    packet = Packet(
+                        pitch=b[0] * RAD2DEG,
+                        yaw=b[1] * RAD2DEG,
+                        roll=b[2] * RAD2DEG,
+                        battery=b[3],
+                        t=now,
+                        name=port.wl_mp[logical_id],  # type: ignore
+                    )
+                    queue.put(packet)
+                    fps_packet_counter += 1
+
+            if fps_packet_counter % 1000 == 0:
+                fps = fps_packet_counter / (now - fps_start_time)
+                fps_start_time = now
+                fps_packet_counter = 0
+                _print(f"Throughput: {fps:.2f} packets/sec")
+
+    except Exception as e:
+        _print("[Streaming loop exception]", e)
+
+    except KeyboardInterrupt as e:
+        pass
+
+    finally:
+        _print("Yost streaming loop ended")
+        # stop wired sensor streaming
+        ts_api.global_broadcaster.stopStreaming(filter=wired_sensors)
+
+        # stop dongle streaming
+        for port in ports:
+            ds = [d for d in dongle_structs if d.port_name == port.name][0]
+            stop_dongle_streaming(port, list(ds.wl_mp.keys()))
+            port.close()
+
+        time.sleep(0.2)
 
 
 if __name__ == "__main__":

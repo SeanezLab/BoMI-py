@@ -1,7 +1,8 @@
 from __future__ import annotations
-from collections import defaultdict, deque
+from collections import defaultdict
 
-from typing import Deque, Dict, List, NamedTuple, Tuple
+from typing import Dict, List, NamedTuple, Tuple
+from queue import Queue
 from pathlib import Path
 from timeit import default_timer
 import traceback
@@ -61,7 +62,7 @@ class EMGScope(qw.QWidget, WindowMixin):
         self.savedir = savedir
 
         ### init data
-        self.queue: Deque[Tuple[float]] = deque()
+        self.queue: Queue[Tuple[float]] = Queue()
         self.buffer: DelsysBuffer = DelsysBuffer(10000, self.savedir)
 
         ### init UI
@@ -188,10 +189,10 @@ class EMGScope(qw.QWidget, WindowMixin):
 
     def update(self):
         q = self.queue
-        qsize = len(q)
+        qsize = q.qsize()
 
         if qsize:
-            self.buffer.add_packets(np.array([q.popleft() for _ in range(qsize)]))
+            self.buffer.add_packets(np.array([q.get() for _ in range(qsize)]))
 
         now = default_timer()
         x = -(now - self.buffer.timestamp)
@@ -209,7 +210,7 @@ class TrignoSensor(qw.QWidget):
     CLR_CONNECTED = COLORS.GREEN
     CLR_DISCONNECTED = Qt.gray
 
-    sigDataChanged: qc.SignalInstance = qc.Signal()
+    sigDataChanged: qc.SignalInstance = qc.Signal()  # type: ignore
 
     def __init__(self, sensor: EMGSensor | None, meta: EMGSensorMeta | None, idx: int):
         super().__init__()
@@ -327,7 +328,7 @@ class TrignoWidget(qw.QWidget, WindowMixin):
             try:
                 li = self.grid_layout.takeAt(0)
                 w = li.widget()
-                w.setParent(None)
+                w.setParent(None)  # type: ignore
                 w.deleteLater()
             except Exception:
                 break
