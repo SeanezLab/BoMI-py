@@ -97,9 +97,9 @@ class TrignoClient:
 
         self.sensor_meta: Dict[str, EMGSensorMeta] = {}  # Mapping[serial, meta]
 
-        self.streaming: bool = False
         self.start_time = 0.0
-        self.worker_thread: threading.Thread | None = None
+        self._done_streaming = threading.Event()
+        self._worker_thread: threading.Thread | None = None
 
     def __call__(self, cmd: str):
         return self.send_cmd(cmd)
@@ -245,11 +245,11 @@ class TrignoClient:
         assert self.connected
         self.send_cmd("START")
         self.start_time = default_timer()
-        self.streaming = True
+        self._done_streaming.clear()
 
     def stop_stream(self):
-        self.streaming = False
-        self.worker_thread and self.worker_thread.join()
+        self._done_streaming.set()
+        self._worker_thread and self._worker_thread.join()
         if self.connected:
             self.send_cmd("STOP")
 
@@ -269,21 +269,21 @@ class TrignoClient:
         assert self.connected
         self.start_stream()
         self.save_meta(savedir / "trigno_meta.json")
-        self.worker_thread = threading.Thread(
+        self._worker_thread = threading.Thread(
             target=self.stream_worker, args=(queue, savedir)
         )
-        self.worker_thread.start()
+        self._worker_thread.start()
 
     def stream_worker(self, queue: Queue[Tuple[float]], savedir: Path = None):
         """
         Stream worker calls `recv_emg` continuously until `self.streaming = False`
         """
         if not savedir:
-            while self.streaming:
+            while not self._done_streaming.is_set():
                 queue.put(self.recv_emg())
         else:
             with open(Path(savedir) / "trigno_emg.csv", "w") as fp:
-                while self.streaming:
+                while not self._done_streaming.is_set():
                     try:
                         emg = self.recv_emg()
                     except struct.error as e:
