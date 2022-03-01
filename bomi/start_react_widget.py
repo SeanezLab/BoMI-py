@@ -6,7 +6,7 @@ import random
 import traceback
 from pathlib import Path
 from timeit import default_timer
-from typing import List, NamedTuple, Tuple
+from typing import Callable, List, NamedTuple, Tuple
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
@@ -48,10 +48,18 @@ class SRConfig:
     Configuration for a StartReact task
     """
 
-    HOLD_TIME: int = field(default=500, metadata=dict(range=(500, 5000)))  # msec
-    PAUSE_MIN: int = field(default=2000, metadata=dict(range=(500, 5000)))  # msec
-    PAUSE_RANDOM: int = field(default=0000, metadata=dict(range=(0, 5000)))  # msec
-    N_TRIALS: int = field(default=10, metadata=dict(range=(1, 40), name="No. Trials"))
+    HOLD_TIME: int = field(
+        default=500, metadata=dict(range=(500, 5000), name="Hold Time (ms)")
+    )  # msec
+    PAUSE_MIN: int = field(
+        default=2000, metadata=dict(range=(500, 5000), name="Pause Min (ms)")
+    )  # msec
+    PAUSE_RANDOM: int = field(
+        default=0000, metadata=dict(range=(0, 5000), name="Pause Random (ms)")
+    )  # msec
+    N_TRIALS: int = field(
+        default=10, metadata=dict(range=(1, 40), name="No. Trials per cue")
+    )
 
     tone_frequency: int = field(
         default=500, metadata=dict(range=(1, 1000), name="Tone Frequency (Hz)")
@@ -124,7 +132,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         main_layout.addWidget(self.start_stop_btn, 7, 0, 1, 2)
 
         ### Task states
-        self.n_trials_left = 0
+        self._trials_left: List[Callable[..., None]] = []
         self.curr_state = self.IDLE
         self.state_bg_timer = qc.QTimer()  # timer to reset widget background
         self.state_bg_timer.setSingleShot(True)
@@ -208,15 +216,8 @@ class SRDisplay(TaskDisplay, WindowMixin):
         Send a signal to the subject to begin doing the task
         Schedule the end of the trial
         """
-        if self.n_trials_left > 0:  # check if done
-            self.n_trials_left -= 1
-            random.choice(
-                (
-                    self.send_visual_signal,
-                    self.send_visual_auditory_signal,
-                    self.send_visual_startling_signal,
-                )
-            )()
+        if self._trials_left:  # check if done
+            self._trials_left.pop()()
 
     @qc.Slot()  # type: ignore
     def one_trial_end(self):
@@ -225,7 +226,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """
         self.emit_end()
         self.set_state(self.SUCCESS)
-        if self.n_trials_left <= 0:
+        if not self._trials_left:
             self.end_block()
 
     def begin_block(self):
@@ -233,13 +234,19 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
         Begin sending random {visual, visual + auditory, visual + startling} to the subject per trial,
         each trial lasting 3 seconds.
-        Wait a random amount of time before starting the next trial until we finish `n_trials_left`
+        Wait a random amount of time before starting the next trial until we finish all `_trials_left`
         """
         _print("Begin block")
         self.task_history.write(f"begin_block t={default_timer()}\n")
         self.start_stop_btn.setText(self.BTN_END_TXT)
         self.progress_bar.setValue(0)
-        self.n_trials_left = self.config.N_TRIALS
+
+        self._trials_left = []
+        self._trials_left += [self.send_visual_signal] * self.config.N_TRIALS
+        self._trials_left += [self.send_visual_auditory_signal] * self.config.N_TRIALS
+        self._trials_left += [self.send_visual_startling_signal] * self.config.N_TRIALS
+        random.shuffle(self._trials_left)
+
         self.set_state(self.WAIT)
         self.timer_one_trial_begin.start(self.get_random_wait_time())
 
@@ -249,7 +256,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self._task_stack.clear()
 
         self.start_stop_btn.setText(self.BTN_START_TXT)
-        self.n_trials_left = 0
+        self._trials_left = []
         self.progress_animation.stop()
         self.progress_bar.setValue(0)
         self.set_state(self.TASK_DONE)
@@ -268,24 +275,24 @@ class SRDisplay(TaskDisplay, WindowMixin):
             if self.curr_state == self.GO and not self.timer_one_trial_end.isActive():
                 self.timer_one_trial_end.start(self.config.HOLD_TIME)
                 self.progress_animation.start()
-            _print("Enter target")
+            # _print("Enter target")
 
         elif event == TaskEvent.EXIT_TARGET:
             # stop timer
             self.timer_one_trial_end.stop()
             self.progress_animation.stop()
             self.progress_bar.setValue(0)
-            _print("Exit target")
+            # _print("Exit target")
 
         elif event == TaskEvent.ENTER_BASE:
             if self.curr_state == self.SUCCESS:
                 self.set_state(self.WAIT)
-                if self.n_trials_left > 0:
+                if self._trials_left:
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
-            _print("Enter base")
+            # _print("Enter base")
 
-        elif event == TaskEvent.EXIT_BASE:
-            _print("Exit base")
+        # elif event == TaskEvent.EXIT_BASE:
+        # _print("Exit base")
 
     def emit_begin(self, event_name: str):
         self.sigTrialBegin.emit()
@@ -304,9 +311,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
 class StartReactWidget(qw.QWidget, WindowMixin):
     """GUI to manage StartReact tasks"""
 
-    def __init__(
-        self, device_manager: YostDeviceManager, trigno_client: TrignoClient = None
-    ):
+    def __init__(self, device_manager: YostDeviceManager, trigno_client: TrignoClient):
         super().__init__()
         self.dm = device_manager
         self.trigno_client = trigno_client
@@ -330,7 +335,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             dialog_box=True,
         )
         self.config_btn = qw.QPushButton("Configure")
-        self.config_btn.clicked.connect(lambda: self.config_widget.show())
+        self.config_btn.clicked.connect(self.config_widget.show)  # type: ignore
         main_layout.addWidget(self.config_btn)
 
         self.audio_calib = AudioCalibrationWidget()
