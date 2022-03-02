@@ -161,11 +161,13 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.auditory_tone = TonePlayer(
             self.config.tone_frequency, self.config.tone_duration
         )
-        self.auditory_tone.set_volume(self.config.auditory_volume)
+        self.auditory_tone.effect.setVolume(self.config.auditory_volume / 100)
+        print("Auditory volume", self.config.auditory_volume)
         self.startle_tone = TonePlayer(
             self.config.tone_frequency, self.config.tone_duration
         )
-        self.startle_tone.set_volume(self.config.startle_volume)
+        self.startle_tone.effect.setVolume(self.config.startle_volume / 100)
+        print("Startle volume", self.config.startle_volume)
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         self.timer_one_trial_begin.stop()
@@ -202,11 +204,13 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.set_state(self.GO)
 
     def send_visual_auditory_signal(self):
+        # self.auditory_tone.effect.setVolume(self.config.auditory_volume/100)
         self.auditory_tone.play()
         self.emit_begin("visual_auditory")
         self.set_state(self.GO)
 
     def send_visual_startling_signal(self):
+        # self.startle_tone.effect.setVolume(self.config.startle_volume/100)
         self.startle_tone.play()
         self.emit_begin("visual_startling")
         self.set_state(self.GO)
@@ -249,6 +253,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self._trials_left += [self.send_visual_signal] * self.config.N_TRIALS
         self._trials_left += [self.send_visual_auditory_signal] * self.config.N_TRIALS
         self._trials_left += [self.send_visual_startling_signal] * self.config.N_TRIALS
+        random.shuffle(self._trials_left)
         random.shuffle(self._trials_left)
 
         self.set_state(self.WAIT)
