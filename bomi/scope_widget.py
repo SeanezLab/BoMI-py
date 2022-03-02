@@ -525,6 +525,7 @@ class ScopeWidget(qw.QWidget):
 
             self.task_widget.sigTrialBegin.connect(_trial_begin)
             self.task_widget.sigTrialEnd.connect(_trial_end)
+            self.task_widget.config.to_disk(self.savedir)  # type: ignore
 
         ### apply other config
         config = self.config
@@ -601,7 +602,7 @@ class ScopeWidget(qw.QWidget):
             tmin, tmax = self.target_range
             bmin, bmax = self.base_range
             for name in self.dev_names:
-                angle = self.buffers[name].data[-1, -1]
+                angle = self.buffers[name].last_angle
 
                 if self.last_state == AngleState.IN_TARGET:
                     if not tmin <= angle <= tmax:

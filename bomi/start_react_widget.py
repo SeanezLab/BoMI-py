@@ -73,7 +73,7 @@ class SRConfig:
     def to_disk(self, savedir: Path):
         "Write metadata to `savedir`"
         with (savedir / "start_react_config.json").open("w") as fp:
-            json.dump(asdict(self), fp)
+            json.dump(asdict(self), fp, indent=2)
 
 
 class SRDisplay(TaskDisplay, WindowMixin):
@@ -118,7 +118,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
         self.progress_bar = qw.QProgressBar()
         self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(100)
+        self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(False)
         self.progress_animation = qc.QPropertyAnimation(self, b"pval")
         self.progress_animation.setDuration(self.config.HOLD_TIME)

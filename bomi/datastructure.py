@@ -70,6 +70,9 @@ class YostBuffer:
         # name of this device
         self.name: str = name
 
+        self._angle_in_use: int = -1  # idx of the labelled angle in use
+        self.last_angle: float = 0.0  # angle used for task purposes
+
         self.savedir: Path = savedir
         header = ",".join(("t", *self.LABELS)) + "\n"
         self.sensor_fp.write(header)
@@ -98,6 +101,8 @@ class YostBuffer:
         self.data[-1] = _packet
         self.timestamp[:-1] = self.timestamp[1:]
         self.timestamp[-1] = packet.t
+
+        self.last_angle = _packet[self._angle_in_use]
 
 
 class DelsysBuffer:
