@@ -467,6 +467,8 @@ class ScopeWidget(qw.QWidget):
             self.buffers[dev] = YostBuffer(
                 bufsize=self.init_bufsize, savedir=self.savedir, name=dev
             )
+            if self.task_widget:
+                self.buffers[dev].set_angle_type(self.task_widget.config.angle_type)  # type: ignore
 
     def init_ui(self):
         ### Init UI

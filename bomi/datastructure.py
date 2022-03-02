@@ -84,6 +84,10 @@ class YostBuffer:
         "Close open file pointers"
         self.sensor_fp.close()
 
+    def set_angle_type(self, label: str):
+        i = self.LABELS.index(label)
+        self._angle_in_use = i
+
     def add_packet(self, packet: Packet):
         "Add `Packet` of sensor data"
         _packet = (

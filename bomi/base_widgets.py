@@ -62,8 +62,11 @@ def generate_edit_form(
 
     Implemented types, their corresponding QWidget and the metadata keys
 
-    (str) - QLineEdit
+    (str) - QLineEdit (default for str, if 'completion' present)
         - metadata: dict(name=str, completion=[str])
+
+    (str) - QComboBox (used if 'options' present)
+        - metadata: dict(name=str, options=[str])
 
     (int) - QSpinBox
         - metadata: dict(name=str, range=(int, int), step=int)
@@ -80,6 +83,14 @@ def generate_edit_form(
 
     fields: Dict[str, Field] = dc.__dataclass_fields__  # type: ignore
     widgets: Dict[str, qw.QWidget] = {}
+
+    def accept_QComboBox(key: str):
+        combo: qw.QComboBox = widgets[key]  # type: ignore
+        setattr(dc, key, combo.currentText())
+
+    def reject_QComboBox(key: str):
+        combo: qw.QComboBox = widgets[key]  # type: ignore
+        combo.setCurrentText(fields[key].default)
 
     def accept_QLineEdit(key: str):
         le: qw.QLineEdit = widgets[key]  # type: ignore
@@ -102,18 +113,31 @@ def generate_edit_form(
 
     for key, field in fields.items():
         if field.type == "str":
-            widget = qw.QLineEdit(getattr(dc, key))
-            widgets[key] = widget
-            if "completion" in field.metadata:
-                model = qc.QStringListModel()
-                model.setStringList(field.metadata["completion"])
-                completer = qw.QCompleter()
-                completer.setModel(model)
-                widget.setCompleter(completer)
-            widget.setText(getattr(dc, key))
 
-            accept_cbs.append(partial(accept_QLineEdit, key))
-            reject_cbs.append(partial(reject_QLineEdit, key))
+            if "options" in field.metadata:
+                # if 'options' available, use QComboBox
+                widget = qw.QComboBox()
+                widget.addItems(field.metadata["options"])
+                widget.setCurrentText(getattr(dc, key))
+                widgets[key] = widget
+
+                accept_cbs.append(partial(accept_QComboBox, key))
+                reject_cbs.append(partial(reject_QComboBox, key))
+
+            else:
+                # by default use QLineEdit for str type
+                widget = qw.QLineEdit(getattr(dc, key))
+                widgets[key] = widget
+                if "completion" in field.metadata:
+                    model = qc.QStringListModel()
+                    model.setStringList(field.metadata["completion"])
+                    completer = qw.QCompleter()
+                    completer.setModel(model)
+                    widget.setCompleter(completer)
+                widget.setText(getattr(dc, key))
+
+                accept_cbs.append(partial(accept_QLineEdit, key))
+                reject_cbs.append(partial(reject_QLineEdit, key))
 
         elif field.type in ("float", "int"):
             widget = qw.QSpinBox() if field.type == "int" else qw.QDoubleSpinBox()

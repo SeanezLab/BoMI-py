@@ -14,7 +14,7 @@ import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
 from bomi.base_widgets import TaskEvent, TaskDisplay, TaskEvent, generate_edit_form
-from bomi.datastructure import get_savedir
+from bomi.datastructure import YostBuffer, get_savedir
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
@@ -69,6 +69,10 @@ class SRConfig:
     )
     auditory_volume: int = field(default=1, metadata=dict(range=(1, 100)))
     startle_volume: int = field(default=100, metadata=dict(range=(1, 100)))
+
+    angle_type: str = field(
+        default=YostBuffer.LABELS[-1], metadata=dict(options=YostBuffer.LABELS)
+    )
 
     def to_disk(self, savedir: Path):
         "Write metadata to `savedir`"
@@ -363,6 +367,15 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         if not self.check_sensors():
             return
 
+        # refer to YostBuffer.LABELS for these
+        show_roll = self.config.angle_type == "Roll"
+        show_pitch = self.config.angle_type == "Pitch"
+        show_yaw = self.config.angle_type == "Yaw"
+        show_rollpitch = self.config.angle_type == "abs(roll) + abs(pitch)"
+        assert (
+            sum([show_roll, show_pitch, show_yaw, show_rollpitch]) == 1
+        ), f"SRConfig: Unknown angle_type: {self.config.angle_type}"
+
         scope_config = ScopeConfig(
             window_title="Precision",
             show_scope_params=True,
@@ -370,9 +383,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             target_range=(35, 40),
             base_show=True,
             yrange=(0, 90),
-            show_roll=False,
-            show_pitch=False,
-            show_yaw=False,
+            show_roll=show_roll,
+            show_pitch=show_pitch,
+            show_yaw=show_yaw,
+            show_rollpitch=show_rollpitch,
         )
 
         savedir = get_savedir("Precision")  # savedir to write all data
@@ -396,6 +410,15 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         if not self.check_sensors():
             return
 
+        # refer to YostBuffer.LABELS for these
+        show_roll = self.config.angle_type == "Roll"
+        show_pitch = self.config.angle_type == "Pitch"
+        show_yaw = self.config.angle_type == "Yaw"
+        show_rollpitch = self.config.angle_type == "abs(roll) + abs(pitch)"
+        assert (
+            sum([show_roll, show_pitch, show_yaw, show_rollpitch]) == 1
+        ), f"SRConfig: Unknown angle_type: {self.config.angle_type}"
+
         scope_config = ScopeConfig(
             window_title="MaxROM",
             show_scope_params=True,
@@ -403,9 +426,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             target_range=(70, 120),
             base_show=True,
             yrange=(0, 110),
-            show_roll=False,
-            show_pitch=False,
-            show_yaw=False,
+            show_roll=show_roll,
+            show_pitch=show_pitch,
+            show_yaw=show_yaw,
+            show_rollpitch=show_rollpitch,
         )
 
         savedir = get_savedir("MaxROM")  # savedir to write all data
