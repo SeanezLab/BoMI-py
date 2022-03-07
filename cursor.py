@@ -27,7 +27,7 @@ class CursorControl(qw.QWidget, WindowMixin):
 
         self.quitAct = qg.QAction("Exit", self)
         self.quitAct.setShortcut("esc")
-        self.quitAct.triggered.connect(self.close)
+        self.quitAct.triggered.connect(self.close)  # type: ignore
 
         self.savedir = get_savedir("CursorControl")
 
@@ -41,7 +41,7 @@ class CursorControl(qw.QWidget, WindowMixin):
         # Cursor control
         self.timer = qc.QTimer()
         self.timer.setInterval(10)
-        self.timer.timeout.connect(self.update)
+        self.timer.timeout.connect(self.update)  # type: ignore
         self.fps_counter = 0
         self.fps_last_time = default_timer()
 
@@ -68,11 +68,11 @@ class CursorControl(qw.QWidget, WindowMixin):
         layout = qw.QVBoxLayout(gb)
 
         self.calib_btn = qw.QPushButton("Calibrate Cursor Control")
-        self.calib_btn.clicked.connect(self.start_calibration)
+        self.calib_btn.clicked.connect(self.start_calibration)  # type: ignore
         layout.addWidget(self.calib_btn)
 
         self.toggle_btn = qw.QPushButton("Start Cursor Control")
-        self.toggle_btn.clicked.connect(self.toggle_cursor_control)
+        self.toggle_btn.clicked.connect(self.toggle_cursor_control)  # type: ignore
         layout.addWidget(self.toggle_btn)
 
     def start_calibration(self):
