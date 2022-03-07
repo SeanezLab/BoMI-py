@@ -204,3 +204,13 @@ def generate_edit_form(
         button_box.rejected.connect(reject)  # type: ignore
 
         return widget
+
+
+def wrap_gb(name: str, *widgets: qw.QWidget):
+    "Wrap widgets in a QGroupBox"
+    gb = qw.QGroupBox(name)
+    layout = qw.QVBoxLayout()
+    for widget in widgets:
+        layout.addWidget(widget)
+    gb.setLayout(layout)
+    return gb

@@ -13,22 +13,13 @@ from bomi.sample_3d_widget import Sample3DWidget
 from bomi.sample_plot_widget import SamplePlotWidget
 from bomi.start_react_widget import StartReactWidget
 from bomi.window_mixin import WindowMixin
+from bomi.base_widgets import wrap_gb
 from bomi.version import __version__
 
 from bomi.device_managers.trigno_widget import TrignoWidget, TrignoClient
 
 __appname__ = "BoMI"
 __all__ = ["MainWindow", "main"]
-
-
-def wrap_gb(name: str, *widgets: qw.QWidget):
-    "Wrap widgets in a QGroupBox"
-    gb = qw.QGroupBox(name)
-    layout = qw.QVBoxLayout()
-    for widget in widgets:
-        layout.addWidget(widget)
-    gb.setLayout(layout)
-    return gb
 
 
 class MainWindow(qw.QMainWindow, WindowMixin):

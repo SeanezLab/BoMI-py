@@ -193,7 +193,6 @@ class ScopeWidget(qw.QWidget):
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
         self.init_bufsize = 2500  # buffer size
         self.buffers: Dict[str, YostBuffer] = {}
-        self.meta = SubjectMetadata()
 
         self.last_state: AngleState = (
             AngleState.OUTSIDE
