@@ -16,6 +16,7 @@ def set_spinbox(
     step_size: float,
     range: Tuple[float, float],
 ) -> T:
+    "Util func to set the parameters of a QSpinBox"
     spin_box.setSingleStep(step_size)  # type: ignore
     spin_box.setRange(*range)  # type: ignore
     spin_box.setValue(value)  # type: ignore
@@ -23,6 +24,10 @@ def set_spinbox(
 
 
 class TaskEvent(Enum):
+    """
+    Angle matching task event types
+    """
+
     OUTSIDE = 0
     ENTER_TARGET = 1
     EXIT_TARGET = 2
@@ -31,6 +36,11 @@ class TaskEvent(Enum):
 
 
 class TaskDisplay(qw.QWidget):
+    """
+    Angle matching task display widget
+    provides signals for communication with a Scope
+    """
+
     # emits (event_name) of key events in task for logging purposes
     sigTrialBegin: qc.SignalInstance = qc.Signal()  # type: ignore
     sigTrialEnd: qc.SignalInstance = qc.Signal()  # type: ignore

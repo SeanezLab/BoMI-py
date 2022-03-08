@@ -304,7 +304,7 @@ class TrignoClient:
         self.sensor_idx = []
         self.sensors = []
 
-    def save_meta(self, fpath: Path, slim=False):
+    def save_meta(self, fpath: Path | str, slim=False):
         """Save metadata as JSON to fpath"""
         tmp = {k: asdict(v) for k, v in self.sensor_meta.items()}
 

@@ -1,3 +1,6 @@
+"""
+GUI for the Trigno SDK Client
+"""
 from __future__ import annotations
 from collections import defaultdict
 
@@ -26,6 +29,7 @@ def _print(*args):
     print("[TrignoDeviceManager]", *args)
 
 
+# Muscle names for autocompletion
 MUSCLES = (
     "RF (Rectus Femoris)",
     "ST (Semitendinosus)",
@@ -35,24 +39,19 @@ MUSCLES = (
 )
 
 
-class COLORS:
-    RED = qg.QColor(253, 0, 58)  # red
-    GREEN = qg.QColor(25, 222, 193)  # green/cyan
-    BLUE = qg.QColor(19, 10, 241)  # dark blue
-    ORANGE = qg.QColor(254, 136, 33)  # orange
-    PURPLE = qg.QColor(177, 57, 255)  # purple
-
-
-class PlotHandle(NamedTuple):
-    plot: pg.PlotItem | pg.ViewBox
-    curve: pg.PlotCurveItem
-
-
 class EMGLayoutError(ValueError):
     ...
 
 
 class EMGScope(qw.QWidget, WindowMixin):
+    """
+    Visualizer for EMG data.
+
+    Auto arranges the layout based on muscle name using `calc_layout`.
+    The left and right sides of the same muscle will be placed side by side on the same row.
+    Different muscles will be placed on separate rows
+    """
+
     sigNameChanged: qc.SignalInstance = qc.Signal()  # type: ignore
 
     def __init__(self, dm: TrignoClient, savedir: Path):
@@ -108,7 +107,7 @@ class EMGScope(qw.QWidget, WindowMixin):
         """
         _layout = self.calc_layout()
 
-        self.plot_handles: Dict[int, PlotHandle] = {}
+        self.plot_handles: Dict[int, _PlotHandle] = {}
         plot_style = {"color": "k"}  # label style
 
         def _setup_emg_plot(plot: pg.PlotItem, idx: int):
@@ -118,7 +117,7 @@ class EMGScope(qw.QWidget, WindowMixin):
             plot.setDownsampling(mode="peak")
 
             curve = plot.plot()
-            self.plot_handles[idx] = PlotHandle(plot=plot, curve=curve)
+            self.plot_handles[idx] = _PlotHandle(plot=plot, curve=curve)
 
         pairs: List[Tuple[int, int]] = []
         singles: List[int] = []
@@ -139,22 +138,6 @@ class EMGScope(qw.QWidget, WindowMixin):
         for idx in singles:
             _setup_emg_plot(self.glw.addPlot(row=row, col=0, colspan=2), idx)
             row += 1
-
-        # for row, mp in enumerate(_layout.values()):
-        # if mp["N/A"]:
-        # idx = mp["N/A"]
-        # plot: pg.PlotItem = self.glw.addPlot(row=row, col=0, colspan=2)
-        # _setup_emg_plot(plot, idx)
-        # else:
-        # if mp["L"]:
-        # idx = mp["L"]
-        # plot: pg.PlotItem = self.glw.addPlot(row=row, col=0, colspan=1)
-        # _setup_emg_plot(plot, idx)
-
-        # if mp["R"]:
-        # idx = mp["R"]
-        # plot: pg.PlotItem = self.glw.addPlot(row=row, col=1, colspan=1)
-        # _setup_emg_plot(plot, idx)
 
         def update_title():
             "Update plot titles according to the sensor metadata"
@@ -207,7 +190,12 @@ class EMGScope(qw.QWidget, WindowMixin):
 
 
 class TrignoSensor(qw.QWidget):
-    CLR_CONNECTED = COLORS.GREEN
+    """
+    QWidget representing one Trigno sensor on the grid GUI to display sensor status
+    Allows modifying the muscle name for each sensor.
+    """
+
+    CLR_CONNECTED = qg.QColor(25, 222, 193)
     CLR_DISCONNECTED = Qt.gray
 
     sigDataChanged: qc.SignalInstance = qc.Signal()  # type: ignore
@@ -278,7 +266,9 @@ class TrignoSensor(qw.QWidget):
 
 
 class TrignoWidget(qw.QWidget, WindowMixin):
-    """A GUI for the Trigno SDK Client"""
+    """
+    A GUI for the Trigno SDK Client
+    """
 
     def __init__(self, trigno_client: TrignoClient = None):
         super().__init__()
@@ -358,6 +348,7 @@ class TrignoWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()  # type: ignore
     def connect(self):
+        "Try to connect to the Trigno base station"
         with pg.BusyCursor():
             self.trigno_client.connect()
         self.update_status()
@@ -376,7 +367,7 @@ class TrignoWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()  # type: ignore
     def start_data_scope(self):
-        ## Start scope here.
+        "Try to start the EMG scope here."
         if not self.trigno_client.connected:
             return self.error_dialog("Trigno Base Station: Not connected.")
 
@@ -394,6 +385,11 @@ class TrignoWidget(qw.QWidget, WindowMixin):
         except Exception as e:
             _print(traceback.format_exc())
             self.trigno_client.stop_stream()
+
+
+class _PlotHandle(NamedTuple):
+    plot: pg.PlotItem | pg.ViewBox
+    curve: pg.PlotCurveItem
 
 
 if __name__ == "__main__":

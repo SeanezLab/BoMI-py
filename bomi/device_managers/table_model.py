@@ -1,10 +1,15 @@
+"""
+Implements a QAbstractTableModel for the Yost device manager GUI
+"""
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, TypeVar
 from dataclasses import dataclass, field
 
 import PySide6.QtCore as qc
 from PySide6.QtCore import Qt
+
+T = TypeVar("T")
 
 
 class TableModel(qc.QAbstractTableModel):
@@ -87,21 +92,20 @@ class TableModel(qc.QAbstractTableModel):
         return Qt.ItemFlags(flags)
 
 
-T = TypeVar("T")
 SetterT = Callable[[T, Any], None]
 GetterT = Callable[[T], Any]
 
 
 @dataclass
-class ColumnProps:
+class ColumnProps(Generic[T]):
     name: str
     dtype: Callable
-    get: Optional[GetterT] = None
-    set: Optional[SetterT] = None
+    get: Optional[GetterT[T]] = None
+    set: Optional[SetterT[T]] = None
     editable: bool = False
     _val: Dict[T, Any] = field(default_factory=dict)  # cache
 
-    def use_getter(self, getter: GetterT) -> ColumnProps:
+    def use_getter(self, getter: GetterT[T]) -> ColumnProps:
         def _getter(dev: T):
             if dev in self._val:
                 return self._val[dev]
@@ -111,7 +115,7 @@ class ColumnProps:
         self.get = _getter
         return self
 
-    def use_setter(self, setter: SetterT) -> ColumnProps:
+    def use_setter(self, setter: SetterT[T]) -> ColumnProps:
         def _setter(dev: T, val: Any):
             setter(dev, self.dtype(val))
             del self._val[dev]
@@ -121,7 +125,7 @@ class ColumnProps:
         return self
 
 
-def make_getter(attr: str, default=None) -> GetterT:
+def make_getter(attr: str, default=None) -> GetterT[T]:
     def _getter(dev: T) -> Any:
         if hasattr(dev, attr):
             return getattr(dev, attr)()
@@ -130,14 +134,14 @@ def make_getter(attr: str, default=None) -> GetterT:
     return _getter
 
 
-def prop_getter(attr: str, default=None) -> GetterT:
+def prop_getter(attr: str, default=None) -> GetterT[T]:
     def _getter(dev: T) -> Any:
         return getattr(dev, attr, default)
 
     return _getter
 
 
-def make_setter(attr: str) -> SetterT:
+def make_setter(attr: str) -> SetterT[T]:
     def _setter(dev: T, val: Any):
         if hasattr(dev, attr):
             getattr(dev, attr)(val)
