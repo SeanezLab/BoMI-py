@@ -19,10 +19,12 @@ def _print(*args):
     print("[Cursor Control]", *args)
 
 
-class CursorControl(qw.QWidget, WindowMixin):
-    def __init__(self):
+class CursorControlWidget(qw.QWidget, WindowMixin):
+    def __init__(self, dm: YostDeviceManager = None, show_device_manager=True):
         super().__init__()
-        self.dm = YostDeviceManager()
+        self.setWindowTitle("Cursor Control")
+        self.dm = dm if dm else YostDeviceManager()
+        self.show_device_manager = show_device_manager
         self.init_ui()
 
         self.quitAct = qg.QAction("Exit", self)
@@ -56,11 +58,12 @@ class CursorControl(qw.QWidget, WindowMixin):
     def init_ui(self):
         main_layout = qw.QVBoxLayout(self)
 
-        l = qw.QLabel(self, text="BoMI 🚶", alignment=qc.Qt.AlignCenter)  # type: ignore
-        main_layout.addWidget(l)
+        if self.show_device_manager:
+            l = qw.QLabel(self, text="BoMI 🚶", alignment=qc.Qt.AlignCenter)  # type: ignore
+            main_layout.addWidget(l)
 
-        ### Device manager group
-        main_layout.addWidget(wrap_gb("Yost Device Manager", YostWidget(self.dm)))
+            ### Device manager group
+            main_layout.addWidget(wrap_gb("Yost Device Manager", YostWidget(self.dm)))
 
         ### Cursor Control
         gb = qw.QGroupBox("Cursor Control")
@@ -112,9 +115,13 @@ class CursorControl(qw.QWidget, WindowMixin):
             for name, buffer in sw.buffers.items():
                 ...
 
+    def stop(self):
+        if self.running:
+            return self.toggle_cursor_control()
+
     def keyPressEvent(self, event: qg.QKeyEvent):
-        if event.key() == Qt.Key_Escape:
-            return self.close()
+        if self.running and event.key() == Qt.Key_Escape:
+            return self.toggle_cursor_control()
         return super().keyPressEvent(event)
 
     def closeEvent(self, event: qg.QCloseEvent):
@@ -128,6 +135,9 @@ class CursorControl(qw.QWidget, WindowMixin):
             self.toggle_btn.setText("Start Cursor Control")
             self.end_cursor_control()
         else:
+            if not self.dm.has_sensors():
+                return self.no_yost_sensors_error()
+
             self.running = True
             self.toggle_btn.setText("End Cursor Control")
             self.start_cursor_control()
@@ -184,6 +194,6 @@ class CursorControl(qw.QWidget, WindowMixin):
 
 if __name__ == "__main__":
     app = qw.QApplication()
-    win = CursorControl()
+    win = CursorControlWidget()
     win.show()
     app.exec()

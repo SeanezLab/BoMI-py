@@ -7,13 +7,11 @@ from PySide6.QtCore import Qt
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.device_managers.yost_widget import YostWidget
 
-from bomi.painter_widget import PainterWidget
 from bomi.reaching_widget import ReachingWidget
-from bomi.sample_3d_widget import Sample3DWidget
-from bomi.sample_plot_widget import SamplePlotWidget
 from bomi.start_react_widget import StartReactWidget
 from bomi.window_mixin import WindowMixin
 from bomi.base_widgets import wrap_gb
+from bomi.cursor import CursorControlWidget
 from bomi.version import __version__
 
 from bomi.device_managers.trigno_widget import TrignoWidget, TrignoClient
@@ -69,19 +67,14 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         btn_reach = qw.QPushButton(text="Reaching")
         btn_reach.clicked.connect(partial(self.start_widget, ReachingWidget()))  # type: ignore
 
-        btn_paint = qw.QPushButton(text="Painter")
-        btn_paint.clicked.connect(partial(self.start_widget, PainterWidget()))  # type: ignore
+        hsplit.addWidget(wrap_gb("Cursor Tasks", btn_reach))
 
-        hsplit.addWidget(wrap_gb("Cursor Tasks", btn_reach, btn_paint))
-
-        ### Misc group
-        btn2 = qw.QPushButton(text="Show sample plot")
-        btn2.clicked.connect(partial(self.start_widget, SamplePlotWidget()))  # type: ignore
-
-        btn3 = qw.QPushButton(text="Show sample 3D plot")
-        btn3.clicked.connect(partial(self.start_widget, Sample3DWidget()))  # type: ignore
-
-        hsplit.addWidget(wrap_gb("Others", btn2, btn3))
+        ### Cursor Control group
+        self.cursor_control = CursorControlWidget(
+            dm=self.yost_dm, show_device_manager=False
+        )
+        hsplit.addWidget(self.cursor_control)
+        self.installEventFilter(self.cursor_control)
 
     def init_actions(self):
         quitAct = qg.QAction("Exit", self)
@@ -94,6 +87,10 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         menu_bar = qw.QMenuBar(self)
         self.file_menu = menu_bar.addMenu("File")
         self.file_menu.addActions(self.actions())
+
+    def closeEvent(self, event: qg.QCloseEvent) -> None:
+        self.cursor_control.stop()
+        return super().closeEvent(event)
 
 
 def main():

@@ -207,7 +207,13 @@ def generate_edit_form(
 
 
 def wrap_gb(name: str, *widgets: qw.QWidget):
-    "Wrap widgets in a QGroupBox"
+    """
+    Wrap widgets in a QGroupBox
+
+    Usage:
+    >>> wrap_gb("Cursor tasks", widget1, widget2, widget3)
+    """
+
     gb = qw.QGroupBox(name)
     layout = qw.QVBoxLayout()
     for widget in widgets:
