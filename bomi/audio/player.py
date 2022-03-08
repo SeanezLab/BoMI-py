@@ -6,18 +6,22 @@ from PySide6.QtCore import Qt, Slot
 from bomi.audio.generate_tone import generate_tone
 
 
-def _print(*args):
-    print("[TonePlayer]", *args)
-
-
 class TonePlayer(qc.QObject):
     """TonePlayer generates a tone at a given frequency and duration,
     and can play the tone asynchronously when `play` is called.
+
+    TonePlayer uses QtMultimedia to play sound. The class inherits
+    QObject to allow it to interact with the signals and slots mechanism,
+    although it doesn't currently use any signals.
 
     TonePlayer needs to regenerate and reload the audio when the frequency
     or duration is changed, so if different tones need to be played at low
     latency, create multiple TonePlayer objects and initialized them differently
     to cache all tones.
+
+    Internally, TonePlayer uses `generate_tone` to generate a WAV file with the
+    desired frequency and duration to a temporary file, and loads that file to
+    a QSoundEffect. s
     """
 
     def __init__(self, freq: int = 500, duration_ms: int = 500):
@@ -65,19 +69,20 @@ class AudioCalibrationWidget(qw.QWidget):
         self.m_freq = qw.QSpinBox()
         self.m_freq.setRange(10, 20000)
         self.m_freq.setValue(self.player.freq)
-        self.m_freq.valueChanged.connect(self.freq_duration_changed)
+        self.m_freq.valueChanged.connect(self.freq_duration_changed)  # type: ignore
         layout.addRow(qw.QLabel("Frequency (Hz)"), self.m_freq)
 
         self.m_duration = qw.QSpinBox()
         self.m_duration.setRange(10, 10000)
         self.m_duration.setValue(self.player.duration_ms)
-        self.m_duration.valueChanged.connect(self.freq_duration_changed)
+        self.m_duration.valueChanged.connect(self.freq_duration_changed)  # type: ignore
         layout.addRow(qw.QLabel("Duration (ms)"), self.m_duration)
 
         self.m_volumeLabel = qw.QLabel("Volume: ()")
-        self.m_volumeSlider = qw.QSlider(
-            Qt.Horizontal, minimum=0, maximum=100, singleStep=10
-        )
+        self.m_volumeSlider = qw.QSlider(Qt.Horizontal)
+        self.m_volumeSlider.setTickInterval(10)
+        self.m_volumeSlider.setMinimum(0)
+        self.m_volumeSlider.setMaximum(100)
         self.m_volumeSlider.valueChanged.connect(self.update_volume_label)  # type: ignore
         self.m_volumeSlider.sliderReleased.connect(self.update_volume)  # type: ignore
         self.m_volumeSlider.setValue(int(self.player.effect.volume() * 100))
