@@ -206,13 +206,13 @@ class YostDeviceManager:
         self._thread.start()
 
     def stop_stream(self):
-        _print("Stopping stream")
         if self._thread and not self._done_streaming.is_set():
+            _print("Stopping stream")
             self._done_streaming.set()
             self._thread.join()
             self._thread = None
             self.discover_devices()
-        _print("Stream stopped")
+            _print("Stream stopped")
 
     def tare_all_devices(self):
         for dev in self.all_sensors:

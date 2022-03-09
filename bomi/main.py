@@ -34,32 +34,31 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
         self.status_msg("Welcome to Seanez Lab")
         self.setWindowTitle(__appname__)
-        self.setMinimumSize(650, 1000)
+        self.setMinimumSize(1100, 800)
 
     def status_msg(self, msg: str):
         self.statusBar().showMessage(msg)
 
     def init_ui(self):
-        vsplit = qw.QSplitter(Qt.Vertical)
-        self.setCentralWidget(vsplit)
+        w = qw.QWidget()
+        self.setCentralWidget(w)
 
-        l = qw.QLabel(self, text="BoMI 🚶", alignment=qc.Qt.AlignCenter)  # type: ignore
-        l.setFont(qg.QFont("Arial", 16))
-        vsplit.addWidget(l)
+        hbox = qw.QHBoxLayout(w)
+        vbox1 = qw.QVBoxLayout()
+        vbox2 = qw.QVBoxLayout()
+        hbox.addLayout(vbox1)
+        hbox.addLayout(vbox2)
 
         ### Device manager group
-        vsplit.addWidget(wrap_gb("Yost Device Manager", YostWidget(self.yost_dm)))
+        vbox1.addWidget(wrap_gb("Yost Device Manager", YostWidget(self.yost_dm)))
 
         ### Trigno Device manager group
-        vsplit.addWidget(
+        vbox1.addWidget(
             wrap_gb("Trigno Device Manager", TrignoWidget(self.trigno_client))
         )
 
-        hsplit = qw.QSplitter(Qt.Horizontal)
-        vsplit.addWidget(hsplit)
-
         ### StartReact Group
-        hsplit.addWidget(
+        vbox2.addWidget(
             wrap_gb("StartReact", StartReactWidget(self.yost_dm, self.trigno_client))
         )
 
@@ -67,13 +66,13 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         btn_reach = qw.QPushButton(text="Reaching")
         btn_reach.clicked.connect(partial(self.start_widget, ReachingWidget()))  # type: ignore
 
-        hsplit.addWidget(wrap_gb("Cursor Tasks", btn_reach))
+        vbox2.addWidget(wrap_gb("Cursor Tasks", btn_reach))
 
         ### Cursor Control group
         self.cursor_control = CursorControlWidget(
             dm=self.yost_dm, show_device_manager=False
         )
-        hsplit.addWidget(wrap_gb("Cursor Control", self.cursor_control))
+        vbox2.addWidget(wrap_gb("Cursor Control", self.cursor_control))
         self.installEventFilter(self.cursor_control)
 
     def init_actions(self):

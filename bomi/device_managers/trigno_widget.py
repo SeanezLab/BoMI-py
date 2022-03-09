@@ -298,7 +298,7 @@ class TrignoWidget(qw.QWidget, WindowMixin):
         self.host_ip = qw.QLineEdit()
         self.host_ip.setValidator(ipValidator)
         self.host_ip.setText(self.trigno_client.host_ip)
-        self.host_ip.setFixedWidth(90)
+        self.host_ip.setMinimumWidth(90)
 
         def _update_ip():
             _print(self.host_ip.text())
