@@ -60,7 +60,7 @@ IP_ADDR = "10.229.96.239"
 
 
 def _print(*args, **kwargs):
-    print("[TrignoSDK]", *args, **kwargs)
+    print("[TrignoClient]", *args, **kwargs)
 
 
 def recv(sock: socket.socket, maxlen=1024) -> bytes:
@@ -82,12 +82,38 @@ class TrignoClient:
     Handles device management and data streaming
     """
 
+    __slots__ = (
+        "connected",
+        "host_ip",
+        "command_sock",
+        "emg_data_sock",
+        "sensors",
+        "sensor_idx",
+        "n_sensors",
+        "sensor_meta",
+        "start_time",
+        "_done_streaming",
+        "_worker_thread",
+        "backwards_compatibility",
+        "upsampling",
+        "frame_interval",
+        "max_samples_emg",
+        "emg_sample_rate",
+        "max_samples_aux",
+        "aux_sample_rate",
+        "endianness",
+        "base_firmware",
+        "base_serial",
+    )
+
     AVANTI_MODES = AVANTI_MODES
 
     def __init__(self, host_ip: str = IP_ADDR):
         self.connected = False
         self.host_ip = host_ip
+        self._init_state()
 
+    def _init_state(self):
         self.command_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.emg_data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -109,8 +135,7 @@ class TrignoClient:
             _class=self.__class__.__name__,
             _id=id(self) & 0xFFFFFF,
             _attrs=" ".join(
-                "{}={!r}".format(k, v)
-                for k, v in sorted(self.__dict__.items(), key=lambda pair: pair[0])
+                "{}={!r}".format(k, getattr(self, k)) for k in sorted(self.__slots__)
             ),
         )
 
@@ -120,14 +145,26 @@ class TrignoClient:
     def __len__(self) -> int:
         return len(self.sensors)
 
-    def connect(self):
+    def disconnect(self):
+        self.stop_stream()
+        self.command_sock.close()
+        self.emg_data_sock.close()
+        self._init_state()
+        self.connected = False
+        _print("Disconnected")
+
+    def connect(self) -> str:
         """Called once during init to setup base station.
 
         Set little endian
         Sets backwards compatibility off (resample lower Fs channels to the highest Fs used)
+
+        Returns error string if failed to connect.
         """
         if not self.connected:
             try:
+                self.command_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.emg_data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.command_sock.settimeout(1)
                 self.command_sock.connect((self.host_ip, COMMAND_PORT))
                 self.command_sock.settimeout(3)
@@ -136,8 +173,9 @@ class TrignoClient:
                 self.emg_data_sock.connect((self.host_ip, EMG_DATA_PORT))
                 self.connected = True
             except TimeoutError as e:
-                _print("Failed to connect to Base Station", e)
-                return
+                err_str = "Failed to connect to Base Station: " + str(e)
+                _print(err_str)
+                return err_str
 
         self.connected = True
         cmd = lambda _cmd: self.send_cmd(_cmd).decode()
@@ -167,6 +205,7 @@ class TrignoClient:
         self.base_serial = cmd("BASE SERIAL?")
 
         self.query_devices()
+        return ""
 
     def query_device(self, i: int):
         """
@@ -188,7 +227,7 @@ class TrignoClient:
         _type = cmd(f"SENSOR {i} TYPE?")
         # Force mode 40: EMG (2148Hz)
         res = cmd(f"SENSOR {i} SETMODE 40")
-        _print(res)
+        _print(res, self.AVANTI_MODES[40])
         _mode = int(cmd(f"SENSOR {i} MODE?"))
 
         _serial = cmd(f"SENSOR {i} SERIAL?")
@@ -317,7 +356,7 @@ class TrignoClient:
         with open(fpath, "w") as fp:
             json.dump(tmp, fp, indent=2)
 
-    def load_meta(self, fpath: Path):
+    def load_meta(self, fpath: Path | str):
         """Load JSON metadata from fpath"""
         with open(fpath, "r") as fp:
             tmp: Dict = json.load(fp)
@@ -341,8 +380,6 @@ def load_full_emg_meta(fpath: Path):
 
 
 if __name__ == "__main__":
-    from dis import dis
-
     dm = TrignoClient()
     print(dm)
     breakpoint()

@@ -275,36 +275,50 @@ class TrignoWidget(qw.QWidget, WindowMixin):
         self.setWindowTitle("Trigno SDK Client")
         trigno_client = trigno_client if trigno_client else TrignoClient()
         self.trigno_client = trigno_client
-
-        if not trigno_client.sensor_meta:
-            meta_path = Path("emg_meta.json")
-            try:
-                trigno_client.load_meta(meta_path)
-            except FileNotFoundError:
-                _print("EMG sensor meta file not found", meta_path)
+        self.meta_path = Path("emg_meta.json")
+        self.load_meta(self.meta_path)
 
         ### Init UI
         main_layout = qw.QVBoxLayout(self)
         control_layout = qw.QGridLayout()
         main_layout.addLayout(control_layout)
 
-        self.status_label = qw.QLabel("Base Station")
-        self.status_label.setToolTip(repr(self.trigno_client))
-        control_layout.addWidget(self.status_label, 0, 0)
-        self.update_status()
-
-        self.connect_btn = btn = qw.QPushButton("Connect to Base Station")
+        self.connect_btn = btn = qw.QPushButton("Connect")
         btn.setStyleSheet("QPushButton { background-color: rgb(0,255,0); }")
-        btn.clicked.connect(self.connect)  # type: ignore
-        control_layout.addWidget(btn, 0, 1)
+        btn.clicked.connect(self.toggle_connect)  # type: ignore
+        control_layout.addWidget(btn, 0, 0)
+
+        ipLabel = qw.QLabel("Local IP Address of Trigno SDK:")
+        control_layout.addWidget(ipLabel, 0, 1)
+        ipRange = "(?:[0-1]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])"
+        ipRegex = qc.QRegularExpression(
+            "^" + ipRange + "\\." + ipRange + "\\." + ipRange + "\\." + ipRange + "$"
+        )
+        ipValidator = qg.QRegularExpressionValidator(ipRegex)
+        self.host_ip = qw.QLineEdit()
+        self.host_ip.setValidator(ipValidator)
+        self.host_ip.setText(self.trigno_client.host_ip)
+        self.host_ip.setFixedWidth(90)
+
+        def _update_ip():
+            _print(self.host_ip.text())
+            self.trigno_client.host_ip = self.host_ip.text()
+
+        self.host_ip.editingFinished.connect(_update_ip)  # type: ignore
+
+        def _reject_ip():
+            self.error_dialog("Invalid IP address.")
+
+        self.host_ip.inputRejected.connect(_reject_ip)  # type: ignore
+        control_layout.addWidget(self.host_ip, 0, 2)
 
         btn = qw.QPushButton("Data charts")
         btn.clicked.connect(self.start_data_scope)  # type: ignore
-        control_layout.addWidget(btn, 0, 2)
+        control_layout.addWidget(btn, 0, 3)
 
         btn = qw.QPushButton("Save metadata")
         btn.clicked.connect(self.save_meta)  # type: ignore
-        control_layout.addWidget(btn, 0, 3)
+        control_layout.addWidget(btn, 0, 4)
 
         # Devices UI
         self.grid_layout = qw.QGridLayout()
@@ -341,20 +355,40 @@ class TrignoWidget(qw.QWidget, WindowMixin):
 
         self.scope: EMGScope | None = None
 
-    def update_status(self):
-        self.status_label.setText(
-            f"Base Station: {self.trigno_client.host_ip if self.trigno_client.connected else 'Disconnected'}"
-        )
+    @qc.Slot(str)  # type: ignore
+    def load_meta(self, meta_path: Path | str):
+        try:
+            self.trigno_client.load_meta(meta_path)
+        except FileNotFoundError:
+            err_str = f"EMG sensor meta file not found: {meta_path}"
+            _print(err_str)
+            self.error_dialog(err_str)
 
     @qc.Slot()  # type: ignore
-    def connect(self):
-        "Try to connect to the Trigno base station"
+    def toggle_connect(self):
         with pg.BusyCursor():
-            self.trigno_client.connect()
-        self.update_status()
+            if self.trigno_client.connected:
+                self.trigno_client.disconnect()
+            else:
+                err = self.trigno_client.connect()
+                if err:
+                    self.error_dialog(err)
+
         self.setup_grid()
-        self.connect_btn.setText("Reconnect to Base Station")
-        self.status_label.setToolTip(repr(self.trigno_client))
+        self.connect_btn.setToolTip(repr(self.trigno_client))
+
+        if self.trigno_client.connected:
+            self.connect_btn.setText("Disconnect")
+            self.connect_btn.setStyleSheet(
+                "QPushButton { background-color: rgb(255,0,0); }"
+            )
+            self.host_ip.setReadOnly(True)
+        else:
+            self.connect_btn.setText("Connect")
+            self.connect_btn.setStyleSheet(
+                "QPushButton { background-color: rgb(0,255,0); }"
+            )
+            self.host_ip.setReadOnly(False)
 
     @qc.Slot()  # type: ignore
     def handle_data_changed(self):
