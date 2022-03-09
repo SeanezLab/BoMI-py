@@ -73,7 +73,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         self.cursor_control = CursorControlWidget(
             dm=self.yost_dm, show_device_manager=False
         )
-        hsplit.addWidget(self.cursor_control)
+        hsplit.addWidget(wrap_gb("Cursor Control", self.cursor_control))
         self.installEventFilter(self.cursor_control)
 
     def init_actions(self):

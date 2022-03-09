@@ -20,6 +20,10 @@ def _print(*args):
 
 
 class CursorControlWidget(qw.QWidget, WindowMixin):
+    """
+    Implements cursor control using the Yost orientation sensors
+    """
+
     def __init__(self, dm: YostDeviceManager = None, show_device_manager=True):
         super().__init__()
         self.setWindowTitle("Cursor Control")
@@ -66,9 +70,8 @@ class CursorControlWidget(qw.QWidget, WindowMixin):
             main_layout.addWidget(wrap_gb("Yost Device Manager", YostWidget(self.dm)))
 
         ### Cursor Control
-        gb = qw.QGroupBox("Cursor Control")
-        main_layout.addWidget(gb)
-        layout = qw.QVBoxLayout(gb)
+        layout = qw.QVBoxLayout()
+        main_layout.addLayout(layout)
 
         self.calib_btn = qw.QPushButton("Calibrate Cursor Control")
         self.calib_btn.clicked.connect(self.start_calibration)  # type: ignore
@@ -79,6 +82,9 @@ class CursorControlWidget(qw.QWidget, WindowMixin):
         layout.addWidget(self.toggle_btn)
 
     def start_calibration(self):
+        """
+        Open the scope and collect data for 10 seconds
+        """
         dm = self.dm
         if not dm.has_sensors():
             return self.no_yost_sensors_error()
@@ -107,6 +113,11 @@ class CursorControlWidget(qw.QWidget, WindowMixin):
             dm.stop_stream()
 
     def end_calibration(self):
+        """
+        This is called automatically at the end of the 10 second data collection with the scope.
+
+        TODO: implement PCA of the sensor data
+        """
         if hasattr(self, "_sw"):
             sw: ScopeWidget = getattr(self, "_sw")
             delattr(self, "_sw")
@@ -152,6 +163,12 @@ class CursorControlWidget(qw.QWidget, WindowMixin):
         hasattr(self, "timer") and self.timer.stop()
 
     def update(self):
+        """
+        Called repeatedly by a QTimer.
+
+        Implements cursor control by subtracting the Roll and Pitch from
+        the x and y position of the cursor.
+        """
         self.fps_counter += 1
         if self.fps_counter > 2000:
             now = default_timer()
@@ -162,9 +179,7 @@ class CursorControlWidget(qw.QWidget, WindowMixin):
             _print("FPS: ", fps)
 
         q = self.queue
-        qsize = q.qsize()
-
-        for _ in range(qsize):  # process current items in queue
+        for _ in range(q.qsize()):  # process current items in queue
             packet: Packet = q.get()
             self.buffers[packet.name].add_packet(packet)
 
