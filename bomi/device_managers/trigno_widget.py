@@ -362,7 +362,6 @@ class TrignoWidget(qw.QWidget, WindowMixin):
         except FileNotFoundError:
             err_str = f"EMG sensor meta file not found: {meta_path}"
             _print(err_str)
-            self.error_dialog(err_str)
 
     @qc.Slot()  # type: ignore
     def toggle_connect(self):
