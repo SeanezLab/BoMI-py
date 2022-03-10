@@ -14,11 +14,7 @@ __authors__ = [
     '"Dan Morrison" <dmorrison@yeitechnology.com>',
 ]
 
-import os
-import sys
-import subprocess
 import collections
-from typing import NamedTuple
 import serial
 import multiprocessing
 import time
@@ -89,51 +85,15 @@ def pyTryPort(port_name, conn):
     conn.send(True)
 
 
-def tryPort(port_name, use_subprocess=False):
-    if use_subprocess:
-        ## Subprocess version of tryport
-        # TryPort attempts to connect to the port repeatedly and releases it
-        # order to make it available to the python script
-        # in (yucky CDCC driver work around)
-        startup_info = None
-        program_name = "\\try_port\\try_port.exe"
-        file_path = os.path.abspath(__file__)
-        if os.name == 'nt':
-            startup_info = subprocess.STARTUPINFO()
-            startup_info.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
-        
-        try:
-            # We assume the directory resolved by __file__ will
-            # get us the directory for try_port.exe
-            last_slash_idx = file_path.rfind("\\")
-            try_ports_path = (file_path[:last_slash_idx] + program_name)
-            call_success = subprocess.call([try_ports_path, port_name], startupinfo=startup_info)
-        
-        except Exception as ex:
-            if global_file_path is None:
-                print(ex)
-                return None
-            try:
-                # We will try to use the cached current working directory
-                # instead for try_port.exe
-                try_ports_path = (global_file_path + program_name)
-                call_success = subprocess.call([try_ports_path, port_name], startupinfo=startup_info)
-            except Exception as ex:
-                print(ex)
-                return None
-        
-        if call_success != 0:
-           return None
-
-    else:
-        ## Multiprocessing version of tryport
-        parent_conn, child_conn = multiprocessing.Pipe()
-        tmp_process = multiprocessing.Process(target=pyTryPort, args=(port_name, child_conn))
-        tmp_process.start()
-        make_port = parent_conn.recv()
-        tmp_process.join()
-        if not make_port:
-            return None
+def tryPort(port_name):
+    ## Multiprocessing version of tryport
+    parent_conn, child_conn = multiprocessing.Pipe()
+    tmp_process = multiprocessing.Process(target=pyTryPort, args=(port_name, child_conn))
+    tmp_process.start()
+    make_port = parent_conn.recv()
+    tmp_process.join()
+    if not make_port:
+        return None
     return True
 
 
