@@ -1,8 +1,6 @@
 from functools import partial
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
-import PySide6.QtCore as qc
-from PySide6.QtCore import Qt
 
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.device_managers.yost_widget import YostWidget
@@ -30,7 +28,8 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
         self.init_ui()
         self.init_actions()
-        self.init_menus()
+        # menu bar overlaps with the device manager on Windows
+        # self.init_menus()
 
         self.status_msg("Welcome to Seanez Lab")
         self.setWindowTitle(__appname__)
@@ -76,6 +75,9 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         self.installEventFilter(self.cursor_control)
 
     def init_actions(self):
+        """
+        Initialize QActions
+        """
         quitAct = qg.QAction("Exit", self)
         quitAct.setShortcut("ctrl+q")
         quitAct.triggered.connect(self.close)  # type: ignore
@@ -83,6 +85,9 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         self.addAction(quitAct)
 
     def init_menus(self):
+        """
+        Initialize QMenuBar
+        """
         menu_bar = qw.QMenuBar(self)
         self.file_menu = menu_bar.addMenu("File")
         self.file_menu.addActions(self.actions())
@@ -97,3 +102,7 @@ def main():
     win = MainWindow()
     win.show()
     app.exec()
+
+
+if __name__ == "__main__":
+    main()
