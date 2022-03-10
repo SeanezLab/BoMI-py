@@ -7,7 +7,7 @@ from __future__ import print_function
     and static variables use exclusivly for ThreeSpace devices. This module can
     be used with a system running Python 2.5 and newer (including Python 3.x).
 
-    Tiger Nie - Modified for compatibility with python 3.8>
+    Tiger Nie - Modified for compatibility with Python 3.8+
 """
 
 __version__ = "2.0.2.3bomi"  
@@ -24,21 +24,17 @@ import struct
 import collections
 import traceback
 import time
-import timeit
-import os
 
-time.clock = timeit.default_timer
+clock = time.perf_counter
 
 # chose an implementation, depending on os
-if os.name == 'nt':  # sys.platform == 'win32':
+if sys.platform == 'win32':
     from .win32_threespace_utils import *
 else:
     from .threespace_utils import *
 
-    print("WARNING: No additional utils are loaded!!!!!!")
 
 ### Globals ###
-global_file_path = os.getcwd()
 global_error = None
 global_counter = 0
 global_donglist = {}
@@ -658,7 +654,7 @@ class _TSBase(object):
         queue_packet = (uid, cmd_byte)
         timeout_time = 0.5 + (len(self.read_queue) * 0.150)  # timeout increases as queue gets larger
         self.read_queue.append(queue_packet)
-        start_time = time.clock() + timeout_time
+        start_time = clock() + timeout_time
         read_data = None
         while (timeout_time > 0):
             self.read_lock.wait(timeout_time)
@@ -666,7 +662,7 @@ class _TSBase(object):
 
             if read_data is not None:
                 break
-            timeout_time = start_time - time.clock()
+            timeout_time = start_time - clock()
             # _print("Still waiting {0} {1} {2}".format(uid, command, timeout_time))
         else:
             # _print("Operation timed out!!!!")
@@ -1044,7 +1040,7 @@ class _TSSensor(_TSBase):
                 header_data = self.header_parse.unpack(header_bytes)
                 header_list = padProtocolHeader71(header_data)
             elif self.timestamp_mode == TSS_TIMESTAMP_SYSTEM:
-                sys_timestamp = time.clock()  # time packet was parsed it might been in the system buffer a few ms
+                sys_timestamp = clock()  # time packet was parsed it might been in the system buffer a few ms
                 sys_timestamp *= 1000000
                 header_data = self.header_parse.unpack(header_bytes)
                 header_list = padProtocolHeader69(header_data, sys_timestamp)
@@ -2967,7 +2963,7 @@ class TSDongle(_TSBase):
         queue_packet = (uid, cmd_byte)
         timeout_time = 0.5 + (len(self.read_queue) * 0.150)  # timeout increases as queue gets larger
         self.read_queue.append(queue_packet)
-        start_time = time.clock() + timeout_time
+        start_time = clock() + timeout_time
         read_data = None
         while (timeout_time > 0):
             self.read_lock.wait(timeout_time)
@@ -2975,7 +2971,7 @@ class TSDongle(_TSBase):
 
             if read_data is not None:
                 break
-            timeout_time = start_time - time.clock()
+            timeout_time = start_time - clock()
             # _print("Still waiting {0} {1} {2} {3}".format(uid, command,logical_id, timeout_time))
         else:
             # _print("Operation timed out!!!!")
@@ -3093,7 +3089,7 @@ class TSDongle(_TSBase):
                 header_data = self.header_parse.unpack(header_bytes)
                 header_list = padProtocolHeader87(header_data)
             elif self.timestamp_mode == TSS_TIMESTAMP_SYSTEM:
-                sys_timestamp = time.clock()  # time packet was parsed it might been in the system buffer a few ms
+                sys_timestamp = clock()  # time packet was parsed it might been in the system buffer a few ms
                 sys_timestamp *= 1000000
                 header_data = self.header_parse.unpack(header_bytes)
                 header_list = padProtocolHeader85(header_data, sys_timestamp)

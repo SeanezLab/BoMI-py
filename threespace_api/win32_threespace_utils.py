@@ -276,16 +276,10 @@ class BLUETOOTH_DEVICE_INFO(ctypes.Structure):
 
 
 ### Helper Functions ###
-if sys.version_info >= (3, 0):
-    def toLong(number, base=None):
-        if base:
-            return int(number, base)
-        return int(number)
-else:
-    def toLong(number, base=None):
-        if base:
-            return long(number, base)
-        return long(number)
+def toLong(number, base=None):
+    if base:
+        return int(number, base)
+    return int(number)
 
 
 def _byteBuffer(length):
