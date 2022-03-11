@@ -37,6 +37,7 @@ class SubjectMetadata:
     subject_id: str = "unknown"
     joint: str = "unknown"
     max_rom: int = -1
+    stim: bool = False
 
     def dict(self):
         return asdict(self)

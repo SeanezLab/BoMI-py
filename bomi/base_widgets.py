@@ -84,6 +84,9 @@ def generate_edit_form(
     (float) - QDoubleSpinBox
         - metadata: dict(name=str, range=(float, float), step=float)
 
+    (bool) - QCheckBox
+        - metadata: dict(name=str)
+
     """
     assert hasattr(dc, "__dataclass_fields__")
 
@@ -117,6 +120,14 @@ def generate_edit_form(
     def reject_QSpinBox(key: str):
         sb: qw.QSpinBox | qw.QDoubleSpinBox = widgets[key]  # type: ignore
         sb.setValue(fields[key].default)
+
+    def accept_QCheckBox(key: str):
+        qcb: qw.QCheckBox = widgets[key]
+        setattr(dc, key, qcb.isChecked())
+
+    def reject_QCheckBox(key: str):
+        qcb: qw.QCheckBox = widgets[key]
+        qcb.setChecked(fields[key].default)
 
     accept_cbs: List[Callable[[], None]] = []
     reject_cbs: List[Callable[[], None]] = []
@@ -162,6 +173,15 @@ def generate_edit_form(
 
             accept_cbs.append(partial(accept_QSpinBox, key))
             reject_cbs.append(partial(reject_QSpinBox, key))
+
+        elif field.type == "bool":
+            widget = qw.QCheckBox()
+            widgets[key] = widget
+            widget.setChecked(getattr(dc, key))
+
+            accept_cbs.append(partial(accept_QCheckBox, key))
+            reject_cbs.append(partial(reject_QCheckBox, key))
+
         else:
             breakpoint()
             raise NotImplementedError(

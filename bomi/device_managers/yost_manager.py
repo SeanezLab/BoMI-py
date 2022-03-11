@@ -6,6 +6,7 @@ from timeit import default_timer
 from typing import Dict, Final, List, Optional, Tuple
 import math
 import threading
+import time
 
 import threespace_api as ts_api
 from bomi.datastructure import Packet
@@ -294,6 +295,8 @@ def _handle_stream(
                 fps_start_time = now
                 fps_packet_counter = 0
                 _print(f"Throughput: {fps:.2f} packets/sec")
+
+    time.sleep(0.2)
 
 
 if __name__ == "__main__":
