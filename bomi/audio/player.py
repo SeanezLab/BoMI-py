@@ -46,7 +46,7 @@ class TonePlayer(qc.QObject):
         url = qc.QUrl.fromLocalFile(tmpfile)
         self.effect.setSource(url)
 
-    def set_volume(self, vol: int):
+    def set_volume(self, vol: float):
         self.effect.setVolume(vol)
 
     def play(self):
@@ -80,7 +80,6 @@ class AudioCalibrationWidget(qw.QWidget):
 
         self.m_volumeLabel = qw.QLabel("Volume: ()")
         self.m_volumeSlider = qw.QSlider(Qt.Horizontal)
-        self.m_volumeSlider.setTickInterval(10)
         self.m_volumeSlider.setMinimum(0)
         self.m_volumeSlider.setMaximum(100)
         self.m_volumeSlider.valueChanged.connect(self.update_volume_label)  # type: ignore

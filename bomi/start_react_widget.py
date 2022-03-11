@@ -157,17 +157,22 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.timer_one_trial_end.setSingleShot(True)
         self.timer_one_trial_end.timeout.connect(self.one_trial_end)  # type: ignore
 
+        def _init_tone(tone_player: TonePlayer):
+            tone_player.effect.setVolume(0)  # not sure why still hear this
+            tone_player.play()
+
         # tone sound
         self.auditory_tone = TonePlayer(
             self.config.tone_frequency, self.config.tone_duration
         )
-        self.auditory_tone.effect.setVolume(self.config.auditory_volume / 100)
-        print("Auditory volume", self.config.auditory_volume)
+        _init_tone(self.auditory_tone)
         self.startle_tone = TonePlayer(
             self.config.tone_frequency, self.config.tone_duration
         )
+        _init_tone(self.startle_tone)
+
+        self.auditory_tone.effect.setVolume(self.config.auditory_volume / 100)
         self.startle_tone.effect.setVolume(self.config.startle_volume / 100)
-        print("Startle volume", self.config.startle_volume)
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         self.timer_one_trial_begin.stop()
