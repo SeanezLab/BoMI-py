@@ -627,6 +627,9 @@ class ScopeWidget(qw.QWidget):
             self.stop_stream()
 
         self.task_widget and self.task_widget.close()
+        # Remove references to YostBuffer objects
+        # The filepointers will be closed when GC runs
+        self.buffers.clear()
         return super().closeEvent(event)
 
 
