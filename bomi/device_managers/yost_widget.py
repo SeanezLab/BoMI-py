@@ -5,6 +5,7 @@ from typing import Final, Tuple
 
 import pyqtgraph as pg
 import PySide6.QtCore as qc
+import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
@@ -81,7 +82,9 @@ class YostWidget(qw.QWidget, WindowMixin):
     def __init__(self, yost_device_manager: YostDeviceManager):
         super().__init__()
         self.yost_dm = yost_device_manager
+        self.setWindowTitle("Yost Device Manager")
         self.setMinimumSize(350, 200)
+        self.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
 
         main_layout = qw.QHBoxLayout(self)
 

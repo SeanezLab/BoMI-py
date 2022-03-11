@@ -273,6 +273,8 @@ class TrignoWidget(qw.QWidget, WindowMixin):
     def __init__(self, trigno_client: TrignoClient = None):
         super().__init__()
         self.setWindowTitle("Trigno SDK Client")
+        self.setMinimumSize(680, 390)
+
         trigno_client = trigno_client if trigno_client else TrignoClient()
         self.trigno_client = trigno_client
         self.meta_path = Path("emg_meta.json")
@@ -324,7 +326,6 @@ class TrignoWidget(qw.QWidget, WindowMixin):
         self.grid_layout = qw.QGridLayout()
         main_layout.addLayout(self.grid_layout)
 
-        self.setMinimumSize(680, 390)
         self.setup_grid()
 
     def setup_grid(self):

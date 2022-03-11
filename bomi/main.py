@@ -33,7 +33,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
         self.status_msg("Welcome to Seanez Lab")
         self.setWindowTitle(__appname__)
-        self.setMinimumSize(1100, 800)
+        self.setMinimumSize(1000, 600)
 
     def status_msg(self, msg: str):
         self.statusBar().showMessage(msg)
@@ -45,11 +45,17 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         hbox = qw.QHBoxLayout(w)
         vbox1 = qw.QVBoxLayout()
         vbox2 = qw.QVBoxLayout()
+
         hbox.addLayout(vbox1)
-        hbox.addLayout(vbox2)
+        tmp = qw.QWidget()
+        tmp.setLayout(vbox2)
+        tmp.setSizePolicy(qw.QSizePolicy.Fixed, qw.QSizePolicy.Expanding)
+        hbox.addWidget(tmp)
 
         ### Device manager group
-        vbox1.addWidget(wrap_gb("Yost Device Manager", YostWidget(self.yost_dm)))
+        _gb = wrap_gb("Yost Device Manager", YostWidget(self.yost_dm))
+        _gb.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
+        vbox1.addWidget(_gb)
 
         ### Trigno Device manager group
         vbox1.addWidget(
@@ -73,6 +79,8 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         )
         vbox2.addWidget(wrap_gb("Cursor Control", self.cursor_control))
         self.installEventFilter(self.cursor_control)
+
+        vbox2.addStretch()
 
     def init_actions(self):
         """
