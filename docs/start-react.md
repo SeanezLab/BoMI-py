@@ -12,11 +12,3 @@ $ conda activate bomi
 The BoMI window will open.
 
 ![BoMI Screenshot](./img/bomi-home.PNG)
-
-The home screen is divided into Group Boxes, grouped by functionality.
-
-* **Yost Device Manager**
-* **Trigno Device Manager**
-* **StartReact**
-* **Cursor Tasks**
-* **Cursor Control**
