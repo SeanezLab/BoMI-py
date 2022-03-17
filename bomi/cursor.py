@@ -161,11 +161,14 @@ class CursorControlWidget(qw.QWidget, WindowMixin):
         self.savedir.mkdir(exist_ok=True)
         self.init_data()
         self.dm.start_stream(self.queue)
+        self.cursor_history_fp = open(self.savedir / "cursor_history.csv", "w")
+        self.cursor_history_fp.write("t,x,y\n")
         self.timer.start()
 
     def end_cursor_control(self):
         self.dm.stop_stream()
         hasattr(self, "timer") and self.timer.stop()
+        self.cursor_history_fp.close()
 
     def update(self):
         """
@@ -196,6 +199,10 @@ class CursorControlWidget(qw.QWidget, WindowMixin):
         cursor = qg.QCursor()
         pos = cursor.pos()
         cursor.setPos(pos.x() - dx, pos.y() - dy)
+
+        # save cursor history
+        pos = cursor.pos()
+        self.cursor_history_fp.write(f"{default_timer()},{pos.x()},{pos.y()}\n")
 
     def init_data(self):
         ### data
