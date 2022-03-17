@@ -25,10 +25,11 @@ DATA_ROOT = Path.home() / "Documents" / "BoMI Data"
 DATA_ROOT.mkdir(exist_ok=True)
 
 
-def get_savedir(task_name: str) -> Path:
+def get_savedir(task_name: str, mkdir=True) -> Path:
     datestr = datetime.now().strftime("%Y-%m-%d %H-%M-%S-%f")
     savedir = DATA_ROOT / "_".join((datestr, task_name))
-    savedir.mkdir()
+    if mkdir:
+        savedir.mkdir()
     return savedir
 
 

@@ -1,3 +1,6 @@
+"""
+Cursor Control Widget
+"""
 import traceback
 from queue import Queue
 from typing import Dict, List
@@ -35,7 +38,7 @@ class CursorControlWidget(qw.QWidget, WindowMixin):
         self.quitAct.setShortcut("esc")
         self.quitAct.triggered.connect(self.close)  # type: ignore
 
-        self.savedir = get_savedir("CursorControl")
+        self.savedir = get_savedir("CursorControl", mkdir=False)
 
         # Yost data
         self.queue: Queue[Packet] = Queue()
@@ -85,6 +88,7 @@ class CursorControlWidget(qw.QWidget, WindowMixin):
         """
         Open the scope and collect data for 10 seconds
         """
+        self.savedir.mkdir(exist_ok=True)
         dm = self.dm
         if not dm.has_sensors():
             return self.no_yost_sensors_error()
@@ -154,6 +158,7 @@ class CursorControlWidget(qw.QWidget, WindowMixin):
             self.start_cursor_control()
 
     def start_cursor_control(self):
+        self.savedir.mkdir(exist_ok=True)
         self.init_data()
         self.dm.start_stream(self.queue)
         self.timer.start()
