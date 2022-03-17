@@ -1,3 +1,5 @@
+# Install BoMI
+
 ### 1. Create a virtual environment with Conda.
 
 _**This application requires Python>=3.10**_, hence we're going to use `conda` to install a compatible version of Python. On **Windows**, use the **Anaconda Powershell Prompt**. If you don't have Anaconda or Miniconda installed, I recommend [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
