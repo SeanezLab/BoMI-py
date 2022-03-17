@@ -6,6 +6,16 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://seanezlab.github.io/bomi-py/installation/</loc>
+         <lastmod>2022-03-17</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://seanezlab.github.io/bomi-py/overview/</loc>
+         <lastmod>2022-03-17</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://seanezlab.github.io/bomi-py/start-react/</loc>
          <lastmod>2022-03-17</lastmod>
          <changefreq>daily</changefreq>
