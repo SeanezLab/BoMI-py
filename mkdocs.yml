@@ -1,0 +1,18 @@
+site_name: BoMI-py
+site_description: Body Machine Interface @ Seanez Lab
+site_url: https://seanezlab.github.io/bomi-py
+docs_dir: docs
+theme:
+  name: material
+  features:
+  - search.suggest
+  - search.highlight
+  - content.tabs.link
+  language: en
+repo_name: SeanezLab/BoMI-py
+repo_url: https://github.com/SeanezLab/BoMI-py
+extra_css:
+- css/termynal.css
+extra_javascript:
+- js/termynal.js
+- js/custom.js
