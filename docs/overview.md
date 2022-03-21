@@ -4,7 +4,15 @@ The home screen is divided into Group Boxes, grouped by functionality.
 
 ![BoMI Screenshot](./img/bomi-home.PNG)
 
+- [Yost Device Manager](#yost-device-manager)
+- [Trigno Device Manager](#trigno-device-manager)
+- [StartReact](#startreact)
+- [Cursor Tasks](#cursor-tasks)
+- [Cursor Control](#cursor-control)
+
 ## Yost Device Manager
+
+![](./img/bomi-yost.png)
 
 The Yost Device Manager manages the [Yost 3-Space Sensors](https://yostlabs.com/3-space-sensors/), which provides BoMI with real-time orientation data. Plug the sensors or dongles via USB to the computer, then click "**Discover Devices**" to see a list of devices.
 
@@ -24,12 +32,30 @@ The Yost Device Manager manages the [Yost 3-Space Sensors](https://yostlabs.com/
 
 ## Trigno Device Manager
 
+![](./img/bomi-trigno.png)
+
 The Trigno Device Manager manages the [Trigno Research System](https://delsys.com/trigno/) from Delsys. Make sure the **Trigno Control Utility** (Trigno SDK Server) is running on the computer connected to the Base Station, and the IP address of the computer is entered correctly, then click "**Connect**" to connect to the Base Station.
 
 **Use the sensor widgets to assign a muscle to each sensor before collecting data.**
 
 ## StartReact
 
+![](./img/bomi-startreact.png)
+
+- **"Configure"** opens a dialog window to adjust configuration parameters.
+- **"Precision"** Launches the precision control task.
+- **"MaxROM"** Launches the max range of motion task.
+
+You can play a tone at **Frequency**, **Duration** and **Volume** by clicking **"Play Tone"**. Note that this setting is for testing sound only, and is not used in the StartReact task. To adjust task settings, click **"Configure"**.
+
 ## Cursor Tasks
 
+![](./img/bomi-cursor-tasks.png)
+
+Implements some cursor tasks that are fun and can quantify accuracy and speed.
+
 ## Cursor Control
+
+![](./img/bomi-cursor-control.png)
+
+Use a Yost device to control the cursor on screen.
