@@ -53,4 +53,4 @@ To test the installation of BoMI-py, run the command `bomi`.
 
 The BoMI window will open.
 
-![BoMI Screenshot](./img/bomi-home.PNG)
+![BoMI Screenshot](./img/bomi-home.png)

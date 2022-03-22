@@ -2,7 +2,7 @@
 
 The home screen is divided into Group Boxes, grouped by functionality.
 
-![BoMI Screenshot](./img/bomi-home.PNG)
+![BoMI Screenshot](./img/bomi-home.png)
 
 - [Yost Device Manager](#yost-device-manager)
 - [Trigno Device Manager](#trigno-device-manager)
