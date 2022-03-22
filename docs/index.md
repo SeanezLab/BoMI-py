@@ -7,3 +7,4 @@ Body Machine Interface (BoMI) is a GUI application for the control of a computer
 
 - [Install BoMI](./install.md)
 - [Overview of the BoMI GUI](./overview.md)
+- [Running a StartReact Experiment](./start-react.md)

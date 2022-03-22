@@ -14,9 +14,10 @@ repo_name: SeanezLab/BoMI-py
 repo_url: https://github.com/SeanezLab/BoMI-py
 nav:
   - BoMI: index.md
-  - Install: install.md
-  - Overview: overview.md
-  - StartReact: start-react.md
+  - User Guide:
+    - Install: install.md
+    - Overview: overview.md
+    - StartReact: start-react.md
   - Develop: develop.md
 extra_css:
   - css/termynal.css
