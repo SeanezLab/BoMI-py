@@ -55,7 +55,7 @@ class SRConfig:
         default=2000, metadata=dict(range=(500, 5000), name="Pause Min (ms)")
     )  # msec
     PAUSE_RANDOM: int = field(
-        default=0000, metadata=dict(range=(0, 5000), name="Pause Random (ms)")
+        default=1000, metadata=dict(range=(0, 5000), name="Pause Random (ms)")
     )  # msec
     N_TRIALS: int = field(
         default=10, metadata=dict(range=(1, 40), name="No. Trials per cue")
