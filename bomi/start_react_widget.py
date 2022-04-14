@@ -29,7 +29,7 @@ def _print(*args):
 
 
 class SRState(NamedTuple):
-    color: qg.QColor
+    color: qg.QColor | Qt.GlobalColor
     text: str  # Must be different for different states
 
     def __hash__(self):
@@ -79,9 +79,12 @@ class SRConfig:
         with (savedir / "start_react_config.json").open("w") as fp:
             json.dump(asdict(self), fp, indent=2)
 
-
 class SRDisplay(TaskDisplay, WindowMixin):
-    """StartReact Display"""
+    """StartReact Display
+
+    This is the small block of display inserted into the ScopeWidget when
+    running a StartReact task. Handles real-time StartReact events.
+    """
 
     # States
     IDLE = SRState(color=Qt.lightGray, text="Get ready!")
