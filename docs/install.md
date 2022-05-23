@@ -22,7 +22,7 @@ $ conda activate bomi
 [Git with SSH is recommended](https://docs.github.com/en/authentication/connecting-to-github-with-ssh).
 
 <div class="termy">
-# (bomi) $$ git clone git@github.com:SeanezLab/BoMI-py.git
+# (bomi) $$ git clone git@github.com:SeanezLab/BoMI-StartReact.git
 </div>
 
 ### 4. Install the packages with pip.
@@ -32,20 +32,20 @@ This installs 3 packages: `bomi`, `threespace_api` and `trigno_sdk`.
 On Windows:
 
 <div class="termy">
-# (bomi) $$ cd BoMI-py
+# (bomi) $$ cd BoMI-StartReact
 # (bomi) $$ python -m pip install .
 </div>
 
 On MacOS and Linux:
 
 <div class="termy">
-# (bomi) $$ cd BoMI-py
+# (bomi) $$ cd BoMI-StartReact
 # (bomi) $$ python3 -m pip install .
 </div>
 
 ### 5. Start BoMI
 
-To test the installation of BoMI-py, run the command `bomi`.
+To test the installation of BoMI-StartReact, run the command `bomi`.
 
 <div class="termy">
 # (bomi) $$ bomi

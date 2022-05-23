@@ -2,7 +2,7 @@
 
 ## 1. Activate BoMI
 
-Start BoMI by activating the conda environment where you installed [BoMI-py](https://github.com/SeanezLab/BoMI-py), then running `bomi` in your terminal.
+Start BoMI by activating the conda environment where you installed [BoMI-StartReact](https://github.com/SeanezLab/BoMI-StartReact), then running `bomi` in your terminal.
 
 <div class="termy">
 ```console

@@ -1,6 +1,6 @@
-site_name: BoMI-py
+site_name: BoMI-StartReact
 site_description: Body Machine Interface @ Seanez Lab
-site_url: https://seanezlab.github.io/bomi-py
+site_url: https://seanezlab.github.io/bomi-startreact
 docs_dir: docs
 edit_uri: edit/main/docs/
 theme:
@@ -10,8 +10,8 @@ theme:
     - search.highlight
     - content.tabs.link
   language: en
-repo_name: SeanezLab/BoMI-py
-repo_url: https://github.com/SeanezLab/BoMI-py
+repo_name: SeanezLab/BoMI-StartReact
+repo_url: https://github.com/SeanezLab/BoMI-StartReact
 nav:
   - BoMI: index.md
   - User Guide:
