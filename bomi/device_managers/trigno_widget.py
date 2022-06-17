@@ -35,7 +35,7 @@ MUSCLES = (
     "ST (Semitendinosus)",
     "VLat (Vastus Lateralis)",
     "MG (Gastrocnemius Med)",
-    "TA (Transversus Abdominis)",
+    "TA (Tibialis Anterior)",
 )
 
 

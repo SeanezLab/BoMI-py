@@ -71,7 +71,15 @@ class SRConfig:
     startle_volume: int = field(default=100, metadata=dict(range=(1, 100)))
 
     angle_type: str = field(
-        default=YostBuffer.LABELS[-1], metadata=dict(options=YostBuffer.LABELS)
+        default=YostBuffer.LABELS[1], metadata=dict(options=YostBuffer.LABELS)
+    )
+
+    AXIS_MIN: int = field(
+        default=0, metadata=dict(range=(-180, 180), name="Axis Range Min (deg.)")
+    )
+
+    AXIS_MAX: int = field(
+        default=90, metadata=dict(range=(-180, 180), name="Axis Range Max (deg.)")
     )
 
     def to_disk(self, savedir: Path):
@@ -395,7 +403,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             target_show=True,
             target_range=(35, 40),
             base_show=True,
-            yrange=(0, 90),
+            yrange=(self.config.AXIS_MIN, self.config.AXIS_MAX),
             show_roll=show_roll,
             show_pitch=show_pitch,
             show_yaw=show_yaw,
@@ -436,9 +444,9 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             window_title="MaxROM",
             show_scope_params=True,
             target_show=True,
-            target_range=(70, 120),
+            target_range=(70,120),
             base_show=True,
-            yrange=(0, 110),
+            yrange=(self.config.AXIS_MIN, self.config.AXIS_MAX), 
             show_roll=show_roll,
             show_pitch=show_pitch,
             show_yaw=show_yaw,

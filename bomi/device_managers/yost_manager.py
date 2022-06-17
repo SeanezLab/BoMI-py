@@ -76,7 +76,7 @@ def discover_all_devices() -> Tuple[DongleList, SensorList, SensorList, SensorLi
                 all_sensors.append(device)
             else:
                 dongles.append(device)
-                for i in range(4):  # check logical indexes of dongle for WL device
+                for i in range(15):  # check logical indexes of dongle for WL device
                     sens = device[i]
                     if sens is not None:
                         wireless_sensors.append(sens)
@@ -276,9 +276,11 @@ def _handle_stream(
     fps_packet_counter = 0
     fps_start_time = default_timer()
 
+    interval_us = int(1/fs * 1000)
+
     with (
-        Dongles(dongle_port_names, wl_mps) as dongles,
-        WiredSensors(sensor_port_names, sensor_names) as sensors,
+        Dongles(dongle_port_names, wl_mps, interval_us=interval_us) as dongles,
+        WiredSensors(sensor_port_names, sensor_names, interval_us=interval_us) as sensors,
     ):
         while not done.is_set():
             now = default_timer()
