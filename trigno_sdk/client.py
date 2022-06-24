@@ -168,7 +168,7 @@ class TrignoClient:
                 self.emg_data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.command_sock.settimeout(1)
                 self.command_sock.connect((self.host_ip, COMMAND_PORT))
-                self.command_sock.settimeout(3)
+                self.command_sock.settimeout(5)
                 buf = recv(self.command_sock)
                 _print(buf.decode())
                 self.emg_data_sock.connect((self.host_ip, EMG_DATA_PORT))
