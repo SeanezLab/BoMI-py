@@ -489,6 +489,8 @@ class ScopeWidget(qw.QWidget):
         for name, sn in zip(self.dev_names, self.dev_sn):
             plot: pg.PlotItem = glw.addPlot(row=row, col=0)
             row += 1
+            plot.showAxis('right', show=True)
+            plot.showGrid(y=True,alpha=0.15)
             plot.addLegend(offset=(1, 1), **plot_style)
             plot.setXRange(*self.config.xrange)
             plot.setYRange(*self.config.yrange)

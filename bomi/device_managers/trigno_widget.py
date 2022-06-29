@@ -112,6 +112,8 @@ class EMGScope(qw.QWidget, WindowMixin):
 
         def _setup_emg_plot(plot: pg.PlotItem, idx: int):
             plot.setXRange(-5, 0)
+            plot.showAxis('right', show=True)
+            plot.showGrid(y=True,alpha=0.15)
             plot.setLabel("bottom", "Time", units="s", **plot_style)
             plot.setLabel("left", "Voltage", units="V", **plot_style)
             plot.setDownsampling(mode="peak")
