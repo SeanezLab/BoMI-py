@@ -7,7 +7,7 @@ class WindowMixin(object):
         "Display `msg` in a popup error dialog"
         if not hasattr(self, "_err_dialog"):
             self._err_dialog = qw.QErrorMessage()
-            self._err_dialog.setWindowTitle(f"BoMI Error")
+            self._err_dialog.setWindowTitle("BoMI Error")
 
         self._err_dialog.showMessage(msg)
 

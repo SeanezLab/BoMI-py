@@ -121,7 +121,7 @@ class YostDeviceManager:
         self.wired_sensors = wired_sensors
         self.wireless_sensors = wireless_sensors
         for dev in (*dongles, *all_sensors):
-            if not dev.serial_number_hex in self._names:
+            if dev.serial_number_hex not in self._names:
                 self._names[dev.serial_number_hex] = dev.serial_number_hex
 
         _print(self.status())

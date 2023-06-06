@@ -5,7 +5,6 @@ from typing import Final, Tuple
 
 import pyqtgraph as pg
 import PySide6.QtCore as qc
-import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
