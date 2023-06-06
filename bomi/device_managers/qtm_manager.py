@@ -5,7 +5,7 @@ import analog_streaming_client as AS
 def _print(*args):
     print("[QTM]", *args)
 
-class QTM_manager:
+class QTMManager:
     """
     The wrapper that calls the QTM Client. Responsible for discovering connected channels,
     implementing the multiprocessing queue, and starting/stopping the date stream.
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     """
     elements_to_get = 100
 
-    qtm = QTM_manager()
+    qtm = QTMManager()
     qtm.discover_devices()
     qtm.start_stream()
     for i in range(elements_to_get):
