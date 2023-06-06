@@ -6,7 +6,7 @@ import random
 import traceback
 from pathlib import Path
 from timeit import default_timer
-from typing import Callable, List, NamedTuple, Tuple
+from typing import Callable, List, NamedTuple, Tuple, Protocol
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
@@ -15,7 +15,7 @@ from PySide6.QtCore import Qt
 
 from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form
 from bomi.datastructure import YostBuffer, get_savedir
-from bomi.device_managers.yost_manager import YostDeviceManager
+from bomi.device_managers.protocols import SupportsStreaming, SupportsHasSensors, SupportsGetSensorMetadata
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
 from bomi.audio.player import TonePlayer, AudioCalibrationWidget
@@ -336,8 +336,13 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
 class StartReactWidget(qw.QWidget, WindowMixin):
     """GUI to manage StartReact tasks"""
+    class StartReactDeviceManager(ScopeWidget.ScopeWidgetDeviceManager, SupportsHasSensors, Protocol):
+        """
+        A device manager for the start react widget must
+        be a valid ScopeWidgetDeviceManager and support checking if it has sensors.
+        """
 
-    def __init__(self, device_manager: YostDeviceManager, trigno_client: TrignoClient):
+    def __init__(self, device_manager: StartReactDeviceManager, trigno_client: TrignoClient):
         super().__init__()
         self.dm = device_manager #IMU
         self.trigno_client = trigno_client
