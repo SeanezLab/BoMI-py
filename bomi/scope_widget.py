@@ -5,7 +5,7 @@ from queue import Queue
 from enum import Enum
 from pathlib import Path
 from timeit import default_timer
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Protocol
 
 import pyqtgraph as pg
 import pyqtgraph.parametertree as ptree
@@ -17,7 +17,7 @@ from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
 from bomi.datastructure import YostBuffer, SubjectMetadata, Packet
-from bomi.device_managers import YostDeviceManager
+from bomi.device_managers.protocols import SupportsStreaming, SupportsGetSensorMetadata
 import bomi.colors as bcolors
 from trigno_sdk.client import TrignoClient
 
@@ -170,9 +170,16 @@ class AngleState(Enum):
 
 
 class ScopeWidget(qw.QWidget):
+    class ScopeWidgetDeviceManager(SupportsStreaming, SupportsGetSensorMetadata, Protocol):
+        """
+        The device manager of a scope widget must
+        support streaming and support getting sensor metadata.
+        """
+        pass
+
     def __init__(
         self,
-        dm: YostDeviceManager,
+        dm: ScopeWidgetDeviceManager,
         savedir: Path,
         task_widget: TaskDisplay = None,
         config: ScopeConfig = ScopeConfig(),
