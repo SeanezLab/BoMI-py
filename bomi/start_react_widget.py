@@ -13,7 +13,7 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
-from bomi.base_widgets import TaskEvent, TaskDisplay, TaskEvent, generate_edit_form
+from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form
 from bomi.datastructure import YostBuffer, get_savedir
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.scope_widget import ScopeConfig, ScopeWidget
@@ -111,7 +111,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.savedir = savedir
 
         # filepointer to write task history
-        self.task_history = open(savedir / f"task_history.txt", "w")
+        self.task_history = open(savedir / "task_history.txt", "w")
         self._task_stack: List[str] = []
 
         ### Init UI
