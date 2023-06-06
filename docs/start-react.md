@@ -29,7 +29,7 @@ Click **"Discover Devices"**. You should see the list of devices.
 
 ### b. Inspect real-time data
 
-Click **"Data Charts"** in the **Yost devices** panel  to bring up a scope and inspect the real-time data.
+Click **"Data charts"** in the **Yost devices** panel  to bring up a scope and inspect the real-time data.
 
 ![](./img/bomi-yost-charts.png)
 
@@ -74,7 +74,7 @@ Now you should see all the sensors that are paired with the Trigno Base Station.
 
 ### c. Inspect real-time data
 
-Click on **"Data Charts"** to open a new window to inspect the real-time data and make sure EMG placement is correct. You can change the muscle names and sides and then reopen the scope to inspect placement. The scope will automatically place different sides of the same muscle on the same row, and different muscles on different rows.
+Click on **"Data charts"** to open a new window to inspect the real-time data and make sure EMG placement is correct. You can change the muscle names and sides and then reopen the scope to inspect placement. The scope will automatically place different sides of the same muscle on the same row, and different muscles on different rows.
 
 ![](./img/bomi-trigno-charts.png)
 ![](./img/bomi-trigno-scope.png)

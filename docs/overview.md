@@ -17,9 +17,9 @@ The home screen is divided into Group Boxes, grouped by functionality.
 The "Yost devices" widget manages the [Yost 3-Space Sensors](https://yostlabs.com/3-space-sensors/), which provides BoMI with real-time orientation data.
 Plug the sensors or dongles via USB to the computer, then click "**Discover Devices**" to see a list of devices.
 
-"**Tare Devices**" tares all wired and wireless sensors.
+"**Tare all devices**" tares all wired and wireless sensors.
 
-"**Data Charts**" brings up a scope that visualizes orientation data from all connected sensors. Certain columns of the table showing the list of devices are editable:
+"**Data charts**" brings up a scope that visualizes orientation data from all connected sensors. Certain columns of the table showing the list of devices are editable:
 
 - Nicknames: set a custom name to the devices (e.g., knee, ankle) that will be shown in the scope and in the saved data.
 - Channel: wireless channel of the Yost sensor. Only editable when a wireless sensors is connected through USB.
@@ -29,7 +29,7 @@ Plug the sensors or dongles via USB to the computer, then click "**Discover Devi
 
 "**Commit all settings**" commits the edited settings to device. (Nickname is only saved during a BoMI session and not persisted to device)
 
-"**Disconnect All**" disconnects from all devices and dongles.
+"**Disconnect all**" disconnects from all devices and dongles.
 
 ## "Trigno devices" Widget
 

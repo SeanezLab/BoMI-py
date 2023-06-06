@@ -98,13 +98,13 @@ class YostWidget(qw.QWidget, WindowMixin):
         tare_btn = qw.QPushButton(text="&Tare all devices")
         tare_btn.clicked.connect(self.s_tare_all)
 
-        chart_btn = qw.QPushButton(text="Data &Charts")
+        chart_btn = qw.QPushButton(text="Data &charts")
         chart_btn.clicked.connect(self.s_data_charts)
 
         commit_btn = qw.QPushButton(text="Commit all settings")
         commit_btn.clicked.connect(self.s_commit_all)
 
-        disconnect_btn = qw.QPushButton(text="Disconnect All")
+        disconnect_btn = qw.QPushButton(text="Disconnect all")
         disconnect_btn.clicked.connect(self.s_disconnect_all)
 
         layout.addWidget(discover_btn)
