@@ -95,6 +95,8 @@ class PlotHandle:
     @classmethod
     def init_curve(cls, plot: pg.PlotItem, i: int):
         assert i < len(YostBuffer.LABELS)
+        #YostBuffer holds data from one IMU sensor
+        #TODO init QTM here
         return plot.plot(pen=PENS[i], name=YostBuffer.LABELS[i])
 
     @staticmethod
@@ -174,6 +176,7 @@ class ScopeWidget(qw.QWidget):
         task_widget: TaskDisplay = None,
         config: ScopeConfig = ScopeConfig(),
         trigno_client: TrignoClient = None,
+        #TODO, add init QTM stream
     ):
         super().__init__()
         self.setWindowTitle(config.window_title)
@@ -188,6 +191,7 @@ class ScopeWidget(qw.QWidget):
 
         self.show_labels = list(YostBuffer.LABELS)
         self.queue: Queue[Packet] = Queue()
+        #TODO add QTM
 
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
@@ -429,7 +433,7 @@ class ScopeWidget(qw.QWidget):
 
     ### Base methods ]]]
 
-    def show_hide_curve(self, name: str, show: bool):
+    def show_hide_curve(self, name: str, show: bool):  #TODO:
         i = YostBuffer.LABELS.index(name)
         if show and name not in self.show_labels:
             for dev in self.dev_names:
@@ -454,7 +458,7 @@ class ScopeWidget(qw.QWidget):
         self.init_ui()
         return super().showEvent(event)
 
-    def init_data(self):
+    def init_data(self): #TODO
         ### data
         while self.queue.qsize():
             self.queue.get()
@@ -497,7 +501,7 @@ class ScopeWidget(qw.QWidget):
             if self.config.autoscale_y:
                 plot.enableAutoRange(axis="y")
             plot.setLabel("bottom", "Time", units="s", **plot_style)
-            plot.setLabel("left", "Euler Angle", units="deg", **plot_style)
+            plot.setLabel("left", "Euler Angle", units="deg", **plot_style) #TODO: make yaxis variable
             plot.setDownsampling(mode="peak")
             title = f"{sn}" if name == sn else f"{sn} ({name})"
             plot.setTitle(title, **plot_style)
@@ -546,7 +550,7 @@ class ScopeWidget(qw.QWidget):
         self.glw.setBackground(color)
         qc.QTimer.singleShot(duration_ms, lambda: self.glw.setBackground("white"))
 
-    def start_stream(self):
+    def start_stream(self): #TODO
         """Start the stream and show in the scope
         Clear the queue and buffers
         """
@@ -556,6 +560,7 @@ class ScopeWidget(qw.QWidget):
         if self.trigno_client:
             self.trigno_client.handle_stream(dummy_queue, self.savedir)
         self.dm.start_stream(self.queue)
+        #start QTM stream
         self.timer.start()
 
     def stop_stream(self):
@@ -563,6 +568,7 @@ class ScopeWidget(qw.QWidget):
         self.dm.stop_stream()
         hasattr(self, "timer") and self.timer.stop()
         self.trigno_client and self.trigno_client.stop_stream()
+        #stop QTM stream
 
     def update(self):
         """Update function connected to the timer

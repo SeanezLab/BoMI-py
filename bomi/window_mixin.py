@@ -17,7 +17,7 @@ class WindowMixin(object):
             self, "BoMI Confirmation", msg, qw.QMessageBox.Yes | qw.QMessageBox.No
         )
 
-    def no_yost_sensors_error(self):
+    def no_yost_sensors_error(self): #adjust this, tell it to work without IMU Yost
         return self.error_dialog(
             "No Yost sensors available. Plug in the devices, then click on 'Discover devices'"
         )

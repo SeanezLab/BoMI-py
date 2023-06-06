@@ -61,11 +61,12 @@ class SRConfig:
         default=10, metadata=dict(range=(1, 40), name="No. Trials per cue")
     )
 
+    tone_duration: int = field(
+        default=200, metadata=dict(range=(10, 500), name="Tone Duration (ms) ")
+    )
+
     tone_frequency: int = field(
         default=500, metadata=dict(range=(1, 1000), name="Tone Frequency (Hz)")
-    )
-    tone_duration: int = field(
-        default=50, metadata=dict(range=(10, 500), name="Tone Duration (ms) ")
     )
     auditory_volume: int = field(default=1, metadata=dict(range=(1, 100)))
     startle_volume: int = field(default=100, metadata=dict(range=(1, 100)))
@@ -338,7 +339,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
     def __init__(self, device_manager: YostDeviceManager, trigno_client: TrignoClient):
         super().__init__()
-        self.dm = device_manager
+        self.dm = device_manager #IMU
         self.trigno_client = trigno_client
 
         self.config = SRConfig()
@@ -366,7 +367,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.audio_calib = AudioCalibrationWidget()
         main_layout.addWidget(self.audio_calib)
 
-    def check_sensors(self) -> bool:
+    def check_sensors(self) -> bool: 
         if not self.dm.has_sensors():
             self.no_yost_sensors_error()
             return False

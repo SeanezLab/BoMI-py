@@ -25,6 +25,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         super().__init__()
         self.yost_dm = YostDeviceManager()
         self.trigno_client = TrignoClient()
+        #TODO: qtmclient here?
 
         self.init_ui()
         self.init_actions()

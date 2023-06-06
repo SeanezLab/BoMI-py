@@ -35,9 +35,10 @@ def get_savedir(task_name: str, mkdir=True) -> Path:
 
 @dataclass
 class SubjectMetadata:
-    subject_id: str = "unknown"
-    joint: str = "unknown"
+    subject_id: str = "Enter S00#"
+    joint: str = "Enter TaskJointSide"
     max_rom: int = -1
+    sham: str = "Enter 'sham' or 'none'" 
     stim: bool = False
 
     def dict(self):
@@ -140,6 +141,9 @@ class DelsysBuffer:
         self.data[-n:] = packets
         self.timestamp[:-n] = self.timestamp[n:]
         self.timestamp[-n:] = [default_timer()] * n
+
+    
+#TODO: #add class for QTM here?
 
 
 if __name__ == "__main__":
