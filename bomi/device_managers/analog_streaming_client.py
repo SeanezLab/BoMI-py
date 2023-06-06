@@ -1,9 +1,5 @@
 import asyncio
-from tkinter import Y
 import qtm
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import multiprocessing
 import xml.etree.ElementTree as ET
 
 # This script is to be used in conjunction with the Analog_Testing Project in QTM.
