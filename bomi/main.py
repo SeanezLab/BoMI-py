@@ -10,7 +10,6 @@ from bomi.start_react_widget import StartReactWidget
 from bomi.window_mixin import WindowMixin
 from bomi.base_widgets import wrap_gb
 from bomi.cursor import CursorControlWidget
-from bomi.version import __version__
 
 from bomi.device_managers.trigno_widget import TrignoWidget, TrignoClient
 

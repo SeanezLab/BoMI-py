@@ -1,5 +1,4 @@
 import PySide6.QtGui as qg
-from PySide6.QtCore import Qt
 
 # Seanez lab colors
 
