@@ -25,7 +25,7 @@ __all__ = ("YostWidget",)
 
 
 def _print(*args):
-    print("[DeviceManagerWidget]", *args)
+    print("[YostWidget]", *args)
 
 
 DEVICE_TYPE: Final = {
@@ -81,7 +81,7 @@ class YostWidget(qw.QWidget, WindowMixin):
     def __init__(self, yost_device_manager: YostDeviceManager):
         super().__init__()
         self.yost_dm = yost_device_manager
-        self.setWindowTitle("Yost Device Manager")
+        self.setWindowTitle("Yost devices")
         self.setMinimumSize(350, 200)
         self.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
 

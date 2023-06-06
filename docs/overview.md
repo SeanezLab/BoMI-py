@@ -4,17 +4,18 @@ The home screen is divided into Group Boxes, grouped by functionality.
 
 ![BoMI Screenshot](./img/bomi-home.png)
 
-- [Yost Device Manager](#yost-device-manager)
-- [Trigno Device Manager](#trigno-device-manager)
+- [Yost Devices Widget](#yost-devices-widget)
+- [Trigno Devices Widget](#trigno-devices-widget)
 - [StartReact](#startreact)
 - [Cursor Tasks](#cursor-tasks)
 - [Cursor Control](#cursor-control)
 
-## Yost Device Manager
+## "Yost devices" Widget
 
 ![](./img/bomi-yost.png)
 
-The Yost Device Manager manages the [Yost 3-Space Sensors](https://yostlabs.com/3-space-sensors/), which provides BoMI with real-time orientation data. Plug the sensors or dongles via USB to the computer, then click "**Discover Devices**" to see a list of devices.
+The "Yost devices" widget manages the [Yost 3-Space Sensors](https://yostlabs.com/3-space-sensors/), which provides BoMI with real-time orientation data.
+Plug the sensors or dongles via USB to the computer, then click "**Discover Devices**" to see a list of devices.
 
 "**Tare Devices**" tares all wired and wireless sensors.
 
@@ -30,11 +31,12 @@ The Yost Device Manager manages the [Yost 3-Space Sensors](https://yostlabs.com/
 
 "**Disconnect All**" disconnects from all devices and dongles.
 
-## Trigno Device Manager
+## "Trigno devices" Widget
 
 ![](./img/bomi-trigno.png)
 
-The Trigno Device Manager manages the [Trigno Research System](https://delsys.com/trigno/) from Delsys. Make sure the **Trigno Control Utility** (Trigno SDK Server) is running on the computer connected to the Base Station, and the IP address of the computer is entered correctly, then click "**Connect**" to connect to the Base Station.
+The "Trigno devices" widget manages the [Trigno Research System](https://delsys.com/trigno/) from Delsys.
+Make sure the **Trigno Control Utility** (Trigno SDK Server) is running on the computer connected to the Base Station, and the IP address of the computer is entered correctly, then click "**Connect**" to connect to the Base Station.
 
 **Use the sensor widgets to assign a muscle to each sensor before collecting data.**
 

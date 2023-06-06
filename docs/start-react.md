@@ -29,7 +29,7 @@ Click **"Discover Devices"**. You should see the list of devices.
 
 ### b. Inspect real-time data
 
-Click **"Data Charts"** in the **Yost Device Manager** to bring up a scope and inspect the real-time data.
+Click **"Data Charts"** in the **Yost devices** panel  to bring up a scope and inspect the real-time data.
 
 ![](./img/bomi-yost-charts.png)
 

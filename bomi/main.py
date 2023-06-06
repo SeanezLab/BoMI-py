@@ -51,13 +51,13 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         hbox.addWidget(tmp)
 
         ### Device manager group
-        _gb = wrap_gb("Yost Device Manager", YostWidget(self.yost_dm))
+        _gb = wrap_gb("Yost devices", YostWidget(self.yost_dm))
         _gb.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
         vbox1.addWidget(_gb)
 
         ### Trigno Device manager group
         vbox1.addWidget(
-            wrap_gb("Trigno Device Manager", TrignoWidget(self.trigno_client))
+            wrap_gb("Trigno devices", TrignoWidget(self.trigno_client))
         )
 
         ### StartReact Group
