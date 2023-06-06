@@ -36,6 +36,7 @@ MUSCLES = (
     "VLat (Vastus Lateralis)",
     "MG (Gastrocnemius Med)",
     "TA (Tibialis Anterior)",
+    "S (Soleus)",
 )
 
 
@@ -279,7 +280,8 @@ class TrignoWidget(qw.QWidget, WindowMixin):
 
         trigno_client = trigno_client if trigno_client else TrignoClient()
         self.trigno_client = trigno_client
-        self.meta_path = Path("emg_meta.json")
+        #self.meta_path = Path("emg_meta.json") #orignial startreact
+        self.meta_path = Path("emg_meta_excitability.json") #excitability
         self.load_meta(self.meta_path)
 
         ### Init UI
@@ -399,7 +401,8 @@ class TrignoWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()  # type: ignore
     def save_meta(self):
-        self.trigno_client.save_meta("emg_meta.json", slim=True)
+        #self.trigno_client.save_meta("emg_meta.json", slim=True) #old
+        self.trigno_client.save_meta("emg_meta_excitability.json", slim=True) 
 
     @qc.Slot()  # type: ignore
     def start_data_scope(self):
