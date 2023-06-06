@@ -85,7 +85,7 @@ After the Yost 3-Space Sensors and Trigno EMG Sensors are setup, we can configur
 
 ### a. Adjust volume
 
-First, make sure speakers to produce the auditory and startling sound effects are plugged into the computer. Test the tone by clicking on **"Play Tone"**. Make sure you can achieve a ~115 dB sound with the volume at 100, and ~80 dB with the volume at 1.
+First, make sure speakers to produce the auditory and startling sound effects are plugged into the computer. Test the tone by clicking on **"Play tone"**. Make sure you can achieve a ~115 dB sound with the volume at 100, and ~80 dB with the volume at 1.
 
 ![](./img/bomi-sr-playtone.png)
 

@@ -48,7 +48,7 @@ Make sure the **Trigno Control Utility** (Trigno SDK Server) is running on the c
 - **"Precision"** Launches the precision control task.
 - **"MaxROM"** Launches the max range of motion task.
 
-You can play a tone at **Frequency**, **Duration** and **Volume** by clicking **"Play Tone"**. Note that this setting is for testing sound only, and is not used in the StartReact task. To adjust task settings, click **"Configure"**.
+You can play a tone at **Frequency**, **Duration** and **Volume** by clicking **"Play tone"**. Note that this setting is for testing sound only, and is not used in the StartReact task. To adjust task settings, click **"Configure"**.
 
 ## Cursor Tasks
 
