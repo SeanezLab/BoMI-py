@@ -5,11 +5,9 @@ import PySide6.QtWidgets as qw
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.device_managers.yost_widget import YostWidget
 
-from bomi.reaching_widget import ReachingWidget
 from bomi.start_react_widget import StartReactWidget
 from bomi.window_mixin import WindowMixin
 from bomi.base_widgets import wrap_gb
-from bomi.cursor import CursorControlWidget
 
 from bomi.device_managers.trigno_widget import TrignoWidget, TrignoClient
 
@@ -66,21 +64,6 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         vbox2.addWidget(
             wrap_gb("StartReact", StartReactWidget(self.yost_dm, self.trigno_client))
         )
-
-        ### Cursor Task group
-        btn_reach = qw.QPushButton(text="Reaching")
-        btn_reach.clicked.connect(partial(self.start_widget, ReachingWidget()))  # type: ignore
-
-        vbox2.addWidget(wrap_gb("Cursor Tasks", btn_reach))
-
-        ### Cursor Control group
-        self.cursor_control = CursorControlWidget(
-            dm=self.yost_dm, show_device_manager=False
-        )
-        vbox2.addWidget(wrap_gb("Cursor Control", self.cursor_control))
-        self.installEventFilter(self.cursor_control)
-
-        vbox2.addStretch()
 
     def init_actions(self):
         """
