@@ -168,6 +168,7 @@ class AngleState(Enum):
     IN_BASE = 2
 
 
+
 class ScopeWidget(qw.QWidget):
     def __init__(
         self,
@@ -450,6 +451,7 @@ class ScopeWidget(qw.QWidget):
             self.show_labels.remove(name)
 
     def showEvent(self, event: qg.QShowEvent) -> None:
+        
         """Override showEvent to initialise data params and UI after the window is shown.
         This is because we need to know the number of sensors available to create the
         same number of plots
