@@ -393,6 +393,8 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.audio_calib = AudioCalibrationWidget()
         main_layout.addWidget(self.audio_calib)
 
+        self._scope_widget = None
+
     def set_device_manager(self, device_manager: StartReactDeviceManager) -> None:
         """
         Set the device manager to use for StartReact.
@@ -417,8 +419,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         return True
 
-    def s_precision_task(self):
-        "Run the ScopeWidget with the precision task view"
+    def run_startreact(self, task_name: str, file_suffix: str, target_range: tuple[int, int]):
+        """
+        Common code for the precision and max ROM tasks
+        """
         if not self.check_sensors():
             return
 
@@ -432,10 +436,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         ), f"SRConfig: Unknown angle_type: {self.config.angle_type}"
 
         scope_config = ScopeConfig(
-            window_title="Precision",
+            window_title=task_name,
             show_scope_params=True,
             target_show=True,
-            target_range=(35, 40),
+            target_range=target_range,
             base_show=True,
             yrange=(self.config.AXIS_MIN, self.config.AXIS_MAX),
             show_roll=show_roll,
@@ -444,60 +448,39 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             show_rollpitch=show_rollpitch,
         )
 
-        savedir = get_savedir("Precision")  # savedir to write all data
+        savedir = get_savedir(file_suffix)  # savedir to write all data
 
         try:
-            self._precision = ScopeWidget(
-                self.dm,
-                savedir=savedir,
-                task_widget=SRDisplay("Precision Control", savedir, self.config),
-                config=scope_config,
-                trigno_client=self.trigno_client,
-            )
-
-            self._precision.showMaximized()
-        except Exception:
-            _print(traceback.format_exc())
-            self.dm.stop_stream()
-
-    def s_max_rom(self):
-        "Run the ScopeWidget with the MaxROM task view"
-        if not self.check_sensors():
-            return
-
-        # refer to YostBuffer.LABELS for these
-        show_roll = self.config.angle_type == "Roll"
-        show_pitch = self.config.angle_type == "Pitch"
-        show_yaw = self.config.angle_type == "Yaw"
-        show_rollpitch = self.config.angle_type == "abs(roll) + abs(pitch)"
-        assert (
-            sum([show_roll, show_pitch, show_yaw, show_rollpitch]) == 1
-        ), f"SRConfig: Unknown angle_type: {self.config.angle_type}"
-
-        scope_config = ScopeConfig(
-            window_title="MaxROM",
-            show_scope_params=True,
-            target_show=True,
-            target_range=(70,120),
-            base_show=True,
-            yrange=(self.config.AXIS_MIN, self.config.AXIS_MAX), 
-            show_roll=show_roll,
-            show_pitch=show_pitch,
-            show_yaw=show_yaw,
-            show_rollpitch=show_rollpitch,
-        )
-
-        savedir = get_savedir("MaxROM")  # savedir to write all data
-
-        try:
-            self._precision = ScopeWidget(
+            self._scope_widget = ScopeWidget(
                 self.dm,
                 savedir=savedir,
                 task_widget=SRDisplay("Max Range of Motion", savedir, self.config),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )
-            self._precision.showMaximized()
+            self._scope_widget.showMaximized()
         except Exception:
             _print(traceback.format_exc())
             self.dm.stop_stream()
+
+    def s_precision_task(self):
+        """
+        Run the ScopeWidget with the precision task view
+        """
+
+        self.run_startreact(
+            "Precision Control",
+            "Precision",
+            (35, 40)
+        )
+
+    def s_max_rom(self):
+        """
+        Run the ScopeWidget with the MaxROM task view
+        """
+
+        self.run_startreact(
+            "Max Range of Motion",
+            "MaxROM",
+            (70, 120)
+        )
