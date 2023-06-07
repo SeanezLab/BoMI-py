@@ -1,6 +1,7 @@
 from functools import partial
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
+from PySide6.QtWidgets import QTabWidget
 
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.device_managers.yost_widget import YostWidget
@@ -38,6 +39,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
     def init_ui(self):
         w = qw.QWidget()
         self.setCentralWidget(w)
+        tabs = qw.QTabWidget()
 
         hbox = qw.QHBoxLayout(w)
         vbox1 = qw.QVBoxLayout()
@@ -48,23 +50,29 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         tmp.setLayout(vbox2)
         tmp.setSizePolicy(qw.QSizePolicy.Fixed, qw.QSizePolicy.Expanding)
         hbox.addWidget(tmp)
-        
 
         ### Device manager group
-        _gb = wrap_gb("Yost devices", YostWidget(self.yost_dm))
-        _gb.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
-        vbox1.addWidget(_gb)
+        _gbIMU = wrap_gb("Yost devices", YostWidget(self.yost_dm))
+        _gbIMU.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
+        tabs.addTab(_gbIMU, "Yost")
+        #vbox1.addWidget(tabs)
 
         ### Trigno Device manager group
-        vbox1.addWidget(
-            wrap_gb("Trigno devices", TrignoWidget(self.trigno_client))
-        )
+        _gbTrigno = wrap_gb("Trigno devices", TrignoWidget(self.trigno_client))
+        tabs.addTab(_gbTrigno, "Trigno")
 
-        ### StartReact Group
+        ### Biodex manager group
+        #Dummy Placeholder Biodex Widget, change _gbBiodex to actual biodex widget we create
+        _gbBiodex = wrap_gb("Trigno devices", TrignoWidget(self.trigno_client)) #TODO: CHANGE
+        tabs.addTab(_gbBiodex, "Biodex")
+
+        vbox1.addWidget(tabs) #adds tab widget to vertical box layout 1
+
+        ### StartReact manager group
         vbox2.addWidget(
             wrap_gb("StartReact", StartReactWidget(self.yost_dm, self.trigno_client))
         )
-
+   
     def init_actions(self):
         """
         Initialize QActions
