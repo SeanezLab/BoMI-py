@@ -4,8 +4,8 @@ The home screen is divided into Group Boxes, grouped by functionality.
 
 ![BoMI Screenshot](./img/bomi-home.png)
 
-- [Yost Devices Widget](#yost-devices-widget)
-- [Trigno Devices Widget](#trigno-devices-widget)
+- ["Yost devices" Widget](#-yost-devices--widget)
+- ["Trigno devices" Widget](#-trigno-devices--widget)
 - [StartReact](#startreact)
 - [Cursor Tasks](#cursor-tasks)
 - [Cursor Control](#cursor-control)
