@@ -22,7 +22,6 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         super().__init__()
         self.yost_dm = YostDeviceManager()
         self.trigno_client = TrignoClient()
-        #TODO: qtmclient here?
 
         self.init_ui()
         self.init_actions()
@@ -49,6 +48,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         tmp.setLayout(vbox2)
         tmp.setSizePolicy(qw.QSizePolicy.Fixed, qw.QSizePolicy.Expanding)
         hbox.addWidget(tmp)
+        
 
         ### Device manager group
         _gb = wrap_gb("Yost devices", YostWidget(self.yost_dm))
