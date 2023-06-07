@@ -13,7 +13,7 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
-from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form
+from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
 from bomi.datastructure import YostBuffer, get_savedir
 from bomi.device_managers.protocols import SupportsStreaming, SupportsHasSensors, SupportsGetSensorMetadata
 from bomi.scope_widget import ScopeConfig, ScopeWidget
@@ -338,19 +338,40 @@ class StartReactWidget(qw.QWidget, WindowMixin):
     """GUI to manage StartReact tasks"""
     class StartReactDeviceManager(ScopeWidget.ScopeWidgetDeviceManager, SupportsHasSensors, Protocol):
         """
-        A device manager for the start react widget must
+        A device manager for the StartReact widget must
         be a valid ScopeWidgetDeviceManager and support checking if it has sensors.
         """
 
-    def __init__(self, device_manager: StartReactDeviceManager, trigno_client: TrignoClient):
+    def __init__(self, device_managers: dict[StartReactDeviceManager, str], trigno_client: TrignoClient):
+        """
+        @param device_managers A dictionary with StartReactDeviceManagers and their associated readable names
+        @param trigno_client A Trigno (EMG) client.
+        """
         super().__init__()
-        self.dm = device_manager #IMU
+        self.available_device_managers = device_managers
+        self.dm = list(device_managers)[0]
         self.trigno_client = trigno_client
 
         self.config = SRConfig()
 
         ### Init UI
         main_layout = qw.QVBoxLayout(self)
+
+        input_button_group = qw.QButtonGroup(self)
+        for i, (device_manager, readable_name) in enumerate(self.available_device_managers.items()):
+            input_button_group.addButton(qw.QRadioButton(readable_name), id=i)
+        input_button_group.buttons()[0].click()  # Set the default choice as the first
+
+        def handle_button_clicked(button):
+            self.set_device_manager(
+                list(self.available_device_managers)[input_button_group.id(button)]
+            )
+
+        input_button_group.buttonClicked.connect(handle_button_clicked)
+
+        # We cannot add a group directly https://stackoverflow.com/a/69687211
+        buttons_group_box = wrap_gb("Input to use:", *input_button_group.buttons())
+        main_layout.addWidget(buttons_group_box)
 
         btn1 = qw.QPushButton(text="Precision")
         btn1.clicked.connect(self.s_precision_task)  # type: ignore
@@ -371,6 +392,13 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         self.audio_calib = AudioCalibrationWidget()
         main_layout.addWidget(self.audio_calib)
+
+    def set_device_manager(self, device_manager: StartReactDeviceManager) -> None:
+        """
+        Set the device manager to use for StartReact.
+        """
+        _print(f"Selected device manager: {device_manager}")
+        self.dm = device_manager
 
     def check_sensors(self) -> bool: 
         if not self.dm.has_sensors():
