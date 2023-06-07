@@ -226,21 +226,13 @@ class YostDeviceManager:
     def close_device(self, device):
         device.close()
 
-        def rm_from_lst(l: list):
-            if device in l:
-                l.remove(device)
+        for devices_list in [self.dongles, self.all_sensors, self.wired_sensors, self.wireless_sensors]:
+            if device in devices_list:
+                devices_list.remove(device)
 
-        rm_from_lst(self.dongles)
-        rm_from_lst(self.all_sensors)
-        rm_from_lst(self.wired_sensors)
-        rm_from_lst(self.wireless_sensors)
-
-        def rm_from_dict(d):
-            if device.serial_number in d:
-                del d[device.serial_number]
-
-        rm_from_dict(ts_api.global_sensorlist)
-        rm_from_dict(ts_api.global_donglist)
+        for devices_dict in [ts_api.global_sensorlist, ts_api.global_donglist]:
+            if device.serial_number in devices_dict:
+                del devices_dict[device.serial_number]
 
     def close_all_devices(self):
         "close all ports"
