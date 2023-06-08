@@ -1,11 +1,11 @@
 import multiprocessing
 import time
-import analog_streaming_client as AS
+import bomi.device_managers.analog_streaming_client as AS
 
 def _print(*args):
     print("[QTM]", *args)
 
-class QTMManager:
+class QtmDeviceManager:
     """
     The wrapper that calls the QTM Client. Responsible for discovering connected channels,
     implementing the multiprocessing queue, and starting/stopping the date stream.
@@ -22,12 +22,9 @@ class QTMManager:
         self.QTM_queue = multiprocessing.Queue()
         self.analog_frame_queue = multiprocessing.Queue()
 
-
-
         # Not sure what analog we'll use for this... look up later
         # self._done_streaming = threading.Event()
         # self._thread: Optional[threading.Thread] = None
-
 
         # Mapping[serial_number_hex, nickname]. Nickname defaults to serial_number_hex
         self._names: Dict[str, str] = {}
@@ -162,7 +159,7 @@ if __name__ == '__main__':
     """
     elements_to_get = 100
 
-    qtm = QTMManager()
+    qtm = QtmDeviceManager()
     qtm.discover_devices()
     qtm.start_stream()
     for i in range(elements_to_get):

@@ -6,11 +6,16 @@ from PySide6.QtWidgets import QTabWidget
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.device_managers.yost_widget import YostWidget
 
+from bomi.device_managers.qtm_manager import QtmDeviceManager
+from bomi.device_managers.qtm_widget import QtmWidget
+
 from bomi.start_react_widget import StartReactWidget
 from bomi.window_mixin import WindowMixin
 from bomi.base_widgets import wrap_gb
 
 from bomi.device_managers.trigno_widget import TrignoWidget, TrignoClient
+
+
 
 __appname__ = "BoMI"
 __all__ = ["MainWindow", "main"]
@@ -23,6 +28,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         super().__init__()
         self.yost_dm = YostDeviceManager()
         self.trigno_client = TrignoClient()
+        self.qtm_dm = QtmDeviceManager()
 
         self.init_ui()
         self.init_actions()
@@ -52,6 +58,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         hbox.addWidget(tmp)
 
         ### Device manager group
+        ### YOST IMU mamanger group
         _gbIMU = wrap_gb("Yost devices", YostWidget(self.yost_dm))
         _gbIMU.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
         tabs.addTab(_gbIMU, "Yost")
@@ -62,8 +69,8 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         tabs.addTab(_gbTrigno, "Trigno")
 
         ### Biodex manager group
-        #Dummy Placeholder Biodex Widget, change _gbBiodex to actual biodex widget we create
-        _gbBiodex = wrap_gb("Trigno devices", TrignoWidget(self.trigno_client)) #TODO: CHANGE
+        _gbBiodex = wrap_gb("Biodex devices", QtmWidget(self.qtm_dm))
+        _gbBiodex.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
         tabs.addTab(_gbBiodex, "Biodex")
 
         vbox1.addWidget(tabs) #adds tab widget to vertical box layout 1

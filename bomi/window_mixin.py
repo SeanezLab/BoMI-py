@@ -21,6 +21,11 @@ class WindowMixin(object):
         return self.error_dialog(
             "No Yost sensors available. Plug in the devices, then click on 'Discover devices'"
         )
+    
+    def no_qtm_sensors_error(self): #adjust this, tell it to work without IMU Yost
+        return self.error_dialog(
+            "No Qtm device available. Plug in the devices, then click on 'Discover devices'"
+        )
 
     def start_widget(self, obj: qw.QWidget, maximize=True):
         "Run the given QWidget object in a new window"
