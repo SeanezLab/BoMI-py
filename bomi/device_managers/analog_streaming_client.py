@@ -5,11 +5,11 @@ import xml.etree.ElementTree as ET
 # This script is to be used in conjunction with the Analog_Testing Project in QTM.
 # First open QTM. When prompted for the filename, choose Analog_Testing.
 
-def real_time_stream(q_analog, q_frame):
+def real_time_stream(q_analog, q_frame, IPaddress: str, port: int, version: str):
     # Creating the main asynchronous function 
     async def initiate():
         # Connect to the QTM Application. The application should be open.
-        connection = await qtm.connect('10.229.96.105', port=22223, version= '1.22')
+        connection = await qtm.connect(IPaddress, port, version)
 
         if connection is None:
             print("failed to connect")
@@ -72,11 +72,11 @@ def real_time_stream(q_analog, q_frame):
     asyncio.run(initiate())
 
 # Get the number of channels
-def get_channel_number():
+def get_channel_number(IPaddress: str, port: int, version: str):
     # Creating the main asynchronous function 
     async def initiate():
         # Connect to the QTM Application. The application should be open.
-        connection = await qtm.connect('10.229.96.105', port=22223, version= '1.22')
+        connection = await qtm.connect(IPaddress, port, version)
 
         if connection is None:
             print("failed to connect")

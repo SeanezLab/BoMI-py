@@ -21,6 +21,9 @@ class QtmDeviceManager:
         # create the queue
         self.QTM_queue = multiprocessing.Queue()
         self.analog_frame_queue = multiprocessing.Queue()
+        self.qtm_ip = '10.229.96.105' #connect to QLineEdit input of Biodex Widget
+        self.port = 22223
+        self.version = '1.22'
 
         # Not sure what analog we'll use for this... look up later
         # self._done_streaming = threading.Event()
@@ -42,14 +45,14 @@ class QtmDeviceManager:
         """
 
         try:
-            analog_idx = [[x] for x in AS.get_channel_number()]
+            analog_idx = [[x] for x in AS.get_channel_number(self.qtm_ip, self.port, self.version)]
             self.all_channels = analog_idx
             _print(self.status())
         except:
             # attempt to connect to QTM one more time, the first connection just opens the recording.
             try:
                 time.sleep(6)
-                analog_idx = [analog_dict[x] for x in AS.get_channel_number()]
+                analog_idx = [analog_dict[x] for x in AS.get_channel_number(self.qtm_ip, self.port, self.version)]
             except:
                 print("Error in connecting to QTM")
 
@@ -83,7 +86,7 @@ class QtmDeviceManager:
 
         if self.qtm_streaming == False:
             #print("here")
-            self.p1 = multiprocessing.Process(target = AS.real_time_stream, args=(self.QTM_queue,self.analog_frame_queue))
+            self.p1 = multiprocessing.Process(target = AS.real_time_stream, args=(self.QTM_queue,self.analog_frame_queue, self.qtm_ip, self.port, self.version))
             #replacing self.QTM_queue, self.analog_frame_queue
             self.p1.daemon = True
             self.p1.start()
