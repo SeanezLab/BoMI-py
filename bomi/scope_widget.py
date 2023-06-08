@@ -279,7 +279,7 @@ class ScopeWidget(qw.QWidget):
                     {
                         "name": label,
                         "title": label,
-                        "type": bool,
+                        "type": "bool",
                         "value": config.input_channels_visibility[label]
                     }
                     for label in self.dm.CHANNEL_LABELS
