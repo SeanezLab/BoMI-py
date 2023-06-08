@@ -13,6 +13,13 @@ from bomi.datastructure import Packet
 from bomi.device_managers.yost_serial_comm import (
     Dongles,
     WiredSensors,
+    PacketField
+)
+from bomi.device_managers.protocols import (
+    SupportsStreaming,
+    SupportsHasSensors,
+    SupportsGetSensorMetadata,
+    HasChannelLabels
 )
 
 
@@ -85,11 +92,17 @@ def discover_all_devices() -> Tuple[DongleList, SensorList, SensorList, SensorLi
     return dongles, all_sensors, wired_sensors, wireless_sensors
 
 
-class YostDeviceManager:
+class YostDeviceManager(SupportsStreaming, SupportsGetSensorMetadata, SupportsHasSensors, HasChannelLabels):
     """
     Manage the discovery, initialization, and data acquisition of all yost body sensors.
     Should only be instantiated once and used as a singleton, though this is not enforced.
     """
+
+    CHANNEL_LABELS = [
+        PacketField.ROLL,
+        PacketField.PITCH,
+        PacketField.YAW,
+    ]
 
     def __init__(self, data_dir: str | Path = "data", sampling_frequency: float = 100):
         self._data_dir: Path = Path(data_dir)

@@ -14,7 +14,7 @@ import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
 from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
-from bomi.datastructure import YostBuffer, get_savedir
+from bomi.datastructure import MultichannelBuffer, get_savedir
 from bomi.device_managers.protocols import SupportsStreaming, SupportsHasSensors, SupportsGetSensorMetadata
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
@@ -48,6 +48,18 @@ class SRConfig:
     Configuration for a StartReact task
     """
 
+    selected_input_channel: str
+    """
+    The input channel to use for StartReact.
+    It should be set in the "Configure" dialog.
+    
+    When StartReact is run, it cannot be changed,
+    although the shown input channels can be changed.
+    
+    Replaces the previously-used angle_type attribute,
+    and allows StartReact to be performed for inputs besides angles.
+    """
+
     HOLD_TIME: int = field(
         default=500, metadata=dict(range=(500, 5000), name="Hold Time (ms)")
     )  # msec
@@ -71,10 +83,6 @@ class SRConfig:
     auditory_volume: int = field(default=1, metadata=dict(range=(1, 100)))
     startle_volume: int = field(default=100, metadata=dict(range=(1, 100)))
 
-    angle_type: str = field(
-        default=YostBuffer.LABELS[1], metadata=dict(options=YostBuffer.LABELS)
-    )
-
     AXIS_MIN: int = field(
         default=0, metadata=dict(range=(-180, 180), name="Axis Range Min (deg.)")
     )
@@ -87,6 +95,7 @@ class SRConfig:
         "Write metadata to `savedir`"
         with (savedir / "start_react_config.json").open("w") as fp:
             json.dump(asdict(self), fp, indent=2)
+
 
 class SRDisplay(TaskDisplay, WindowMixin):
     """StartReact Display
@@ -393,8 +402,6 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.audio_calib = AudioCalibrationWidget()
         main_layout.addWidget(self.audio_calib)
 
-        self._scope_widget = None
-
     def set_device_manager(self, device_manager: StartReactDeviceManager) -> None:
         """
         Set the device manager to use for StartReact.
@@ -426,26 +433,20 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         if not self.check_sensors():
             return
 
-        # refer to YostBuffer.LABELS for these
-        show_roll = self.config.angle_type == "Roll"
-        show_pitch = self.config.angle_type == "Pitch"
-        show_yaw = self.config.angle_type == "Yaw"
-        show_rollpitch = self.config.angle_type == "abs(roll) + abs(pitch)"
-        assert (
-            sum([show_roll, show_pitch, show_yaw, show_rollpitch]) == 1
-        ), f"SRConfig: Unknown angle_type: {self.config.angle_type}"
+        input_channels_visibility = {
+            k: False
+            for k in self.dm.CHANNEL_LABELS
+        }
+        input_channels_visibility[self.config.selected_input_channel] = True
 
         scope_config = ScopeConfig(
+            input_channels_visibility=input_channels_visibility,
             window_title=task_name,
             show_scope_params=True,
             target_show=True,
             target_range=target_range,
             base_show=True,
             yrange=(self.config.AXIS_MIN, self.config.AXIS_MAX),
-            show_roll=show_roll,
-            show_pitch=show_pitch,
-            show_yaw=show_yaw,
-            show_rollpitch=show_rollpitch,
         )
 
         savedir = get_savedir(file_suffix)  # savedir to write all data

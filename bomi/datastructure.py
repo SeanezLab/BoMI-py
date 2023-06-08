@@ -50,13 +50,11 @@ class SubjectMetadata:
             json.dump(asdict(self), fp, indent=2)
 
 
-class YostBuffer:
+class MultichannelBuffer:
     """Manage all data (packets) consumed from the queue
 
-    YostBuffer holds data from 1 Yost body sensor
+    MultichannelBuffer holds data from an individual sensor
     """
-
-    LABELS: ClassVar = ("Roll", "Pitch", "Yaw", "abs(roll) + abs(pitch)")
     NAME_TEMPLATE: ClassVar = "yost_sensor_{name}.csv"
 
     def __init__(self, bufsize: int, savedir: Path, name: str):
