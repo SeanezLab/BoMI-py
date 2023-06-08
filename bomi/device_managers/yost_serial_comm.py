@@ -13,11 +13,11 @@ from typing import Dict, List, Optional, Tuple
 from queue import Queue
 from timeit import default_timer
 import math
+from enum import Enum
 
 from serial import Serial
 import struct
 
-from bomi.datastructure import Packet
 from .yost_cmds import Cmd, Cmds, WLCmds
 
 RAD2DEG = 180 / math.pi
@@ -25,6 +25,15 @@ RAD2DEG = 180 / math.pi
 
 def _print(*args):
     print("[Yost custom serial comm]", *args)
+
+
+class PacketField(str, Enum):
+    PITCH = "Pitch"
+    YAW = "Yaw"
+    ROLL = "Roll"
+    BATTERY = "Battery"
+    TIME = "Time"
+    NAME = "Name"
 
 
 class Dongles:
@@ -96,7 +105,7 @@ class Dongles:
         self.ports = []
         self.logical_ids = []
 
-    def recv(self, queue: Queue[Packet]) -> int:
+    def recv(self, queue: Queue) -> int:
         """
         Read all available packets into queue.
         Returns the number of packets read.
@@ -107,14 +116,14 @@ class Dongles:
             failed, logical_id, raw = read_dongle_port(port)
             if failed == 0 and raw and len(raw) == self.out_sz:
                 b = struct.unpack(self.out_struct, raw)
-                packet = Packet(
-                    pitch=b[0] * RAD2DEG,
-                    yaw=b[1] * RAD2DEG,
-                    roll=b[2] * RAD2DEG,
-                    battery=b[3],
-                    t=now,
-                    name=wl_mp[logical_id],
-                )
+                packet = {
+                    PacketField.PITCH: b[0] * RAD2DEG,
+                    PacketField.YAW: b[1] * RAD2DEG,
+                    PacketField.ROLL: b[2] * RAD2DEG,
+                    PacketField.BATTERY: b[3],
+                    PacketField.TIME: now,
+                    PacketField.NAME: wl_mp[logical_id],
+                }
                 queue.put(packet)
                 i += 1
         return i
@@ -182,7 +191,7 @@ class WiredSensors:
             port.close()
         self.ports = []
 
-    def recv(self, queue: Queue[Packet]) -> int:
+    def recv(self, queue: Queue) -> int:
         """
         Read all available packets into queue.
         Returns the number of packets read.
@@ -192,14 +201,14 @@ class WiredSensors:
         for port, name in zip(self.ports, self.names):
             raw = port.read(self.out_sz)
             b = struct.unpack(self.out_struct, raw)
-            packet = Packet(
-                pitch=b[0] * RAD2DEG,
-                yaw=b[1] * RAD2DEG,
-                roll=b[2] * RAD2DEG,
-                battery=b[3],
-                t=now,
-                name=name,
-            )
+            packet = {
+                PacketField.PITCH: b[0] * RAD2DEG,
+                PacketField.YAW: b[1] * RAD2DEG,
+                PacketField.ROLL: b[2] * RAD2DEG,
+                PacketField.BATTERY: b[3],
+                PacketField.TIME: now,
+                PacketField.NAME: name,
+            }
             queue.put(packet)
             i += 1
         return i

@@ -17,7 +17,7 @@ from bomi.device_managers.table_model import (
     make_setter,
 )
 from bomi.device_managers.yost_manager import DeviceT, YostDeviceManager
-from bomi.scope_widget import ScopeWidget
+from bomi.scope_widget import ScopeWidget, ScopeConfig
 from bomi.window_mixin import WindowMixin
 
 
@@ -176,7 +176,11 @@ class YostWidget(qw.QWidget, WindowMixin):
 
         ## Start scope here.
         try:
-            self._sw = ScopeWidget(dm, get_savedir("Scope"))
+            self._sw = ScopeWidget(
+                dm,
+                get_savedir("Scope"),
+                ScopeConfig({channel: True for channel in self.yost_dm.CHANNEL_LABELS})
+            )
             self._sw.showMaximized()
         except Exception as e:
             _print(traceback.format_exc())

@@ -31,3 +31,11 @@ class SupportsHasSensors(Protocol):
         """
         Returns True if the device manager has sensors added.
         """
+
+
+class HasChannelLabels(Protocol):
+    CHANNEL_LABELS: Iterable[str]
+    """
+    Contains the labels for the channels available with the devices
+    of this device manager.
+    """
