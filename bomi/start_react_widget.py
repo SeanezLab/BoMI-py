@@ -361,7 +361,9 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.dm = list(device_managers)[0]
         self.trigno_client = trigno_client
 
-        self.config = SRConfig()
+        self.config = SRConfig(
+            self.dm.CHANNEL_LABELS[0]
+        )
 
         ### Init UI
         main_layout = qw.QVBoxLayout(self)
