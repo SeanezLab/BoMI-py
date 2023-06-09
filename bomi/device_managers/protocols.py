@@ -1,5 +1,6 @@
-from typing import Protocol, Sequence
+from typing import Protocol, Sequence, ClassVar
 from queue import Queue
+from PySide6.QtCore import Signal
 
 
 class SupportsStreaming(Protocol):
@@ -31,3 +32,10 @@ class SupportsHasSensors(Protocol):
         """
         Returns True if the device manager has sensors added.
         """
+
+
+class HasDiscoverDevicesSignal(Protocol):
+    discover_devices_signal: ClassVar[Signal]
+    """
+    Signal fired when the device manager discovers devices.
+    """

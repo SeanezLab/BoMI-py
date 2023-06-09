@@ -15,6 +15,8 @@ from bomi.device_managers.yost_serial_comm import (
     WiredSensors,
 )
 
+from PySide6.QtCore import Signal, QObject
+
 
 def _print(*args):
     print("[Yost Device Manager]", *args)
@@ -85,13 +87,15 @@ def discover_all_devices() -> Tuple[DongleList, SensorList, SensorList, SensorLi
     return dongles, all_sensors, wired_sensors, wireless_sensors
 
 
-class YostDeviceManager:
+class YostDeviceManager(QObject):
     """
     Manage the discovery, initialization, and data acquisition of all yost body sensors.
     Should only be instantiated once and used as a singleton, though this is not enforced.
     """
+    discover_devices_signal = Signal()
 
     def __init__(self, data_dir: str | Path = "data", sampling_frequency: float = 100):
+        super().__init__()
         self._data_dir: Path = Path(data_dir)
         self._fs = sampling_frequency
 
@@ -130,6 +134,8 @@ class YostDeviceManager:
         for sensor in self.all_sensors:
             sensor.setCompassEnabled(False)
         self.tare_all_devices()
+
+        self.discover_devices_signal.emit()
 
     def get_all_sensor_serial(self) -> List[str]:
         "Get serial_number_hex of all sensors"
