@@ -94,7 +94,7 @@ def discover_all_devices() -> Tuple[DongleList, SensorList, SensorList, SensorLi
     return dongles, all_sensors, wired_sensors, wireless_sensors
 
 
-class YostDeviceManager(SupportsStreaming, SupportsGetSensorMetadata, SupportsHasSensors, HasChannelLabels, QObject):
+class YostDeviceManager(QObject):
     """
     Manage the discovery, initialization, and data acquisition of all yost body sensors.
     Should only be instantiated once and used as a singleton, though this is not enforced.
