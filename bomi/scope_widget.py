@@ -610,7 +610,14 @@ class ScopeWidget(qw.QWidget):
 
         for _ in range(qsize):  # process current items in queue
             packet: Packet = q.get()
-            self.buffers[packet.name].add_packet(packet)
+            try:
+                self.buffers[packet.name].add_packet(packet)
+            except KeyError:
+                # When we select a single sensor,
+                # the device manager will still populate the queue
+                # with packets from the other sensors (not ideal).
+                # Ignore these.
+                pass
 
         # On successful read from queue, update curves
         now = default_timer()
