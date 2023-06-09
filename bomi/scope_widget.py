@@ -181,6 +181,7 @@ class ScopeWidget(qw.QWidget):
         self,
         dm: ScopeWidgetDeviceManager,
         savedir: Path,
+        selected_sensor_name: str | Ellipsis = ...,
         task_widget: TaskDisplay = None,
         config: ScopeConfig = ScopeConfig(),
         trigno_client: TrignoClient = None,
@@ -190,8 +191,10 @@ class ScopeWidget(qw.QWidget):
         self.setWindowTitle(config.window_title)
         self.dm = dm
         self.savedir = savedir
+        self.selected_sensor_name = selected_sensor_name
         self.task_widget = task_widget
         self.config = config
+
         if trigno_client and trigno_client.n_sensors:
             self.trigno_client = trigno_client
         else:

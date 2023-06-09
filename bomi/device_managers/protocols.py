@@ -1,4 +1,4 @@
-from typing import Protocol, Iterable
+from typing import Protocol, Sequence
 from queue import Queue
 
 
@@ -15,12 +15,12 @@ class SupportsStreaming(Protocol):
 
 
 class SupportsGetSensorMetadata(Protocol):
-    def get_all_sensor_names(self) -> Iterable[str]:
+    def get_all_sensor_names(self) -> Sequence[str]:
         """
         Returns the names of the sensors added to this device manager
         """
 
-    def get_all_sensor_serial(self) -> Iterable[str]:
+    def get_all_sensor_serial(self) -> Sequence[str]:
         """
         Returns the hex serials of the sensors added to this device manager
         """
