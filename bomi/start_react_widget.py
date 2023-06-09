@@ -15,7 +15,7 @@ from PySide6.QtCore import Qt
 
 from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
 from bomi.datastructure import MultichannelBuffer, get_savedir
-from bomi.device_managers.protocols import SupportsStreaming, SupportsHasSensors, SupportsGetSensorMetadata
+from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
 from bomi.audio.player import TonePlayer, AudioCalibrationWidget
@@ -345,10 +345,12 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
 class StartReactWidget(qw.QWidget, WindowMixin):
     """GUI to manage StartReact tasks"""
-    class StartReactDeviceManager(ScopeWidget.ScopeWidgetDeviceManager, SupportsHasSensors, Protocol):
+    class StartReactDeviceManager(ScopeWidget.ScopeWidgetDeviceManager, SupportsHasSensors, HasDiscoverDevicesSignal, Protocol):
         """
         A device manager for the StartReact widget must
-        be a valid ScopeWidgetDeviceManager and support checking if it has sensors.
+        be a valid ScopeWidgetDeviceManager,
+        support checking if it has sensors,
+        and support the discover_devices signal.
         """
 
     def __init__(self, device_managers: dict[StartReactDeviceManager, str], trigno_client: TrignoClient):
@@ -359,6 +361,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         super().__init__()
         self.available_device_managers = device_managers
         self.dm = list(device_managers)[0]
+        self.selected_sensor_name = None
         self.trigno_client = trigno_client
 
         self.config = SRConfig(
@@ -368,21 +371,35 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         ### Init UI
         main_layout = qw.QVBoxLayout(self)
 
+        # Widget to select input to use
         input_button_group = qw.QButtonGroup(self)
         for i, (device_manager, readable_name) in enumerate(self.available_device_managers.items()):
             input_button_group.addButton(qw.QRadioButton(readable_name), id=i)
         input_button_group.buttons()[0].click()  # Set the default choice as the first
 
-        def handle_button_clicked(button):
+        def update_selected_dm(button):
             self.set_device_manager(
                 list(self.available_device_managers)[input_button_group.id(button)]
             )
+            self.fill_select_sensor_combo_box()
 
-        input_button_group.buttonClicked.connect(handle_button_clicked)
+        input_button_group.buttonClicked.connect(update_selected_dm)
 
         # We cannot add a group directly https://stackoverflow.com/a/69687211
         buttons_group_box = wrap_gb("Input to use:", *input_button_group.buttons())
         main_layout.addWidget(buttons_group_box)
+
+        # Select sensor UI
+        self.select_sensor_combo_box = qw.QComboBox(self)
+        main_layout.addWidget(wrap_gb("Sensor to use:", self.select_sensor_combo_box))
+        self.fill_select_sensor_combo_box()
+        self.dm.discover_devices_signal.connect(self.fill_select_sensor_combo_box)
+
+        def update_selected_sensor(sensor):
+            self.selected_sensor_name = sensor
+            _print(f"Selected sensor changed to {sensor}")
+
+        self.select_sensor_combo_box.currentTextChanged.connect(update_selected_sensor)
 
         btn1 = qw.QPushButton(text="Precision")
         btn1.clicked.connect(self.s_precision_task)  # type: ignore
@@ -403,6 +420,15 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         self.audio_calib = AudioCalibrationWidget()
         main_layout.addWidget(self.audio_calib)
+
+        self._scope_widget = None
+
+    def fill_select_sensor_combo_box(self):
+        sensor_names = self.dm.get_all_sensor_names()
+        self.select_sensor_combo_box.clear()
+        self.select_sensor_combo_box.addItems(
+            sensor_names
+        )
 
     def set_device_manager(self, device_manager: StartReactDeviceManager) -> None:
         """
@@ -456,6 +482,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         try:
             self._scope_widget = ScopeWidget(
                 self.dm,
+                selected_sensor_name=self.selected_sensor_name,
                 savedir=savedir,
                 task_widget=SRDisplay("Max Range of Motion", savedir, self.config),
                 config=scope_config,

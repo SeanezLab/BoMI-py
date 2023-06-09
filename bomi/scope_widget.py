@@ -180,6 +180,7 @@ class ScopeWidget(qw.QWidget):
         dm: ScopeWidgetDeviceManager,
         savedir: Path,
         config: ScopeConfig,
+        selected_sensor_name: str | Ellipsis = ...,
         task_widget: TaskDisplay = None,
         trigno_client: TrignoClient = None,
         #TODO, add init QTM stream
@@ -188,8 +189,10 @@ class ScopeWidget(qw.QWidget):
         self.setWindowTitle(config.window_title)
         self.dm = dm
         self.savedir = savedir
+        self.selected_sensor_name = selected_sensor_name
         self.task_widget = task_widget
         self.config = config
+
         if trigno_client and trigno_client.n_sensors:
             self.trigno_client = trigno_client
         else:
@@ -445,6 +448,12 @@ class ScopeWidget(qw.QWidget):
             self.queue.get()
         self.dev_names = self.dm.get_all_sensor_names()
         self.dev_sn = self.dm.get_all_sensor_serial()
+        # instead of checking everywhere if we have selected_sensor_name set,
+        # check once here and overwrite dev_names and dev_sn
+        if self.selected_sensor_name is not ...:
+            selected_index = self.dev_names.index(self.selected_sensor_name)
+            self.dev_sn = [self.dev_sn[selected_index]]
+            self.dev_names = [self.selected_sensor_name]
 
         for dev in self.dev_names:
             if dev in self.buffers:  # buffer already initialized
@@ -570,7 +579,14 @@ class ScopeWidget(qw.QWidget):
 
         for _ in range(qsize):  # process current items in queue
             packet: Packet = q.get()
-            self.buffers[packet.name].add_packet(packet)
+            try:
+                self.buffers[packet.name].add_packet(packet)
+            except KeyError:
+                # When we select a single sensor,
+                # the device manager will still populate the queue
+                # with packets from the other sensors (not ideal).
+                # Ignore these.
+                pass
 
         # On successful read from queue, update curves
         now = default_timer()
