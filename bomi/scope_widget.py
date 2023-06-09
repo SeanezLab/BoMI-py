@@ -17,7 +17,7 @@ from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
 from bomi.datastructure import MultichannelBuffer, SubjectMetadata
-from bomi.device_managers.protocols import SupportsStreaming, SupportsGetSensorMetadata, HasChannelLabels
+from bomi.device_managers.protocols import SupportsStreaming, SupportsGetSensorMetadata, HasChannelLabels, HasInputKind
 import bomi.colors as bcolors
 from trigno_sdk.client import TrignoClient
 
@@ -168,10 +168,10 @@ class AngleState(Enum):
 
 
 class ScopeWidget(qw.QWidget):
-    class ScopeWidgetDeviceManager(SupportsStreaming, SupportsGetSensorMetadata, HasChannelLabels, Protocol):
+    class ScopeWidgetDeviceManager(SupportsStreaming, SupportsGetSensorMetadata, HasChannelLabels, HasInputKind, Protocol):
         """
         The device manager of a scope widget must
-        support streaming, support getting sensor metadata, and have channel labels.
+        support streaming, support getting sensor metadata, have channel labels, and have an input kind field.
         """
         pass
 
@@ -459,7 +459,11 @@ class ScopeWidget(qw.QWidget):
             if device_name in self.buffers:  # buffer already initialized
                 continue
             self.buffers[device_name] = MultichannelBuffer(
-                bufsize=self.init_bufsize, savedir=self.savedir, name=device_name
+                bufsize=self.init_bufsize,
+                savedir=self.savedir,
+                name=device_name,
+                input_kind=self.dm.INPUT_KIND,
+                channel_labels=self.dm.CHANNEL_LABELS
             )
             if self.task_widget:
                 self.buffers[device_name].set_angle_type(
