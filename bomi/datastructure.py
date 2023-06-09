@@ -5,21 +5,9 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from timeit import default_timer
-from typing import ClassVar, NamedTuple, TextIO, Tuple
+from typing import TextIO, Tuple
 
 import numpy as np
-
-
-class Packet(NamedTuple):
-    """Packet represents one streaming batch from one Yost sensor"""
-
-    pitch: float
-    yaw: float
-    roll: float
-    battery: int
-    t: float  # time
-    name: str  # device nickname
-
 
 DATA_ROOT = Path.home() / "Documents" / "BoMI Data"
 DATA_ROOT.mkdir(exist_ok=True)
@@ -55,16 +43,15 @@ class MultichannelBuffer:
 
     MultichannelBuffer holds data from an individual sensor
     """
-    NAME_TEMPLATE: ClassVar = "yost_sensor_{name}.csv"
-
-    def __init__(self, bufsize: int, savedir: Path, name: str):
+    def __init__(self, bufsize: int, savedir: Path, name: str, input_kind: str, channel_labels: list[str]):
         self.bufsize = bufsize
+        self.channel_labels = channel_labels
         # 1D array of timestamps
         self.timestamp: np.ndarray = np.zeros(bufsize)
         # 2D array of `labels`
-        self.data: np.ndarray = np.zeros((bufsize, len(self.LABELS)))
+        self.data: np.ndarray = np.zeros((bufsize, len(self.channel_labels)))
 
-        fp = open(savedir / self.NAME_TEMPLATE.format(name=name), "w")
+        fp = open(savedir / f"{input_kind}_{name}.csv", "w")
 
         # filepointer to write CSV data to
         self.sensor_fp: TextIO = fp
@@ -75,7 +62,7 @@ class MultichannelBuffer:
         self.last_angle: float = 0.0  # angle used for task purposes
 
         self.savedir: Path = savedir
-        header = ",".join(("t", *self.LABELS)) + "\n"
+        header = ",".join(("t", *self.channel_labels)) + "\n"
         self.sensor_fp.write(header)
 
     def __len__(self):
@@ -86,26 +73,21 @@ class MultichannelBuffer:
         self.sensor_fp.close()
 
     def set_angle_type(self, label: str):
-        i = self.LABELS.index(label)
+        i = self.channel_labels.index(label)
         self._angle_in_use = i
 
-    def add_packet(self, packet: Packet):
+    def add_packet(self, packet: dict[str, int | float]):
         "Add `Packet` of sensor data"
-        _packet = (
-            packet.roll,
-            packet.pitch,
-            packet.yaw,
-            abs(packet.roll) + abs(packet.pitch),
-        )
+        _packet = [packet[key] for key in self.channel_labels]
 
         # Write to file pointer
-        self.sensor_fp.write(",".join((str(v) for v in (packet.t, *_packet))) + "\n")
+        self.sensor_fp.write(",".join((str(v) for v in (packet["Time"], *_packet))) + "\n")
 
         ### Shift buffer when full, never changing buffer size
         self.data[:-1] = self.data[1:]
         self.data[-1] = _packet
         self.timestamp[:-1] = self.timestamp[1:]
-        self.timestamp[-1] = packet.t
+        self.timestamp[-1] = packet["Time"]
 
         self.last_angle = _packet[self._angle_in_use]
 

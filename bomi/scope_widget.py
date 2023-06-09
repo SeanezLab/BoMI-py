@@ -16,7 +16,7 @@ from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
-from bomi.datastructure import MultichannelBuffer, SubjectMetadata, Packet
+from bomi.datastructure import MultichannelBuffer, SubjectMetadata
 from bomi.device_managers.protocols import SupportsStreaming, SupportsGetSensorMetadata, HasChannelLabels
 import bomi.colors as bcolors
 from trigno_sdk.client import TrignoClient
@@ -198,7 +198,7 @@ class ScopeWidget(qw.QWidget):
         else:
             self.trigno_client = None
 
-        self.queue: Queue[Packet] = Queue()
+        self.queue: Queue = Queue()
         #TODO add QTM
 
         self.dev_names: List[str] = []  # device name/nicknames
@@ -455,14 +455,16 @@ class ScopeWidget(qw.QWidget):
             self.dev_sn = [self.dev_sn[selected_index]]
             self.dev_names = [self.selected_sensor_name]
 
-        for dev in self.dev_names:
-            if dev in self.buffers:  # buffer already initialized
+        for device_name in self.dev_names:
+            if device_name in self.buffers:  # buffer already initialized
                 continue
-            self.buffers[dev] = MultichannelBuffer(
-                bufsize=self.init_bufsize, savedir=self.savedir, name=dev
+            self.buffers[device_name] = MultichannelBuffer(
+                bufsize=self.init_bufsize, savedir=self.savedir, name=device_name
             )
             if self.task_widget:
-                self.buffers[dev].set_angle_type(self.task_widget.config.angle_type)  # type: ignore
+                self.buffers[device_name].set_angle_type(
+                    self.task_widget.config.angle_type
+                )  # type: ignore
 
     def init_ui(self):
         ### Init UI
@@ -578,7 +580,7 @@ class ScopeWidget(qw.QWidget):
         # return
 
         for _ in range(qsize):  # process current items in queue
-            packet: Packet = q.get()
+            packet = q.get()
             try:
                 self.buffers[packet.name].add_packet(packet)
             except KeyError:

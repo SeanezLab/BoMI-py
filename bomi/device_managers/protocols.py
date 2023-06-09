@@ -47,3 +47,11 @@ class HasChannelLabels(Protocol):
     Contains the labels for the channels available with the devices
     of this device manager.
     """
+
+
+class HasInputKind(Protocol):
+    INPUT_KIND: str
+    """
+    The name of the kind of input that this device manager allows you to use,
+    e.g. "Yost".
+    """
