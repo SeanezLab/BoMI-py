@@ -476,6 +476,12 @@ class ScopeWidget(qw.QWidget):
             self.queue.get()
         self.dev_names = self.dm.get_all_sensor_names()
         self.dev_sn = self.dm.get_all_sensor_serial()
+        # instead of checking everywhere if we have selected_sensor_name set,
+        # check once here and overwrite dev_names and dev_sn
+        if self.selected_sensor_name is not ...:
+            selected_index = self.dev_names.index(self.selected_sensor_name)
+            self.dev_sn = [self.dev_sn[selected_index]]
+            self.dev_names = [self.selected_sensor_name]
 
         for dev in self.dev_names:
             if dev in self.buffers:  # buffer already initialized
