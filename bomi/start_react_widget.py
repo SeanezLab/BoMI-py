@@ -414,6 +414,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
     def fill_select_sensor_combo_box(self):
         sensor_names = self.dm.get_all_sensor_names()
+        self.select_sensor_combo_box.clear()
         self.select_sensor_combo_box.addItems(
             sensor_names
         )
