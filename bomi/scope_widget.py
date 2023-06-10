@@ -467,7 +467,7 @@ class ScopeWidget(qw.QWidget):
             )
             if self.task_widget:
                 self.buffers[device_name].set_angle_type(
-                    self.task_widget.config.angle_type
+                    self.task_widget.config.selected_input_channel
                 )  # type: ignore
 
     def init_ui(self):
@@ -535,7 +535,7 @@ class ScopeWidget(qw.QWidget):
         config = self.config
         config.target_show and self.update_targets()
         config.base_show and self.update_base()
-        for channel, is_visible in self.config.input_channels_visibility:
+        for channel, is_visible in self.config.input_channels_visibility.items():
             self.show_hide_curve(channel, is_visible)
         self.start_stream()
 
@@ -586,7 +586,7 @@ class ScopeWidget(qw.QWidget):
         for _ in range(qsize):  # process current items in queue
             packet = q.get()
             try:
-                self.buffers[packet.name].add_packet(packet)
+                self.buffers[packet["Name"]].add_packet(packet)
             except KeyError:
                 # When we select a single sensor,
                 # the device manager will still populate the queue
@@ -602,9 +602,8 @@ class ScopeWidget(qw.QWidget):
 
             x = -(now - buf.timestamp)
             for i, label in enumerate(self.dm.CHANNEL_LABELS):
-                if self.config.input_channels_visibility[name]:
-                    curves[label].setData(x=x, y=buf.data[:, i])
-
+                curves[label].setData(x=x, y=buf.data[:, i])
+                    
         ### Update task states if needed
         # 1. Check if angle is within target range
         # 2. Check if angle is within base range
