@@ -370,6 +370,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         ### Init UI
         main_layout = qw.QVBoxLayout(self)
+        self.setLayout(main_layout)
+
+        options_layout = qw.QFormLayout(self)
+        main_layout.addLayout(options_layout)
 
         # Widget to select input to use
         input_button_group = qw.QButtonGroup(self)
@@ -387,11 +391,11 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         # We cannot add a group directly https://stackoverflow.com/a/69687211
         buttons_group_box = wrap_gb("Input to use:", *input_button_group.buttons())
-        main_layout.addWidget(buttons_group_box)
+        options_layout.addWidget(buttons_group_box)
 
         # Select sensor UI
         self.select_sensor_combo_box = qw.QComboBox(self)
-        main_layout.addWidget(wrap_gb("Sensor to use:", self.select_sensor_combo_box))
+        options_layout.addWidget(wrap_gb("Sensor to use:", self.select_sensor_combo_box))
         self.fill_select_sensor_combo_box()
         self.dm.discover_devices_signal.connect(self.fill_select_sensor_combo_box)
 
@@ -401,14 +405,6 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         self.select_sensor_combo_box.currentTextChanged.connect(update_selected_sensor)
 
-        btn1 = qw.QPushButton(text="Precision")
-        btn1.clicked.connect(self.s_precision_task)  # type: ignore
-        main_layout.addWidget(btn1)
-
-        btn1 = qw.QPushButton(text="MaxROM")
-        btn1.clicked.connect(self.s_max_rom)  # type: ignore
-        main_layout.addWidget(btn1)
-
         self.config_widget = generate_edit_form(
             self.config,
             name="Task config",
@@ -416,10 +412,21 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         )
         self.config_btn = qw.QPushButton("Configure")
         self.config_btn.clicked.connect(self.config_widget.show)  # type: ignore
-        main_layout.addWidget(self.config_btn)
+        options_layout.addWidget(self.config_btn)
 
         self.audio_calib = AudioCalibrationWidget()
-        main_layout.addWidget(self.audio_calib)
+        options_layout.addWidget(self.audio_calib)
+
+        actions_layout = qw.QVBoxLayout(self)
+        main_layout.addLayout(actions_layout)
+
+        btn1 = qw.QPushButton(text="Precision")
+        btn1.clicked.connect(self.s_precision_task)  # type: ignore
+        actions_layout.addWidget(btn1)
+
+        btn1 = qw.QPushButton(text="MaxROM")
+        btn1.clicked.connect(self.s_max_rom)  # type: ignore
+        actions_layout.addWidget(btn1)
 
         self._scope_widget = None
 
