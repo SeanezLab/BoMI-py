@@ -372,7 +372,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         main_layout = qw.QVBoxLayout(self)
         self.setLayout(main_layout)
 
-        setup_layout = qw.QFormLayout(self)
+        setup_layout = qw.QFormLayout()
         setup_group_box = qw.QGroupBox("Setup")
         setup_group_box.setLayout(setup_layout)
         main_layout.addWidget(setup_group_box)
@@ -391,14 +391,14 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         input_button_group.buttonClicked.connect(update_selected_dm)
 
-        buttons_box = qw.QVBoxLayout(self)
+        buttons_box = qw.QVBoxLayout()
         # We cannot add a group directly https://stackoverflow.com/a/69687211
         for button in input_button_group.buttons():
             buttons_box.addWidget(button)
         setup_layout.addRow(qw.QLabel("Input to use:"), buttons_box)
 
         # Select sensor UI
-        self.select_sensor_combo_box = qw.QComboBox(self)
+        self.select_sensor_combo_box = qw.QComboBox()
         setup_layout.addRow(qw.QLabel("Sensor to use:"), self.select_sensor_combo_box)
         self.fill_select_sensor_combo_box()
         self.dm.discover_devices_signal.connect(self.fill_select_sensor_combo_box)
@@ -421,7 +421,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.audio_calib = AudioCalibrationWidget()
         main_layout.addWidget(wrap_gb("Audio calibration", self.audio_calib))
 
-        actions_layout = qw.QVBoxLayout(self)
+        actions_layout = qw.QVBoxLayout()
         main_layout.addLayout(actions_layout)
 
         btn1 = qw.QPushButton(text="Precision")
