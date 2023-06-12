@@ -362,6 +362,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.available_device_managers = device_managers
         self.dm = list(device_managers)[0]
         self.selected_sensor_name = None
+        self.selected_channel_name = None
         self.trigno_client = trigno_client
 
         self.config = SRConfig(
@@ -388,6 +389,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
                 list(self.available_device_managers)[input_button_group.id(button)]
             )
             self.fill_select_sensor_combo_box()
+            self.fill_select_channel_combo_box()
 
         input_button_group.buttonClicked.connect(update_selected_dm)
 
@@ -408,6 +410,11 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             _print(f"Selected sensor changed to {sensor}")
 
         self.select_sensor_combo_box.currentTextChanged.connect(update_selected_sensor)
+
+        # Select channel UI
+        self.select_channel_combo_box = qw.QComboBox()
+        setup_layout.addRow(qw.QLabel("Channel to use:"), self.select_channel_combo_box)
+        self.fill_select_channel_combo_box()
 
         self.config_widget = generate_edit_form(
             self.config,
@@ -439,6 +446,13 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.select_sensor_combo_box.clear()
         self.select_sensor_combo_box.addItems(
             sensor_names
+        )
+
+    def fill_select_channel_combo_box(self):
+        channel_names = self.dm.CHANNEL_LABELS
+        self.select_channel_combo_box.clear()
+        self.select_channel_combo_box.addItems(
+            channel_names
         )
 
     def set_device_manager(self, device_manager: StartReactDeviceManager) -> None:
