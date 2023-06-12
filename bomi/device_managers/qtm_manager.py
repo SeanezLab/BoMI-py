@@ -1,25 +1,37 @@
 import multiprocessing
 import time
 import bomi.device_managers.analog_streaming_client as AS
-from bomi.device_managers.protocols import SupportsGetSensorMetadata, SupportsHasSensors, SupportsStreaming
+from bomi.device_managers.protocols import SupportsGetSensorMetadata, SupportsHasSensors, SupportsStreaming, HasDiscoverDevicesSignal, HasChannelLabels, HasInputKind
 from queue import Queue
 from typing import Protocol, Iterable
 import threading
 from threading import Event
+from PySide6.QtCore import Signal, QObject
+from bomi.device_managers.analog_streaming_client import (Channel)
 
 def _print(*args):
     print("[QTM]", *args)
 
-class QtmDeviceManager(SupportsGetSensorMetadata, SupportsHasSensors, SupportsStreaming):
+class QtmDeviceManager(QObject):
     """
     The wrapper that calls the QTM Client. Responsible for discovering connected channels,
     implementing queue, and starting/stopping the date stream.
     
     """
+    discover_devices_signal = Signal()
+
+    CHANNEL_LABELS = [
+        Channel.TORQUE,
+        Channel.VELOCITY,
+        Channel.POSITION,
+    ]
+
+    INPUT_KIND = "QTM"
+
     def __init__(self):
         self.qtm_streaming = False
         self.all_channels: SensorList = []
-        #self.queue = Queue()  #use for debugging with if __name__ == '__main__':
+        self.queue = Queue()  #use for debugging with if __name__ == '__main__':
         
         self.dummyQueue = multiprocessing.Queue() #dummy queue because we probably do not need seperate information for frame rate for 100 Hz
             #analog streaming was developed to handle 50000 Hz, needs analog_frame_queue
@@ -45,6 +57,7 @@ class QtmDeviceManager(SupportsGetSensorMetadata, SupportsHasSensors, SupportsSt
             analog_idx = [[x] for x in AS.get_channel_number(self.qtm_ip, self.port, self.version)]
             self.all_channels = analog_idx #channels from QTM connection
             _print(self.status())
+            self.discover_devices_signal.emit()
         except:
             # attempt to connect to QTM one more time, the first connection just opens the recording.
             try:
@@ -69,8 +82,8 @@ class QtmDeviceManager(SupportsGetSensorMetadata, SupportsHasSensors, SupportsSt
         """  
         return ["QTM"]
 
-    #def start_stream(self): #for debugging with if __name__ == '__main__':
-    def start_stream(self, queue: Queue) -> None:
+    def start_stream(self): #for debugging with if __name__ == '__main__':
+    #def start_stream(self, queue: Queue) -> None:
         """
         Start streaming data to the passed in queue
         """
@@ -79,8 +92,8 @@ class QtmDeviceManager(SupportsGetSensorMetadata, SupportsHasSensors, SupportsSt
             return
 
         if self.qtm_streaming == False:
-            #self.p1 = threading.Thread(target = AS.real_time_stream, args=(self.queue, self.dummyQueue, self.qtm_ip, self.port, self.version), daemon=True) #cebugging
-            self.p1 = threading.Thread(target = AS.real_time_stream, args=(queue, self.dummyQueue, self.qtm_ip, self.port, self.version), daemon=True)
+            self.p1 = threading.Thread(target = AS.real_time_stream, args=(self.queue, self.dummyQueue, self.qtm_ip, self.port, self.version), daemon=True) #cebugging
+            #self.p1 = threading.Thread(target = AS.real_time_stream, args=(queue, self.dummyQueue, self.qtm_ip, self.port, self.version), daemon=True)
             #self.p1 = multiprocessing.Process(target = AS.real_time_stream, args=(self.QTM_queue, self.dummyQueue, self.qtm_ip, self.port, self.version))
             self.p1.start() #starting the thread
             self.qtm_streaming = True #check for stopping
@@ -107,29 +120,29 @@ class QtmDeviceManager(SupportsGetSensorMetadata, SupportsHasSensors, SupportsSt
         return len(self.all_channels) > 0
 
 
-# if __name__ == '__main__':
-#     """
-#     Debugging code to test functionality of qtm manager, send internal queue
-#     """
-#     elements_to_get = 10
+if __name__ == '__main__':
+    """
+    Debugging code to test functionality of qtm manager, send internal queue
+    """
+    elements_to_get = 10
 
-#     qtm = QtmDeviceManager()
-#     qtm.discover_devices()
-#     print("What devices?", qtm.status())
-#     qtm.start_stream()
-#     for i in range(elements_to_get):
-#         if i < 5:
-#             print('i:', i)
-#             print(qtm.queue.get())
-#         if i == 5:
-#            print("Go ahead and stop")
-#            qtm.stop_stream()
-#            print("Start again after this")
-#         if i > 5:
-#             qtm.start_stream()
-#             print('i:', i)
-#             print(qtm.queue.get())
-#         if i == 9:
-#             print("stop again")
-#             qtm.stop_stream()
-# print('finished')
+    qtm = QtmDeviceManager()
+    qtm.discover_devices()
+    print("What devices?", qtm.status())
+    qtm.start_stream()
+    for i in range(elements_to_get):
+        if i < 5:
+            print('i:', i)
+            print(qtm.queue.get())
+        if i == 5:
+           print("Go ahead and stop")
+           qtm.stop_stream()
+           print("Start again after this")
+        if i > 5:
+            qtm.start_stream()
+            print('i:', i)
+            print(qtm.queue.get())
+        if i == 9:
+            print("stop again")
+            qtm.stop_stream()
+print('finished')

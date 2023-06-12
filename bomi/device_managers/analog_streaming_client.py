@@ -1,9 +1,16 @@
 import asyncio
 import qtm
 import xml.etree.ElementTree as ET
+from enum import Enum
+import timeit
 
 # This script is to be used in conjunction with the Analog_Testing Project in QTM.
 # First open QTM. When prompted for the filename, choose Analog_Testing.
+
+class Channel(str, Enum):
+    TORQUE = "Torque"
+    VELOCITY = "Velocity"
+    POSITION = "Position"
 
 def real_time_stream(q_analog, q_frame, IPaddress: str, port: int, version: str):
     # Creating the main asynchronous function 
@@ -17,13 +24,11 @@ def real_time_stream(q_analog, q_frame, IPaddress: str, port: int, version: str)
                     # Modifies sampling rate
                     if x % 1 == 0:
                         # For each reading, the inner loop takes the x index from each i channel, and compiles it into an i-length list 
-                        for i in channels:
-                            if i == 0:
-                                data_all_elements = []
-                                data_all = list(data[0][2][0])
-                                data_all_elements.append(data_all[x])
-                            else:
-                                data_all_elements.append(list(data[i][2][0])[x])
+                        data_all_elements = {}
+                        for i, channel in enumerate(Channel):
+                            data_all_elements[channel] = list(data[i][2][0])[x]
+                            #data_all_elements.append(list(data[i][2][0])[x])
+                        data_all_elements['Time'] = timeit.default_timer()
                         q_analog.put(data_all_elements)
                     else:
                         continue
