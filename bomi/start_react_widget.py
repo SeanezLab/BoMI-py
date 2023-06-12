@@ -414,7 +414,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             name="Task config",
             dialog_box=True,
         )
-        self.config_btn = qw.QPushButton("Configure")
+        self.config_btn = qw.QPushButton("Set config...")
         self.config_btn.clicked.connect(self.config_widget.show)  # type: ignore
         setup_layout.addWidget(self.config_btn)
 
