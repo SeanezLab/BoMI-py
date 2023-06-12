@@ -419,7 +419,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         setup_layout.addWidget(self.config_btn)
 
         self.audio_calib = AudioCalibrationWidget()
-        setup_layout.addWidget(self.audio_calib)
+        main_layout.addWidget(wrap_gb("Audio calibration", self.audio_calib))
 
         actions_layout = qw.QVBoxLayout(self)
         main_layout.addLayout(actions_layout)
