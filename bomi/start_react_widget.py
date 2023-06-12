@@ -372,8 +372,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         main_layout = qw.QVBoxLayout(self)
         self.setLayout(main_layout)
 
-        options_layout = qw.QFormLayout(self)
-        main_layout.addLayout(options_layout)
+        setup_layout = qw.QFormLayout(self)
+        setup_group_box = qw.QGroupBox("Setup")
+        setup_group_box.setLayout(setup_layout)
+        main_layout.addWidget(setup_group_box)
 
         # Widget to select input to use
         input_button_group = qw.QButtonGroup(self)
@@ -393,11 +395,11 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         # We cannot add a group directly https://stackoverflow.com/a/69687211
         for button in input_button_group.buttons():
             buttons_box.addWidget(button)
-        options_layout.addRow(qw.QLabel("Input to use:"), buttons_box)
+        setup_layout.addRow(qw.QLabel("Input to use:"), buttons_box)
 
         # Select sensor UI
         self.select_sensor_combo_box = qw.QComboBox(self)
-        options_layout.addRow(qw.QLabel("Sensor to use:"), self.select_sensor_combo_box)
+        setup_layout.addRow(qw.QLabel("Sensor to use:"), self.select_sensor_combo_box)
         self.fill_select_sensor_combo_box()
         self.dm.discover_devices_signal.connect(self.fill_select_sensor_combo_box)
 
@@ -414,10 +416,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         )
         self.config_btn = qw.QPushButton("Configure")
         self.config_btn.clicked.connect(self.config_widget.show)  # type: ignore
-        options_layout.addWidget(self.config_btn)
+        setup_layout.addWidget(self.config_btn)
 
         self.audio_calib = AudioCalibrationWidget()
-        options_layout.addWidget(self.audio_calib)
+        setup_layout.addWidget(self.audio_calib)
 
         actions_layout = qw.QVBoxLayout(self)
         main_layout.addLayout(actions_layout)
