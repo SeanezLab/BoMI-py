@@ -389,13 +389,15 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         input_button_group.buttonClicked.connect(update_selected_dm)
 
+        buttons_box = qw.QVBoxLayout(self)
         # We cannot add a group directly https://stackoverflow.com/a/69687211
-        buttons_group_box = wrap_gb("Input to use:", *input_button_group.buttons())
-        options_layout.addWidget(buttons_group_box)
+        for button in input_button_group.buttons():
+            buttons_box.addWidget(button)
+        options_layout.addRow(qw.QLabel("Input to use:"), buttons_box)
 
         # Select sensor UI
         self.select_sensor_combo_box = qw.QComboBox(self)
-        options_layout.addWidget(wrap_gb("Sensor to use:", self.select_sensor_combo_box))
+        options_layout.addRow(qw.QLabel("Sensor to use:"), self.select_sensor_combo_box)
         self.fill_select_sensor_combo_box()
         self.dm.discover_devices_signal.connect(self.fill_select_sensor_combo_box)
 
