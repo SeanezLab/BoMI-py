@@ -5,7 +5,7 @@ from queue import Queue
 from enum import Enum
 from pathlib import Path
 from timeit import default_timer
-from typing import Dict, List, Tuple, Protocol
+from typing import Dict, List, Tuple, Protocol, Iterable
 
 import pyqtgraph as pg
 import pyqtgraph.parametertree as ptree
@@ -16,8 +16,8 @@ from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
-from bomi.datastructure import YostBuffer, SubjectMetadata, Packet
-from bomi.device_managers.protocols import SupportsStreaming, SupportsGetSensorMetadata
+from bomi.datastructure import MultichannelBuffer, SubjectMetadata
+from bomi.device_managers.protocols import SupportsStreaming, SupportsGetSensorMetadata, HasChannelLabels, HasInputKind
 import bomi.colors as bcolors
 from trigno_sdk.client import TrignoClient
 
@@ -35,6 +35,13 @@ TARGET_BRUSH_FG = pg.mkBrush(qg.QColor(254, 136, 33, 50))
 @dataclass
 class ScopeConfig:
     "Configuration parameters for ScopeWidget"
+    input_channels_visibility: dict[str, bool]
+    """
+    A dictionary containing all the available input channels as keys.
+    A corresponding value is set to True to make that channel visible in the ScopeWidget,
+    and False to make that channel hidden in the ScopeWidget.
+    """
+
     window_title: str = "Scope"
     show_scope_params: bool = True
 
@@ -49,17 +56,12 @@ class ScopeConfig:
 
     autoscale_y: bool = False
 
-    show_roll: bool = True
-    show_pitch: bool = True
-    show_yaw: bool = True
-    show_rollpitch: bool = True
-
 
 @dataclass
 class PlotHandle:
     "Holds a PlotItem and its curves"
     plot: pg.PlotItem | pg.ViewBox
-    curves: List[pg.PlotCurveItem | pg.PlotDataItem]
+    curves: dict[str, pg.PlotCurveItem | pg.PlotDataItem]
     target: pg.LinearRegionItem | None
     base: pg.LinearRegionItem | None
 
@@ -70,13 +72,15 @@ class PlotHandle:
     def init(
         cls,
         plot: pg.PlotItem,
+        channel_labels: Iterable[str],
         target_range: Tuple[float, float] = None,
         base_range: Tuple[float, float] = None,
     ) -> PlotHandle:
         "Create curves on the given plot object"
-        curves = [
-            plot.plot(pen=pen, name=name) for pen, name in zip(PENS, YostBuffer.LABELS)
-        ]
+        curves = {
+            label: plot.plot(pen=pen, name=label)
+            for pen, label in zip(PENS, channel_labels)
+        }
 
         target = (
             cls.init_line_region(plot, target_range, label=cls.TARGET_NAME)
@@ -92,12 +96,6 @@ class PlotHandle:
 
         return PlotHandle(plot=plot, curves=curves, target=target, base=base)
 
-    @classmethod
-    def init_curve(cls, plot: pg.PlotItem, i: int):
-        assert i < len(YostBuffer.LABELS)
-        #YostBuffer holds data from one IMU sensor
-        #TODO init QTM here
-        return plot.plot(pen=PENS[i], name=YostBuffer.LABELS[i])
 
     @staticmethod
     def init_line_region(
@@ -170,10 +168,10 @@ class AngleState(Enum):
 
 
 class ScopeWidget(qw.QWidget):
-    class ScopeWidgetDeviceManager(SupportsStreaming, SupportsGetSensorMetadata, Protocol):
+    class ScopeWidgetDeviceManager(SupportsStreaming, SupportsGetSensorMetadata, HasChannelLabels, HasInputKind, Protocol):
         """
         The device manager of a scope widget must
-        support streaming and support getting sensor metadata.
+        support streaming, support getting sensor metadata, have channel labels, and have an input kind field.
         """
         pass
 
@@ -181,8 +179,9 @@ class ScopeWidget(qw.QWidget):
         self,
         dm: ScopeWidgetDeviceManager,
         savedir: Path,
+        config: ScopeConfig,
+        selected_sensor_name: str | Ellipsis = ...,
         task_widget: TaskDisplay = None,
-        config: ScopeConfig = ScopeConfig(),
         trigno_client: TrignoClient = None,
         #TODO, add init QTM stream
     ):
@@ -190,21 +189,22 @@ class ScopeWidget(qw.QWidget):
         self.setWindowTitle(config.window_title)
         self.dm = dm
         self.savedir = savedir
+        self.selected_sensor_name = selected_sensor_name
         self.task_widget = task_widget
         self.config = config
+
         if trigno_client and trigno_client.n_sensors:
             self.trigno_client = trigno_client
         else:
             self.trigno_client = None
 
-        self.show_labels = list(YostBuffer.LABELS)
-        self.queue: Queue[Packet] = Queue()
+        self.queue: Queue = Queue()
         #TODO add QTM
 
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
         self.init_bufsize = 2500  # buffer size
-        self.buffers: Dict[str, YostBuffer] = {}
+        self.buffers: Dict[str, MultichannelBuffer] = {}
         self.meta = SubjectMetadata()
 
         self.last_state: AngleState = (
@@ -279,30 +279,13 @@ class ScopeWidget(qw.QWidget):
                 title="Show",
                 type="group",
                 children=[
-                    dict(
-                        name="show_roll",
-                        title="Show roll",
-                        type="bool",
-                        value=config.show_roll,
-                    ),
-                    dict(
-                        name="show_pitch",
-                        title="Show pitch",
-                        type="bool",
-                        value=config.show_pitch,
-                    ),
-                    dict(
-                        name="show_yaw",
-                        title="Show yaw",
-                        type="bool",
-                        value=config.show_yaw,
-                    ),
-                    dict(
-                        name="show_rollpitch",
-                        title="Show abs(roll) + abs(pitch)",
-                        type="bool",
-                        value=config.show_rollpitch,
-                    ),
+                    {
+                        "name": label,
+                        "title": label,
+                        "type": "bool",
+                        "value": config.input_channels_visibility[label]
+                    }
+                    for label in self.dm.CHANNEL_LABELS
                 ],
             ),
         ]
@@ -321,11 +304,9 @@ class ScopeWidget(qw.QWidget):
         }
 
         def onShowHideChange(_, changes):
-            for param, _, data in changes:
-                name = param.name()
-                if name in key2label:
-                    name = key2label[name]
-                    self.show_hide_curve(name, data)
+            for param, _, is_visible in changes:
+                channel = param.name()
+                self.show_hide_curve(channel, is_visible)
 
         self.params.child("show").sigTreeStateChanged.connect(onShowHideChange)
 
@@ -442,20 +423,14 @@ class ScopeWidget(qw.QWidget):
     ### Base methods ]]]
 
     def show_hide_curve(self, name: str, show: bool):  #TODO:
-        i = YostBuffer.LABELS.index(name)
-        if show and name not in self.show_labels:
+        if show:
             for dev in self.dev_names:
                 handle = self.plot_handles[dev]
-                handle.plot.addCurve(handle.curves[i])
-
-            self.show_labels.append(name)
-
-        if not show and name in self.show_labels:
+                handle.plot.addCurve(handle.curves[name])
+        else:
             for dev in self.dev_names:
                 handle = self.plot_handles[dev]
-                handle.plot.removeItem(handle.curves[i])
-
-            self.show_labels.remove(name)
+                handle.plot.removeItem(handle.curves[name])
 
     def showEvent(self, event: qg.QShowEvent) -> None:
         
@@ -473,15 +448,27 @@ class ScopeWidget(qw.QWidget):
             self.queue.get()
         self.dev_names = self.dm.get_all_sensor_names()
         self.dev_sn = self.dm.get_all_sensor_serial()
+        # instead of checking everywhere if we have selected_sensor_name set,
+        # check once here and overwrite dev_names and dev_sn
+        if self.selected_sensor_name is not ...:
+            selected_index = self.dev_names.index(self.selected_sensor_name)
+            self.dev_sn = [self.dev_sn[selected_index]]
+            self.dev_names = [self.selected_sensor_name]
 
-        for dev in self.dev_names:
-            if dev in self.buffers:  # buffer already initialized
+        for device_name in self.dev_names:
+            if device_name in self.buffers:  # buffer already initialized
                 continue
-            self.buffers[dev] = YostBuffer(
-                bufsize=self.init_bufsize, savedir=self.savedir, name=dev
+            self.buffers[device_name] = MultichannelBuffer(
+                bufsize=self.init_bufsize,
+                savedir=self.savedir,
+                name=device_name,
+                input_kind=self.dm.INPUT_KIND,
+                channel_labels=self.dm.CHANNEL_LABELS
             )
             if self.task_widget:
-                self.buffers[dev].set_angle_type(self.task_widget.config.angle_type)  # type: ignore
+                self.buffers[device_name].set_angle_type(
+                    self.task_widget.selected_channel
+                )  # type: ignore
 
     def init_ui(self):
         ### Init UI
@@ -514,7 +501,7 @@ class ScopeWidget(qw.QWidget):
             plot.setDownsampling(mode="peak")
             title = f"{sn}" if name == sn else f"{sn} ({name})"
             plot.setTitle(title, **plot_style)
-            self.plot_handles[name] = PlotHandle.init(plot)
+            self.plot_handles[name] = PlotHandle.init(plot, self.dm.CHANNEL_LABELS)
 
         ### Init RHS of window
         RHS = qw.QWidget()
@@ -548,11 +535,8 @@ class ScopeWidget(qw.QWidget):
         config = self.config
         config.target_show and self.update_targets()
         config.base_show and self.update_base()
-        config.show_roll or self.show_hide_curve("Roll", False)
-        config.show_pitch or self.show_hide_curve("Pitch", False)
-        config.show_yaw or self.show_hide_curve("Yaw", False)
-        config.show_rollpitch or self.show_hide_curve("abs(roll) + abs(pitch)", False)
-
+        for channel, is_visible in self.config.input_channels_visibility.items():
+            self.show_hide_curve(channel, is_visible)
         self.start_stream()
 
     def flash(self, color="green", duration_ms=500):
@@ -600,8 +584,15 @@ class ScopeWidget(qw.QWidget):
         # return
 
         for _ in range(qsize):  # process current items in queue
-            packet: Packet = q.get()
-            self.buffers[packet.name].add_packet(packet)
+            packet = q.get()
+            try:
+                self.buffers[packet["Name"]].add_packet(packet)
+            except KeyError:
+                # When we select a single sensor,
+                # the device manager will still populate the queue
+                # with packets from the other sensors (not ideal).
+                # Ignore these.
+                pass
 
         # On successful read from queue, update curves
         now = default_timer()
@@ -610,9 +601,8 @@ class ScopeWidget(qw.QWidget):
             curves = self.plot_handles[name].curves
 
             x = -(now - buf.timestamp)
-            for i, name in enumerate(buf.LABELS):
-                if name in self.show_labels:
-                    curves[i].setData(x=x, y=buf.data[:, i])
+            for i, label in enumerate(self.dm.CHANNEL_LABELS):
+                curves[label].setData(x=x, y=buf.data[:, i])
 
         ### Update task states if needed
         # 1. Check if angle is within target range
@@ -644,7 +634,7 @@ class ScopeWidget(qw.QWidget):
             self.stop_stream()
 
         self.task_widget and self.task_widget.close()
-        # Remove references to YostBuffer objects
+        # Remove references to MultichannelBuffer objects
         # The filepointers will be closed when GC runs
         self.buffers.clear()
         return super().closeEvent(event)
