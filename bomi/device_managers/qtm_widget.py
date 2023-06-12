@@ -80,37 +80,24 @@ class QtmWidget(qw.QWidget, WindowMixin):
         layout.addWidget(chart_btn)
         layout.addWidget(disconnect_btn)
 
-        self.qtm_model = TableModel(QTM_COL_PROPS)
-        self.qtm_proxy_model = qc.QSortFilterProxyModel()
-        self.qtm_proxy_model.setSourceModel(self.qtm_model)
-        self.qtm_proxy_model.setDynamicSortFilter(True)
+        right_layout = qw.QVBoxLayout()
+        self.qtm_indicator = qw.QLabel("Not connected")
+        right_layout.addWidget(self.qtm_indicator)
 
-        qtm_tv = qw.QTableView()
-        qtm_tv.setModel(self.qtm_proxy_model)
-        qtm_tv.setSortingEnabled(True)
-        qtm_tv.setSelectionBehavior(qw.QAbstractItemView.SelectRows)
-        qtm_tv.setSelectionMode(qw.QAbstractItemView.SingleSelection)
-        qtm_tv.horizontalHeader().setSectionResizeMode(qw.QHeaderView.Stretch)
-        qtm_tv.resizeColumnsToContents()
-        qtm_tv.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        qtm_tv.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Expanding)
-
-        main_layout.addWidget(qtm_tv)
+        main_layout.addLayout(right_layout)
 
     @qc.Slot()
     def s_discover_devices(self):
-        ...
-        # self.s_disconnect_all()
-        # with pg.BusyCursor():
-        #     self.yost_dm.discover_devices()
-        # if not self.yost_dm.all_sensors:
-        #     self.error_dialog(
-        #         "No devices found. Make sure wired dongle/sensors are plugged in, "
-        #         "and make sure wireless sensors are turned on, and use the same "
-        #         "Channel and Pan ID as the dongle."
-        #     )
-        # self.yost_model.set_devices(self.yost_dm.dongles + self.yost_dm.all_sensors)
-        # self.yost_proxy_model.invalidate()
+        with pg.BusyCursor():
+            self.qtm_dm.discover_devices()
+
+        if not self.qtm_dm.all_channels:
+            self.error_dialog(
+                "Could not find QTM device."
+            )
+            return
+
+        self.qtm_indicator.setText("Connected")
 
     @qc.Slot()
     def s_data_charts(self):

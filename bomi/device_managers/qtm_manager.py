@@ -29,9 +29,10 @@ class QtmDeviceManager(QObject):
     INPUT_KIND = "QTM"
 
     def __init__(self):
+        super().__init__()
         self.qtm_streaming = False
         self.all_channels: SensorList = []
-        self.queue = Queue()  #use for debugging with if __name__ == '__main__':
+        #self.queue = Queue()  #use for debugging with if __name__ == '__main__':
         
         self.dummyQueue = multiprocessing.Queue() #dummy queue because we probably do not need seperate information for frame rate for 100 Hz
             #analog streaming was developed to handle 50000 Hz, needs analog_frame_queue
@@ -82,8 +83,8 @@ class QtmDeviceManager(QObject):
         """  
         return ["QTM"]
 
-    def start_stream(self): #for debugging with if __name__ == '__main__':
-    #def start_stream(self, queue: Queue) -> None:
+    # def start_stream(self): #for debugging with if __name__ == '__main__':
+    def start_stream(self, queue: Queue) -> None:
         """
         Start streaming data to the passed in queue
         """
@@ -92,8 +93,8 @@ class QtmDeviceManager(QObject):
             return
 
         if self.qtm_streaming == False:
-            self.p1 = threading.Thread(target = AS.real_time_stream, args=(self.queue, self.dummyQueue, self.qtm_ip, self.port, self.version), daemon=True) #cebugging
-            #self.p1 = threading.Thread(target = AS.real_time_stream, args=(queue, self.dummyQueue, self.qtm_ip, self.port, self.version), daemon=True)
+            #self.p1 = threading.Thread(target = AS.real_time_stream, args=(self.queue, self.dummyQueue, self.qtm_ip, self.port, self.version), daemon=True) #cebugging
+            self.p1 = threading.Thread(target = AS.real_time_stream, args=(queue, self.dummyQueue, self.qtm_ip, self.port, self.version), daemon=True)
             #self.p1 = multiprocessing.Process(target = AS.real_time_stream, args=(self.QTM_queue, self.dummyQueue, self.qtm_ip, self.port, self.version))
             self.p1.start() #starting the thread
             self.qtm_streaming = True #check for stopping
