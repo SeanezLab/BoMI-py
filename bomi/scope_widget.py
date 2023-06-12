@@ -467,7 +467,7 @@ class ScopeWidget(qw.QWidget):
             )
             if self.task_widget:
                 self.buffers[device_name].set_angle_type(
-                    self.task_widget.config.selected_input_channel
+                    self.task_widget.selected_channel
                 )  # type: ignore
 
     def init_ui(self):
@@ -603,7 +603,7 @@ class ScopeWidget(qw.QWidget):
             x = -(now - buf.timestamp)
             for i, label in enumerate(self.dm.CHANNEL_LABELS):
                 curves[label].setData(x=x, y=buf.data[:, i])
-                    
+
         ### Update task states if needed
         # 1. Check if angle is within target range
         # 2. Check if angle is within base range

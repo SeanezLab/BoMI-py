@@ -47,19 +47,6 @@ class SRConfig:
     """
     Configuration for a StartReact task
     """
-
-    selected_input_channel: str
-    """
-    The input channel to use for StartReact.
-    It should be set in the "Configure" dialog.
-    
-    When StartReact is run, it cannot be changed,
-    although the shown input channels can be changed.
-    
-    Replaces the previously-used angle_type attribute,
-    and allows StartReact to be performed for inputs besides angles.
-    """
-
     HOLD_TIME: int = field(
         default=500, metadata=dict(range=(500, 5000), name="Hold Time (ms)")
     )  # msec
@@ -114,9 +101,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
     BTN_START_TXT = "Begin task"
     BTN_END_TXT = "End task"
 
-    def __init__(self, task_name: str, savedir: Path, config: SRConfig):
+    def __init__(self, task_name: str, savedir: Path, selected_channel: str, config: SRConfig):
         "task_name will be displayed at the top of the widget"
-        super().__init__()
+        super().__init__(selected_channel)
         self.config = config
         self.savedir = savedir
 
@@ -362,12 +349,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.available_device_managers = device_managers
         self.dm = list(device_managers)[0]
         self.selected_sensor_name = None
-        self.selected_channel_name = None
+        self.selected_channel_name = self.dm.CHANNEL_LABELS[0]
         self.trigno_client = trigno_client
 
-        self.config = SRConfig(
-            self.dm.CHANNEL_LABELS[0]
-        )
+        self.config = SRConfig()
 
         ### Init UI
         main_layout = qw.QVBoxLayout(self)
@@ -415,6 +400,12 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.select_channel_combo_box = qw.QComboBox()
         setup_layout.addRow(qw.QLabel("Channel to use:"), self.select_channel_combo_box)
         self.fill_select_channel_combo_box()
+
+        def update_selected_channel(channel):
+            self.selected_channel_name = channel
+            _print(f"Selected channel changed to {channel}")
+
+        self.select_channel_combo_box.currentTextChanged.connect(update_selected_channel)
 
         self.config_widget = generate_edit_form(
             self.config,
@@ -490,7 +481,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             k: False
             for k in self.dm.CHANNEL_LABELS
         }
-        input_channels_visibility[self.config.selected_input_channel] = True
+        input_channels_visibility[self.selected_channel_name] = True
 
         scope_config = ScopeConfig(
             input_channels_visibility=input_channels_visibility,
@@ -509,7 +500,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
                 self.dm,
                 selected_sensor_name=self.selected_sensor_name,
                 savedir=savedir,
-                task_widget=SRDisplay("Max Range of Motion", savedir, self.config),
+                task_widget=SRDisplay("Max Range of Motion", savedir, self.selected_channel_name, self.config),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )
