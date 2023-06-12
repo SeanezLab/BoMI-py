@@ -29,6 +29,7 @@ def real_time_stream(q_analog, q_frame, IPaddress: str, port: int, version: str)
                             data_all_elements[channel] = list(data[i][2][0])[x]
                             #data_all_elements.append(list(data[i][2][0])[x])
                         data_all_elements['Time'] = timeit.default_timer()
+                        data_all_elements['Name'] = 'QTM'
                         q_analog.put(data_all_elements)
                     else:
                         continue
