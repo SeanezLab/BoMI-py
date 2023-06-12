@@ -340,14 +340,14 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         and support the discover_devices signal.
         """
 
-    def __init__(self, device_managers: dict[StartReactDeviceManager, str], trigno_client: TrignoClient):
+    def __init__(self, device_managers: list[StartReactDeviceManager], trigno_client: TrignoClient):
         """
-        @param device_managers A dictionary with StartReactDeviceManagers and their associated readable names
+        @param device_managers A list of compatible device managers
         @param trigno_client A Trigno (EMG) client.
         """
         super().__init__()
         self.available_device_managers = device_managers
-        self.dm = list(device_managers)[0]
+        self.dm = device_managers[0]
         self.selected_sensor_name = None
         self.selected_channel_name = self.dm.CHANNEL_LABELS[0]
         self.trigno_client = trigno_client
@@ -365,13 +365,13 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         # Widget to select input to use
         input_button_group = qw.QButtonGroup(self)
-        for i, (device_manager, readable_name) in enumerate(self.available_device_managers.items()):
-            input_button_group.addButton(qw.QRadioButton(readable_name), id=i)
+        for i, dm in enumerate(self.available_device_managers):
+            input_button_group.addButton(qw.QRadioButton(dm.INPUT_KIND), id=i)
         input_button_group.buttons()[0].click()  # Set the default choice as the first
 
         def update_selected_dm(button):
             self.set_device_manager(
-                list(self.available_device_managers)[input_button_group.id(button)]
+                self.available_device_managers[input_button_group.id(button)]
             )
             self.fill_select_sensor_combo_box()
             self.fill_select_channel_combo_box()
