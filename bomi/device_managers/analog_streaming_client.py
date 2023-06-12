@@ -57,7 +57,7 @@ def real_time_stream(q_analog, q_frame, IPaddress: str, port: int, version: str)
 
         print('running in analog_streaming_client')
         await connection.stream_frames(components=['analog'], on_packet = on_packet)
-        await asyncio.sleep(2)
+        await asyncio.sleep(99999999999)
 
         print('stopping in analog_streaming_client')
         await connection.stream_frames_stop()
