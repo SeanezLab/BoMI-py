@@ -28,6 +28,30 @@ class QtmDeviceManager(QObject):
 
     INPUT_KIND = "QTM"
 
+    @staticmethod
+    def get_channel_unit(channel: str) -> str:
+        match channel:
+            case Channel.TORQUE:
+                return "N⋅m"
+            case Channel.VELOCITY:
+                return "deg/s"
+            case Channel.POSITION:
+                return "deg"
+            case _:
+                raise ValueError("Not a valid QTM channel")
+
+    @staticmethod
+    def get_channel_default_range(channel: str) -> tuple[int, int]:
+        match channel:
+            case Channel.TORQUE:
+                return 0, 10
+            case Channel.VELOCITY:
+                return -6, 6
+            case Channel.POSITION:
+                return -6, 6
+            case _:
+                raise ValueError("Not a valid QTM channel")
+
     def __init__(self):
         super().__init__()
         self.qtm_streaming = False
