@@ -70,14 +70,14 @@ class QtmWidget(qw.QWidget, WindowMixin):
         layout = qw.QVBoxLayout()
         main_layout.addLayout(layout)
 
-        discover_btn = qw.QPushButton("&Discover devices")
+        discover_btn = qw.QPushButton("&Discover QTM")
         discover_btn.setStyleSheet("QPushButton { background-color: rgb(0,255,0); }")
         discover_btn.clicked.connect(self.s_discover_devices)
 
         chart_btn = qw.QPushButton(text="Data &charts")
         chart_btn.clicked.connect(self.s_data_charts)
 
-        disconnect_btn = qw.QPushButton(text="Disconnect all")
+        disconnect_btn = qw.QPushButton(text="Disconnect")
         disconnect_btn.clicked.connect(self.s_disconnect_all)
 
         layout.addWidget(discover_btn)
