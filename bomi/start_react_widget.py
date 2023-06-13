@@ -498,7 +498,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
                 self.dm,
                 selected_sensor_name=self.selected_sensor_name,
                 savedir=savedir,
-                task_widget=SRDisplay("Max Range of Motion", savedir, self.selected_channel_name, self.config),
+                task_widget=SRDisplay(task_name, savedir, self.selected_channel_name, self.config),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )
