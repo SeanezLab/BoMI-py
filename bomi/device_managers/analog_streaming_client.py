@@ -3,6 +3,7 @@ import qtm
 import xml.etree.ElementTree as ET
 from enum import Enum
 import timeit
+import threading
 
 # This script is to be used in conjunction with the Analog_Testing Project in QTM.
 # First open QTM. When prompted for the filename, choose Analog_Testing.
@@ -12,7 +13,7 @@ class Channel(str, Enum):
     VELOCITY = "Velocity"
     POSITION = "Position"
 
-def real_time_stream(q_analog, q_frame, IPaddress: str, port: int, version: str):
+def real_time_stream(q_analog, done: threading.Event, q_frame, IPaddress: str, port: int, version: str):
     # Creating the main asynchronous function 
     def on_packet(packet): #recieves data from qtm
             info, data = packet.get_analog() #get analog data from qtm 
@@ -55,9 +56,9 @@ def real_time_stream(q_analog, q_frame, IPaddress: str, port: int, version: str)
         for x in xml[0][0].findall('Channel'):
             print(x[0].text) 
 
-        print('running in analog_streaming_client')
-        await connection.stream_frames(components=['analog'], on_packet = on_packet)
-        await asyncio.sleep(99999999999)
+        print('Preparing to run in analog_streaming_client')
+        while not done.is_set():
+            await connection.stream_frames(components=['analog'], on_packet = on_packet)
 
         print('stopping in analog_streaming_client')
         await connection.stream_frames_stop()
@@ -66,7 +67,6 @@ def real_time_stream(q_analog, q_frame, IPaddress: str, port: int, version: str)
     # Set the policy to prevent "Event loop is closed" error on Windows - https://github.com/encode/httpx/issues/914
         #An event loop policy is a global object used to get and set the current event loop, as well as create new event loops. 
         #set_event_loop_policy: Set the current process-wide policy to policy. If policy is set to None, the default policy is restored.
-    
     print('waiting to run in analog_streaming_client')
     asyncio.run(initiate()) #running Coroutine
 

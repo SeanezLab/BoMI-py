@@ -7,7 +7,7 @@ from typing import Protocol, Iterable
 import threading
 from threading import Event
 from PySide6.QtCore import Signal, QObject
-from bomi.device_managers.analog_streaming_client import (Channel)
+from bomi.device_managers.analog_streaming_client import Channel
 
 def _print(*args):
     print("[QTM]", *args)
@@ -40,6 +40,8 @@ class QtmDeviceManager(QObject):
         self.qtm_ip = '10.229.96.105' #connect to QLineEdit input of Biodex Widget
         self.port = 22223
         self.version = '1.22'
+        self._done_streaming = threading.Event()
+        self._thread: Optional[threading.Thread] = None
 
     def status(self) -> str:
         """
@@ -93,25 +95,27 @@ class QtmDeviceManager(QObject):
             return
 
         if self.qtm_streaming == False:
-            #self.p1 = threading.Thread(target = AS.real_time_stream, args=(self.queue, self.dummyQueue, self.qtm_ip, self.port, self.version), daemon=True) #cebugging
-            self.p1 = threading.Thread(target = AS.real_time_stream, args=(queue, self.dummyQueue, self.qtm_ip, self.port, self.version), daemon=True)
-            #self.p1 = multiprocessing.Process(target = AS.real_time_stream, args=(self.QTM_queue, self.dummyQueue, self.qtm_ip, self.port, self.version))
-            self.p1.start() #starting the thread
-            self.qtm_streaming = True #check for stopping
-            #print("Am I alive?", self.p1.is_alive())
+            _print("Start streaming")
+            self._done_streaming.clear()
+            self._thread = threading.Thread(target = AS.real_time_stream,
+                args=(
+                    queue,
+                    self._done_streaming,
+                    self.dummyQueue, self.qtm_ip, self.port, self.version,),
+            )
+            self._thread.start()
+
 
     def stop_stream(self) -> None:
         """
         Stop streaming data
         """
-        if self.qtm_streaming == True:
-            try:
-                _print("Stopping stream")
-                self.p1.join()
-                _print("Am I alive? ", self.p1.is_alive())
-                _print("Stream stopped")
-            except:
-                print("Failed to close QTM client thread")
+        if self._thread and not self._done_streaming.is_set():
+            _print("Stopping stream")
+            self._done_streaming.set()
+            self._thread.join()
+            self._thread = None
+            _print("Stream stopped")
 
     def has_sensors(self) -> bool:
         """
