@@ -1,3 +1,9 @@
+## Installing dev dependencies
+Development dependencies can be installed with:
+```commandline
+pip install -e ".[dev]"
+```
+
 ## External Sensor Interface
 
 The [Yost 3-Space Python API](https://yostlabs.com/3-space-application-programming-interface/) is [included in the source code](https://github.com/SeanezLab/BoMI-StartReact/tree/main/threespace_api) and has been modified for compatibility with Python>=3.8.
