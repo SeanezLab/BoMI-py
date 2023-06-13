@@ -55,3 +55,17 @@ class HasInputKind(Protocol):
     The name of the kind of input that this device manager allows you to use,
     e.g. "Yost".
     """
+
+
+class SupportsGetChannelMetadata(Protocol):
+    @staticmethod
+    def get_channel_unit(channel: str) -> str:
+        """
+        Gets the unit for the data of a given channel.
+        """
+
+    @staticmethod
+    def get_channel_default_range(channel: str) -> tuple[int, int]:
+        """
+        Gets a reasonable range for the data of a given channel.
+        """
