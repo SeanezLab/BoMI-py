@@ -44,7 +44,7 @@ class QtmDeviceManager(QObject):
     def get_channel_default_range(channel: str) -> tuple[int, int]:
         match channel:
             case Channel.TORQUE:
-                return 0, 10
+                return -4, 8
             case Channel.VELOCITY:
                 return -6, 6
             case Channel.POSITION:
