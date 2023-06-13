@@ -183,7 +183,6 @@ class ScopeWidget(qw.QWidget):
         selected_sensor_name: str | Ellipsis = ...,
         task_widget: TaskDisplay = None,
         trigno_client: TrignoClient = None,
-        #TODO, add init QTM stream
     ):
         super().__init__()
         self.setWindowTitle(config.window_title)
@@ -199,7 +198,6 @@ class ScopeWidget(qw.QWidget):
             self.trigno_client = None
 
         self.queue: Queue = Queue()
-        #TODO add QTM
 
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)

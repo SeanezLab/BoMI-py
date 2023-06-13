@@ -122,9 +122,6 @@ class DelsysBuffer:
         self.timestamp[:-n] = self.timestamp[n:]
         self.timestamp[-n:] = [default_timer()] * n
 
-    
-#TODO: #add class for QTM here?
-
 
 if __name__ == "__main__":
     from dis import dis
