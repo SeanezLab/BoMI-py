@@ -42,7 +42,7 @@ class HasDiscoverDevicesSignal(Protocol):
 
 
 class HasChannelLabels(Protocol):
-    CHANNEL_LABELS: list[str]  # This is a list instead of Iterable because we need to subscript
+    CHANNEL_LABELS: Sequence[str]
     """
     Contains the labels for the channels available with the devices
     of this device manager.

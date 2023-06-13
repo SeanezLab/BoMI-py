@@ -37,10 +37,8 @@ class SRState(NamedTuple):
 
 
 """
-TODO: Move SRConfig to StartReact widget, out of SRDisplay
-Persist to disk
+TODO: Persist to disk
 """
-
 
 @dataclass
 class SRConfig:

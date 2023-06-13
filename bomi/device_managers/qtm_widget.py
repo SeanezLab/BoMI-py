@@ -17,13 +17,15 @@ from bomi.device_managers.table_model import (
     make_setter,
 )
 from bomi.device_managers.qtm_manager import QtmDeviceManager
-#from bomi.scope_widget import ScopeWidget
-from bomi.window_mixin import WindowMixin
+from bomi.scope_widget import ScopeWidget, ScopeConfig
 
+# from bomi.scope_widget import ScopeWidget
+from bomi.window_mixin import WindowMixin
 
 __all__ = ("QtmWidget",)
 
-#edited
+
+# edited
 def _print(*args):
     print("[QtmWidget]", *args)
 
@@ -39,14 +41,14 @@ DEVICE_TYPE: Final = {
     "BT": "Bluetooth",
 }
 
-
 # a list of column props for rendering the device manager table
 QTM_COL_PROPS: Tuple[ColumnProps, ...] = (
-    ColumnProps("QTM Box Port Number", int), #this is the number on the QTM interface.
-    #this is NOT the BNC cable number, because they do not match.
+    ColumnProps("QTM Box Port Number", int),  # this is the number on the QTM interface.
+    # this is NOT the BNC cable number, because they do not match.
     ColumnProps("Nickname", str),
     ColumnProps("Units", str),
 )
+
 
 class QtmWidget(qw.QWidget, WindowMixin):
     """A GUI for QtmDeviceManager.
@@ -55,6 +57,8 @@ class QtmWidget(qw.QWidget, WindowMixin):
 
     def __init__(self, qtm_device_manager: QtmDeviceManager):
         super().__init__()
+        self._sw = None
+
         self.qtm_dm = qtm_device_manager
         self.setWindowTitle("Qtm devices")
         self.setMinimumSize(350, 200)
@@ -66,14 +70,14 @@ class QtmWidget(qw.QWidget, WindowMixin):
         layout = qw.QVBoxLayout()
         main_layout.addLayout(layout)
 
-        discover_btn = qw.QPushButton("&Discover devices")
+        discover_btn = qw.QPushButton("&Discover QTM")
         discover_btn.setStyleSheet("QPushButton { background-color: rgb(0,255,0); }")
         discover_btn.clicked.connect(self.s_discover_devices)
 
         chart_btn = qw.QPushButton(text="Data &charts")
         chart_btn.clicked.connect(self.s_data_charts)
 
-        disconnect_btn = qw.QPushButton(text="Disconnect all")
+        disconnect_btn = qw.QPushButton(text="Disconnect")
         disconnect_btn.clicked.connect(self.s_disconnect_all)
 
         layout.addWidget(discover_btn)
@@ -92,26 +96,27 @@ class QtmWidget(qw.QWidget, WindowMixin):
             self.qtm_dm.discover_devices()
 
         if not self.qtm_dm.all_channels:
-            self.error_dialog(
-                "Could not find QTM device."
-            )
+            self.error_dialog("Could not find QTM device.")
             return
 
         self.qtm_indicator.setText("Connected")
 
     @qc.Slot()
     def s_data_charts(self):
-        ...
-        #dm = self.qtm_dm
-        #if not dm.has_sensors():
-        #    return self.no_qtm_sensors_error()
-        ## Start scope here.
-        # try:
-        #     self._sw = ScopeWidget(dm, get_savedir("Scope"))
-        #     self._sw.showMaximized()
-        # except Exception as e:
-        #     _print(traceback.format_exc())
-        #     dm.stop_stream()
+        if not self.qtm_dm.has_sensors():
+            return self.no_qtm_sensors_error()
+        # Start scope here.
+        try:
+            self._sw = ScopeWidget(
+                self.qtm_dm,
+                get_savedir("Scope"),
+                ScopeConfig({channel: True for channel in self.qtm_dm.CHANNEL_LABELS}),
+            )
+
+            self._sw.showMaximized()
+        except Exception as e:
+            _print(traceback.format_exc())
+            self.qtm_dm.stop_stream()
 
     @qc.Slot()
     def s_disconnect_all(self):
