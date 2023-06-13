@@ -15,7 +15,7 @@ from PySide6.QtCore import Qt
 
 from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
 from bomi.datastructure import MultichannelBuffer, get_savedir
-from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal
+from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal, SupportsGetChannelMetadata
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
 from bomi.audio.player import TonePlayer, AudioCalibrationWidget
@@ -67,14 +67,6 @@ class SRConfig:
     )
     auditory_volume: int = field(default=1, metadata=dict(range=(1, 100)))
     startle_volume: int = field(default=100, metadata=dict(range=(1, 100)))
-
-    AXIS_MIN: int = field(
-        default=0, metadata=dict(range=(-180, 180), name="Axis Range Min (deg.)")
-    )
-
-    AXIS_MAX: int = field(
-        default=90, metadata=dict(range=(-180, 180), name="Axis Range Max (deg.)")
-    )
 
     def to_disk(self, savedir: Path):
         "Write metadata to `savedir`"
@@ -330,11 +322,18 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
 class StartReactWidget(qw.QWidget, WindowMixin):
     """GUI to manage StartReact tasks"""
-    class StartReactDeviceManager(ScopeWidget.ScopeWidgetDeviceManager, SupportsHasSensors, HasDiscoverDevicesSignal, Protocol):
+    class StartReactDeviceManager(
+        ScopeWidget.ScopeWidgetDeviceManager,
+        SupportsHasSensors,
+        HasDiscoverDevicesSignal,
+        SupportsGetChannelMetadata,
+        Protocol
+    ):
         """
         A device manager for the StartReact widget must
         be a valid ScopeWidgetDeviceManager,
         support checking if it has sensors,
+        support getting the min and max values per channel,
         and support the discover_devices signal.
         """
 
@@ -488,7 +487,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             target_show=True,
             target_range=target_range,
             base_show=True,
-            yrange=(self.config.AXIS_MIN, self.config.AXIS_MAX),
+            yrange=self.dm.get_channel_default_range(self.selected_channel_name),
         )
 
         savedir = get_savedir(file_suffix)  # savedir to write all data
