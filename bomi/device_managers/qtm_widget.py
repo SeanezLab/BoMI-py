@@ -108,7 +108,7 @@ class QtmWidget(qw.QWidget, WindowMixin):
         # Start scope here.
         try:
             self._sw = ScopeWidget(
-                dm,
+                self.qtm_dm,
                 get_savedir("Scope"),
                 ScopeConfig({channel: True for channel in self.qtm_dm.CHANNEL_LABELS}),
             )
@@ -116,7 +116,7 @@ class QtmWidget(qw.QWidget, WindowMixin):
             self._sw.showMaximized()
         except Exception as e:
             _print(traceback.format_exc())
-            dm.stop_stream()
+            self.qtm_dm.stop_stream()
 
     @qc.Slot()
     def s_disconnect_all(self):
