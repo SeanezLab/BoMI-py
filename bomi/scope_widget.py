@@ -56,7 +56,7 @@ class ScopeConfig:
     target_range: Tuple[float, float] = (70, 80)
 
     base_show: bool = False
-    base_range: Tuple[float, float] = (0, 5)
+    base_range: Tuple[float, float] = (-5, 1)
 
     xrange: Tuple[float, float] = (-6, 0)
     yrange: Tuple[float, float] = (-180, 180)
