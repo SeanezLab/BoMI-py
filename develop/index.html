@@ -65,7 +65,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#external-sensor-interface" class="md-skip">
+        <a href="#installing-dev-dependencies" class="md-skip">
           Skip to content
         </a>
       
@@ -334,6 +334,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#installing-dev-dependencies" class="md-nav__link">
+    Installing dev dependencies
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#external-sensor-interface" class="md-nav__link">
     External Sensor Interface
   </a>
@@ -373,6 +380,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#installing-dev-dependencies" class="md-nav__link">
+    Installing dev dependencies
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#external-sensor-interface" class="md-nav__link">
     External Sensor Interface
   </a>
@@ -399,6 +413,10 @@
 
   <h1>Develop</h1>
 
+<h2 id="installing-dev-dependencies">Installing dev dependencies</h2>
+<p>Development dependencies can be installed with:</p>
+<pre><code class="language-commandline">pip install -e &quot;.[dev]&quot;
+</code></pre>
 <h2 id="external-sensor-interface">External Sensor Interface</h2>
 <p>The <a href="https://yostlabs.com/3-space-application-programming-interface/">Yost 3-Space Python API</a> is <a href="https://github.com/SeanezLab/BoMI-StartReact/tree/main/threespace_api">included in the source code</a> and has been modified for compatibility with Python&gt;=3.8.</p>
 <p>The Delsys Trigno Control Utility (Delsys SDK Server) must be running on a computer connected to the Delsys base station for the EMG part to work. The <code>trigno_sdk</code> package implements a client to the Delsys SDK, which communicates over TCP. Refer to the Trigno SDK User's Guide document to learn more about its internals.</p>
