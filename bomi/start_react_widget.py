@@ -326,14 +326,12 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         ScopeWidget.ScopeWidgetDeviceManager,
         SupportsHasSensors,
         HasDiscoverDevicesSignal,
-        SupportsGetChannelMetadata,
         Protocol
     ):
         """
         A device manager for the StartReact widget must
         be a valid ScopeWidgetDeviceManager,
         support checking if it has sensors,
-        support getting the min and max values per channel,
         and support the discover_devices signal.
         """
 
