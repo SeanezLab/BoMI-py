@@ -32,11 +32,7 @@ class QtmDeviceManager(QObject):
         super().__init__()
         self.qtm_streaming = False
         self.all_channels: SensorList = []
-        #self.queue = Queue()  #use for debugging with if __name__ == '__main__':
-        
-        self.dummyQueue = multiprocessing.Queue() #dummy queue because we probably do not need seperate information for frame rate for 100 Hz
-            #analog streaming was developed to handle 50000 Hz, needs analog_frame_queue
-
+        self.queue = Queue()  #use for debugging with if __name__ == '__main__':
         self.qtm_ip = '10.229.96.105' #connect to QLineEdit input of Biodex Widget
         self.port = 22223
         self.version = '1.22'
@@ -101,7 +97,7 @@ class QtmDeviceManager(QObject):
                 args=(
                     queue,
                     self._done_streaming,
-                    self.dummyQueue, self.qtm_ip, self.port, self.version,),
+                    self.qtm_ip, self.port, self.version,),
             )
             self._thread.start()
 
@@ -134,7 +130,7 @@ if __name__ == '__main__':
     qtm = QtmDeviceManager()
     qtm.discover_devices()
     print("What devices?", qtm.status())
-    qtm.start_stream()
+    qtm.start_stream(qtm.queue)
     for i in range(elements_to_get):
         if i < 5:
             print('i:', i)
@@ -144,7 +140,7 @@ if __name__ == '__main__':
            qtm.stop_stream()
            print("Start again after this")
         if i > 5:
-            qtm.start_stream()
+            qtm.start_stream(qtm.queue)
             print('i:', i)
             print(qtm.queue.get())
         if i == 9:

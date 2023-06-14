@@ -9,34 +9,50 @@ import threading
 # First open QTM. When prompted for the filename, choose Analog_Testing.
 
 class Channel(str, Enum):
+    
     TORQUE = "Torque"
     VELOCITY = "Velocity"
     POSITION = "Position"
 
-def real_time_stream(q_analog, done: threading.Event, q_frame, IPaddress: str, port: int, version: str):
-    # Creating the main asynchronous function 
-    def on_packet(packet): #recieves data from qtm
-            info, data = packet.get_analog() #get analog data from qtm 
-            if len(data) > 0:
-                channels = list(range(len(list(data))))
-                analog_out = list(data[0][2][0])
-                # Outer loop gets the number of readings per frame, x gives the index, j gives the value
-                for x,j in enumerate(analog_out):
-                    # Modifies sampling rate
-                    if x % 1 == 0:
-                        # For each reading, the inner loop takes the x index from each i channel, and compiles it into an i-length list 
-                        data_all_elements = {}
-                        for i, channel in enumerate(Channel):
-                            data_all_elements[channel] = list(data[i][2][0])[x]
-                            #data_all_elements.append(list(data[i][2][0])[x])
-                        data_all_elements['Time'] = timeit.default_timer()
-                        data_all_elements['Name'] = 'QTM'
-                        q_analog.put(data_all_elements)
-                    else:
-                        continue
-                q_frame.put(packet.framenumber)
+class ConversionFactors():
+    """
+    Based on Biodex scaling factors, see SeanezLab/Research_Material/User Manuals/Biodex/A3. Analog Settings for Biodex System 4.pdf
+    Ensure Application Settings --> Analog System Settings: Velocity Scaling = 0-32 deg/sec, Torque Scaling = 0-32 ft*lb (43.5 N*m), Position Scaling = Fullscale 0 - 360 deg
+        Torque Conversion: V*(1 ftlb/0.1563V)*(1.3558179483 Nm/ftlb)
+        Velocity Conversion: V*(1 deg/sec / 0.1563V)
+        Position Conversion: V*(1 deg/0.0292V)
+    **If you change the scaling factors on the Biodex, you need to change the conversion factors here
+    """
+    def __init__(self):
+        self.torque_conv = (1/0.1563) * (1.3558179483)
+        self.velocity_conv = (1/0.1563)
+        self.position_conv = (1/0.0292) 
+
+
+def real_time_stream(q_analog, done: threading.Event, IPaddress: str, port: int, version: str):
+    """
+    Defines main asynchronous function, runs main coroutine
+    """
+    def on_packet(packet): 
+        """
+        Pulls data from QTM, creates dictionary of packets {Torque:, Velocity, Position, Time}
+        Converts QTM analog signal to correct units before adding to dictionary
+        """
+        info, data = packet.get_analog() #get analog data from qtm, from qtm sdk commands
+        if len(data) > 0:
+            data_all_elements = {}
+            for i, channel in enumerate(Channel):
+                data_all_elements[channel] = recv_conv(data[i][2][0][0], channel)
+            data_all_elements['Time'] = timeit.default_timer()
+            data_all_elements['Name'] = 'QTM'
+            q_analog.put(data_all_elements)
+        else:
+            print("Empty data from packet")
             
-    async def initiate(): #Defining Coroutine
+    async def get_frames_from_qtm():
+        """
+        Defines main coroutine for streaming analog 'frames' from QTM
+        """
         # Connect to the QTM Application. The application should be open.
         connection = await qtm.connect(IPaddress, port, version)
 
@@ -68,13 +84,34 @@ def real_time_stream(q_analog, done: threading.Event, q_frame, IPaddress: str, p
         #An event loop policy is a global object used to get and set the current event loop, as well as create new event loops. 
         #set_event_loop_policy: Set the current process-wide policy to policy. If policy is set to None, the default policy is restored.
     print('waiting to run in analog_streaming_client')
-    asyncio.run(initiate()) #running Coroutine
+    asyncio.run(get_frames_from_qtm()) #running Coroutine
 
-# Get the number of channels
+def recv_conv(data, channel: Channel):
+    """
+    Convert incoming data from QTM analog streaming, to units (Nm, deg/sec, deg)
+    """
+    factors = ConversionFactors()
+    match channel:
+        case Channel.TORQUE: 
+            return data * factors.torque_conv
+        case Channel.VELOCITY: 
+            return data * factors.velocity_conv
+        case Channel.POSITION: 
+            return data * factors.position_conv
+        case _:
+            raise ValueError("Not a valid QTM channel")
+
+
 def get_channel_number(IPaddress: str, port: int, version: str):
-    # Creating the main asynchronous function 
-    async def initiate():
-        # Connect to the QTM Application. The application should be open.
+    """
+    Main asynchronus function to run main coroutine
+    Connects to QTM, pulls parameters, and returns connected channels
+    Currently set to use Channel 3,4,5
+    """
+    async def get_channels_from_qtm():
+        """
+        Main coroutine to connect to QTM and get channel infomation
+        """
         connection = await qtm.connect(IPaddress, port, version)
 
         if connection is None:
@@ -101,16 +138,5 @@ def get_channel_number(IPaddress: str, port: int, version: str):
         return channel_list
     
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    channel_list = asyncio.run(initiate())
+    channel_list = asyncio.run(get_channels_from_qtm())
     return channel_list
-
-
-#if __name__ == '__main__':
-    #q_analog = multiprocessing.Queue()
-    #q_frame = multiprocessing.Queue()
-    #p1 = multiprocessing.Process(target = real_time_stream, args=(q_analog,q_frame,))
-    #p1.daemon = True
-    #p1.start()
-
-    #test = get_channel_number()
-    #print("there are", len(test) , "channels")
