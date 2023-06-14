@@ -46,7 +46,7 @@ class SRConfig:
     Configuration for a StartReact task
     """
     HOLD_TIME: int = field(
-        default=500, metadata=dict(range=(500, 5000), name="Hold Time (ms)")
+        default=250, metadata=dict(range=(50, 5000), name="Hold Time (ms)")
     )  # msec
     PAUSE_MIN: int = field(
         default=2000, metadata=dict(range=(500, 5000), name="Pause Min (ms)")
@@ -59,7 +59,7 @@ class SRConfig:
     )
 
     tone_duration: int = field(
-        default=200, metadata=dict(range=(10, 500), name="Tone Duration (ms) ")
+        default=50, metadata=dict(range=(10, 500), name="Tone Duration (ms) ")
     )
 
     tone_frequency: int = field(
@@ -539,7 +539,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Precision Control",
             "Precision",
-            (35, 40)
+            (-20, -30)
         )
 
     def s_max_rom(self):
@@ -550,5 +550,5 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Max Range of Motion",
             "MaxROM",
-            (70, 120)
+            (-35, -60) #target range set for torque plantar flexion
         )
