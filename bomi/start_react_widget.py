@@ -453,7 +453,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
     def check_sensors(self) -> bool: 
         if not self.dm.has_sensors():
-            self.no_yost_sensors_error()
+            self.no_sensors_error(self.dm)
             return False
 
         if not self.trigno_client.connected:
@@ -498,7 +498,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
                 self.dm,
                 selected_sensor_name=self.selected_sensor_name,
                 savedir=savedir,
-                task_widget=SRDisplay("Max Range of Motion", savedir, self.selected_channel_name, self.config),
+                task_widget=SRDisplay(task_name, savedir, self.selected_channel_name, self.config),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )

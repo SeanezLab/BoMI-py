@@ -157,11 +157,10 @@ class YostWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_tare_all(self):
-        dm = self.yost_dm
-        if not dm.has_sensors():
-            return self.no_yost_sensors_error()
+        if not self.yost_dm.has_sensors():
+            return self.no_sensors_error(self.yost_dm)
 
-        dm.tare_all_devices()
+        self.yost_dm.tare_all_devices()
 
     @qc.Slot()
     def s_commit_all(self):
@@ -170,21 +169,20 @@ class YostWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_data_charts(self):
-        dm = self.yost_dm
-        if not dm.has_sensors():
-            return self.no_yost_sensors_error()
+        if not self.yost_dm.has_sensors():
+            return self.no_sensors_error(self.yost_dm)
 
         ## Start scope here.
         try:
             self._sw = ScopeWidget(
-                dm,
+                self.yost_dm,
                 get_savedir("Scope"),
                 ScopeConfig({channel: True for channel in self.yost_dm.CHANNEL_LABELS})
             )
             self._sw.showMaximized()
         except Exception as e:
             _print(traceback.format_exc())
-            dm.stop_stream()
+            self.yost_dm.stop_stream()
 
     @qc.Slot()
     def s_disconnect_all(self):

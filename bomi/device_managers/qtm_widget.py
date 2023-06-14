@@ -104,7 +104,7 @@ class QtmWidget(qw.QWidget, WindowMixin):
     @qc.Slot()
     def s_data_charts(self):
         if not self.qtm_dm.has_sensors():
-            return self.no_qtm_sensors_error()
+            return self.no_sensors_error(self.qtm_dm)
         # Start scope here.
         try:
             self._sw = ScopeWidget(
@@ -120,10 +120,8 @@ class QtmWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_disconnect_all(self):
-        ...
-        # self.qtm_dm.close_all_devices()
-        # self.qtm_model.set_devices([])
-        # self.qtm_proxy_model.invalidate()
+        self.qtm_dm.disconnect()
+        self.qtm_indicator.setText("Not connected")
 
 
 if __name__ == "__main__":

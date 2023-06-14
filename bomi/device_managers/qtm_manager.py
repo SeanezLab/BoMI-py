@@ -101,7 +101,6 @@ class QtmDeviceManager(QObject):
             )
             self._thread.start()
 
-
     def stop_stream(self) -> None:
         """
         Stop streaming data
@@ -119,6 +118,10 @@ class QtmDeviceManager(QObject):
         If channels exist, you are connect to QTM
         """
         return len(self.all_channels) > 0
+
+    def disconnect(self):
+        self.stop_stream()
+        self.all_channels = []
 
 
 if __name__ == '__main__':
