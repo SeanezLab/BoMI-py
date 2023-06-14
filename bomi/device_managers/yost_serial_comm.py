@@ -35,6 +35,9 @@ class PacketField(str, Enum):
     TIME = "Time"
     NAME = "Name"
 
+    def __str__(self):
+        return self.value
+
 
 class Dongles:
     """

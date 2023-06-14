@@ -13,6 +13,9 @@ class Channel(str, Enum):
     VELOCITY = "Velocity"
     POSITION = "Position"
 
+    def __str__(self):
+        return self.value
+
 def real_time_stream(q_analog, done: threading.Event, q_frame, IPaddress: str, port: int, version: str):
     # Creating the main asynchronous function 
     def on_packet(packet): #recieves data from qtm
