@@ -21,14 +21,14 @@ class Channel(str, Enum):
 class ConversionFactors():
     """
     Based on Biodex scaling factors, see SeanezLab/Research_Material/User Manuals/Biodex/A3. Analog Settings for Biodex System 4.pdf
-    Ensure Application Settings --> Analog System Settings: Velocity Scaling = 0-32 deg/sec, Torque Scaling = 0-32 ft*lb (43.5 N*m), Position Scaling = Fullscale 0 - 360 deg
-        Torque Conversion: V*(1 ftlb/0.1563V)*(1.3558179483 Nm/ftlb)
+    Ensure Application Settings --> Analog System Settings: Velocity Scaling = 0-32 deg/sec, Torque Scaling = 0-128 ft*lb (174 N*m), Position Scaling = Fullscale 0 - 360 deg
+        Torque Conversion: V*(1 ftlb/0.0391V)*(1.3558179483 Nm/ftlb)
         Velocity Conversion: V*(1 deg/sec / 0.1563V)
         Position Conversion: V*(1 deg/0.0292V)
     **If you change the scaling factors on the Biodex, you need to change the conversion factors here
     """
     def __init__(self):
-        self.torque_conv = (1/0.1563) * (1.3558179483)
+        self.torque_conv = (1/0.0391) * (1.3558179483)
         self.velocity_conv = (1/0.1563)
         self.position_conv = (1/0.0292)
 
