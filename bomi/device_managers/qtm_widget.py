@@ -120,10 +120,8 @@ class QtmWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_disconnect_all(self):
-        ...
-        # self.qtm_dm.close_all_devices()
-        # self.qtm_model.set_devices([])
-        # self.qtm_proxy_model.invalidate()
+        self.qtm_dm.disconnect()
+        self.qtm_indicator.setText("Not connected")
 
 
 if __name__ == "__main__":
