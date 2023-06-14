@@ -100,6 +100,24 @@ class YostDeviceManager(QObject):
         PacketField.YAW,
     ]
 
+    @staticmethod
+    def get_channel_unit(channel: str) -> str:
+        match channel:
+            case PacketField.ROLL | PacketField.PITCH | PacketField.YAW:
+                return "deg"
+            case _:
+                raise ValueError("Not a valid Yost channel")
+
+    @staticmethod
+    def get_channel_default_range(channel: str) -> tuple[int, int]:
+        match channel:
+            case PacketField.ROLL | PacketField.YAW:
+                return -180, 180
+            case PacketField.PITCH:
+                return -90, 90
+            case _:
+                raise ValueError("Not a valid Yost channel")
+
     INPUT_KIND = "Yost"
 
     def __init__(self, data_dir: str | Path = "data", sampling_frequency: float = 100):

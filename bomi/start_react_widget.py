@@ -15,7 +15,7 @@ from PySide6.QtCore import Qt
 
 from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
 from bomi.datastructure import MultichannelBuffer, get_savedir
-from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal
+from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal, SupportsGetChannelMetadata
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
 from bomi.audio.player import TonePlayer, AudioCalibrationWidget
@@ -67,14 +67,6 @@ class SRConfig:
     )
     auditory_volume: int = field(default=1, metadata=dict(range=(1, 100)))
     startle_volume: int = field(default=100, metadata=dict(range=(1, 100)))
-
-    AXIS_MIN: int = field(
-        default=0, metadata=dict(range=(-180, 180), name="Axis Range Min (deg.)")
-    )
-
-    AXIS_MAX: int = field(
-        default=90, metadata=dict(range=(-180, 180), name="Axis Range Max (deg.)")
-    )
 
     def to_disk(self, savedir: Path):
         "Write metadata to `savedir`"
@@ -330,7 +322,12 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
 class StartReactWidget(qw.QWidget, WindowMixin):
     """GUI to manage StartReact tasks"""
-    class StartReactDeviceManager(ScopeWidget.ScopeWidgetDeviceManager, SupportsHasSensors, HasDiscoverDevicesSignal, Protocol):
+    class StartReactDeviceManager(
+        ScopeWidget.ScopeWidgetDeviceManager,
+        SupportsHasSensors,
+        HasDiscoverDevicesSignal,
+        Protocol
+    ):
         """
         A device manager for the StartReact widget must
         be a valid ScopeWidgetDeviceManager,
@@ -348,6 +345,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.dm = device_managers[0]
         self.selected_sensor_name = None
         self.selected_channel_name = self.dm.CHANNEL_LABELS[0]
+        self.y_min, self.y_max = self.dm.get_channel_default_range(self.selected_channel_name)
         self.trigno_client = trigno_client
 
         self.config = SRConfig()
@@ -402,8 +400,34 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         def update_selected_channel(channel):
             self.selected_channel_name = channel
             _print(f"Selected channel changed to {channel}")
+            y_min, y_max = self.dm.get_channel_default_range(channel)
+            self.y_min_box.setValue(y_min)
+            self.y_max_box.setValue(y_max)
 
         self.select_channel_combo_box.currentTextChanged.connect(update_selected_channel)
+
+        # Select range UI
+        self.y_min_box = qw.QSpinBox()
+        setup_layout.addRow(qw.QLabel("Y-min:"), self.y_min_box)
+        self.y_min_box.setRange(-999, 999)
+        self.y_min_box.setValue(self.y_min)
+
+        def update_y_min(value):
+            self.y_min = value
+            _print(f"Y-min changed to {self.y_min}")
+
+        self.y_min_box.valueChanged.connect(update_y_min)
+
+        self.y_max_box = qw.QSpinBox()
+        setup_layout.addRow(qw.QLabel("Y-max:"), self.y_max_box)
+        self.y_max_box.setRange(-999, 999)
+        self.y_max_box.setValue(self.y_max)
+
+        def update_y_max(value):
+            self.y_max = value
+            _print(f"Y-max changed to {self.y_max}")
+
+        self.y_max_box.valueChanged.connect(update_y_max)
 
         self.config_widget = generate_edit_form(
             self.config,
@@ -488,7 +512,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             target_show=True,
             target_range=target_range,
             base_show=True,
-            yrange=(self.config.AXIS_MIN, self.config.AXIS_MAX),
+            yrange=(self.y_min, self.y_max),
         )
 
         savedir = get_savedir(file_suffix)  # savedir to write all data

@@ -17,7 +17,13 @@ from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
 from bomi.datastructure import MultichannelBuffer, SubjectMetadata
-from bomi.device_managers.protocols import SupportsStreaming, SupportsGetSensorMetadata, HasChannelLabels, HasInputKind
+from bomi.device_managers.protocols import (
+    SupportsStreaming,
+    SupportsGetSensorMetadata,
+    HasChannelLabels,
+    HasInputKind,
+    SupportsGetChannelMetadata
+)
 import bomi.colors as bcolors
 from trigno_sdk.client import TrignoClient
 
@@ -35,6 +41,7 @@ TARGET_BRUSH_FG = pg.mkBrush(qg.QColor(254, 136, 33, 50))
 @dataclass
 class ScopeConfig:
     "Configuration parameters for ScopeWidget"
+
     input_channels_visibility: dict[str, bool]
     """
     A dictionary containing all the available input channels as keys.
@@ -166,12 +173,22 @@ class AngleState(Enum):
     IN_BASE = 2
 
 
-
 class ScopeWidget(qw.QWidget):
-    class ScopeWidgetDeviceManager(SupportsStreaming, SupportsGetSensorMetadata, HasChannelLabels, HasInputKind, Protocol):
+    class ScopeWidgetDeviceManager(
+        SupportsStreaming,
+        SupportsGetSensorMetadata,
+        HasChannelLabels,
+        HasInputKind,
+        SupportsGetChannelMetadata,
+        Protocol
+    ):
         """
         The device manager of a scope widget must
-        support streaming, support getting sensor metadata, have channel labels, and have an input kind field.
+        support streaming,
+        support getting sensor metadata,
+        have channel labels,
+        have an input kind field,
+        and support getting channel units.
         """
         pass
 
@@ -492,10 +509,17 @@ class ScopeWidget(qw.QWidget):
             plot.addLegend(offset=(1, 1), **plot_style)
             plot.setXRange(*self.config.xrange)
             plot.setYRange(*self.config.yrange)
+
             if self.config.autoscale_y:
                 plot.enableAutoRange(axis="y")
             plot.setLabel("bottom", "Time", units="s", **plot_style)
-            plot.setLabel("left", "Euler Angle", units="deg", **plot_style) #TODO: make yaxis variable
+
+            if self.task_widget:
+                channel = self.task_widget.selected_channel
+                plot.setLabel("left", channel, units=self.dm.get_channel_unit(channel), **plot_style)
+            else:
+                plot.setLabel("left", "All channels", **plot_style)
+
             plot.setDownsampling(mode="peak")
             title = f"{sn}" if name == sn else f"{sn} ({name})"
             plot.setTitle(title, **plot_style)

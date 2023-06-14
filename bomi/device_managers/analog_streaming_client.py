@@ -8,11 +8,15 @@ import threading
 # This script is to be used in conjunction with the Analog_Testing Project in QTM.
 # First open QTM. When prompted for the filename, choose Analog_Testing.
 
+
 class Channel(str, Enum):
-    
     TORQUE = "Torque"
     VELOCITY = "Velocity"
     POSITION = "Position"
+
+    def __str__(self):
+        return self.value
+
 
 class ConversionFactors():
     """
@@ -26,14 +30,14 @@ class ConversionFactors():
     def __init__(self):
         self.torque_conv = (1/0.1563) * (1.3558179483)
         self.velocity_conv = (1/0.1563)
-        self.position_conv = (1/0.0292) 
+        self.position_conv = (1/0.0292)
 
 
 def real_time_stream(q_analog, done: threading.Event, IPaddress: str, port: int, version: str):
     """
     Defines main asynchronous function, runs main coroutine
     """
-    def on_packet(packet): 
+    def on_packet(packet):
         """
         Pulls data from QTM, creates dictionary of packets {Torque:, Velocity, Position, Time}
         Converts QTM analog signal to correct units before adding to dictionary
@@ -48,7 +52,7 @@ def real_time_stream(q_analog, done: threading.Event, IPaddress: str, port: int,
             q_analog.put(data_all_elements)
         else:
             print("Empty data from packet")
-            
+
     async def get_frames_from_qtm():
         """
         Defines main coroutine for streaming analog 'frames' from QTM
@@ -92,11 +96,11 @@ def recv_conv(data, channel: Channel):
     """
     factors = ConversionFactors()
     match channel:
-        case Channel.TORQUE: 
+        case Channel.TORQUE:
             return data * factors.torque_conv
-        case Channel.VELOCITY: 
+        case Channel.VELOCITY:
             return data * factors.velocity_conv
-        case Channel.POSITION: 
+        case Channel.POSITION:
             return data * factors.position_conv
         case _:
             raise ValueError("Not a valid QTM channel")
