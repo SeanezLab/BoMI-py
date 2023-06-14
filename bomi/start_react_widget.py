@@ -539,7 +539,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Precision Control",
             "Precision",
-            (35, 40)
+            (-20, -30)
         )
 
     def s_max_rom(self):
@@ -550,5 +550,5 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Max Range of Motion",
             "MaxROM",
-            (70, 120)
+            (-35, -60) #target range set for torque plantar flexion
         )
