@@ -13,11 +13,7 @@ $ conda activate bomi
 
 The BoMI window will open.
 
-![BoMI Screenshot](./img/bomi-home.png)
-
 ## 2. Connect Yost 3-Space Sensors
-
-![](./img/bomi-yost-discover.png)
 
 Make sure a Yost 3-Space Sensor or a wireless Dongle paired with a wireless sensor is connected via USB to the computer. (Using a USB connection even for a wireless sensor is recommended, as it significantly improves framerate).
 
