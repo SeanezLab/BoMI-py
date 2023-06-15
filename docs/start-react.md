@@ -79,17 +79,25 @@ Click on **"Data charts"** to open a new window to inspect the real-time data an
 
 After the Yost 3-Space Sensors and Trigno EMG Sensors are setup, we can configure StartReact.
 
-### a. Adjust volume
+### Main experiment setup
+!["Setup" panel](img/bomi-sr-setup.png)
 
-First, make sure speakers to produce the auditory and startling sound effects are plugged into the computer. Test the tone by clicking on **"Play tone"**. Make sure you can achieve a ~115 dB sound with the volume at 100, and ~80 dB with the volume at 1.
+In this panel, first select the kind of input to use with the experiment.
 
-![](./img/bomi-sr-playtone.png)
+Then, select the sensor to use from the drop-down of available sensors.
+The experiment will only show and save data from one sensor.
 
-### b. Set StartReact configuration
+Then, select the channel to use from the drop-down of available channels.
+The experiment will use that channel's data to determine when the participant enters the target range.
+However, data from all available channels will be saved.
 
-Click on **"Configure"** to bring up a configuration dialog.
+After the channel has been selected, the Y-min and Y-max fields
+will be filled with the default values for the channel.
+Adjust the fields if necessary.
 
-![](./img/bomi-sr-config-btn.png)
+#### Additional configuration
+
+Additional configuration can be set inside **"Set config..."**.
 
 ![](./img/bomi-sr-config.png)
 
@@ -97,7 +105,12 @@ Click on **"Configure"** to bring up a configuration dialog.
 - **Pause Min**: Minimum pause between trials.
 - **Pause Random**: Max random pause to add on top of **Pause Min**.
 - **No. Trials per cue**: Number of trials for each cue. Since there are three cues (visual, auditory, startling), there will be 3x this number of trials in total.
-- **Angle Type**: Which angle will be used for the _StartReact_ task metrics. _**Pitch**_ has been a good one to use.
+
+### Audio calibration
+
+![](./img/bomi-sr-audio.png)
+
+Make sure speakers to produce the auditory and startling sound effects are plugged into the computer. Test the tone by clicking on **"Play tone"**. Make sure you can achieve a ~115 dB sound with the volume at 100, and ~80 dB with the volume at 1.
 
 ## 5. Run an experiment
 
@@ -123,6 +136,6 @@ Click **"Ok"** to save the metadata to file.
 
 ### b. Begin Task
 
-Click **"Begin task"** to start the experiment! All raw data will be stored to disk (Yost 3-Space Sensor, Trigno EMG, task events, metadata, and configurations etc.)
+Click **"Begin task"** to start the experiment! All raw data will be stored to disk (main input, Trigno EMG, task events, metadata, and configurations etc.)
 
 ![](./img/bomi-sr-precision-begintask.png)
