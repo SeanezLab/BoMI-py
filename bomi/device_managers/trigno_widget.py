@@ -26,7 +26,7 @@ __all__ = ("TrignoClient", "TrignoWidget", "MUSCLES")
 
 
 def _print(*args):
-    print("[TrignoDeviceManager]", *args)
+    print("[TrignoWidget]", *args)
 
 
 # Muscle names for autocompletion

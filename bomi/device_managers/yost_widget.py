@@ -17,7 +17,7 @@ from bomi.device_managers.table_model import (
     make_setter,
 )
 from bomi.device_managers.yost_manager import DeviceT, YostDeviceManager
-from bomi.scope_widget import ScopeWidget
+from bomi.scope_widget import ScopeWidget, ScopeConfig
 from bomi.window_mixin import WindowMixin
 
 
@@ -25,7 +25,7 @@ __all__ = ("YostWidget",)
 
 
 def _print(*args):
-    print("[DeviceManagerWidget]", *args)
+    print("[YostWidget]", *args)
 
 
 DEVICE_TYPE: Final = {
@@ -81,7 +81,7 @@ class YostWidget(qw.QWidget, WindowMixin):
     def __init__(self, yost_device_manager: YostDeviceManager):
         super().__init__()
         self.yost_dm = yost_device_manager
-        self.setWindowTitle("Yost Device Manager")
+        self.setWindowTitle("Yost devices")
         self.setMinimumSize(350, 200)
         self.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
 
@@ -98,13 +98,13 @@ class YostWidget(qw.QWidget, WindowMixin):
         tare_btn = qw.QPushButton(text="&Tare all devices")
         tare_btn.clicked.connect(self.s_tare_all)
 
-        chart_btn = qw.QPushButton(text="Data &Charts")
+        chart_btn = qw.QPushButton(text="Data &charts")
         chart_btn.clicked.connect(self.s_data_charts)
 
         commit_btn = qw.QPushButton(text="Commit all settings")
         commit_btn.clicked.connect(self.s_commit_all)
 
-        disconnect_btn = qw.QPushButton(text="Disconnect All")
+        disconnect_btn = qw.QPushButton(text="Disconnect all")
         disconnect_btn.clicked.connect(self.s_disconnect_all)
 
         layout.addWidget(discover_btn)
@@ -157,11 +157,10 @@ class YostWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_tare_all(self):
-        dm = self.yost_dm
-        if not dm.has_sensors():
-            return self.no_yost_sensors_error()
+        if not self.yost_dm.has_sensors():
+            return self.no_sensors_error(self.yost_dm)
 
-        dm.tare_all_devices()
+        self.yost_dm.tare_all_devices()
 
     @qc.Slot()
     def s_commit_all(self):
@@ -170,17 +169,20 @@ class YostWidget(qw.QWidget, WindowMixin):
 
     @qc.Slot()
     def s_data_charts(self):
-        dm = self.yost_dm
-        if not dm.has_sensors():
-            return self.no_yost_sensors_error()
+        if not self.yost_dm.has_sensors():
+            return self.no_sensors_error(self.yost_dm)
 
         ## Start scope here.
         try:
-            self._sw = ScopeWidget(dm, get_savedir("Scope"))
+            self._sw = ScopeWidget(
+                self.yost_dm,
+                get_savedir("Scope"),
+                ScopeConfig({channel: True for channel in self.yost_dm.CHANNEL_LABELS})
+            )
             self._sw.showMaximized()
         except Exception as e:
             _print(traceback.format_exc())
-            dm.stop_stream()
+            self.yost_dm.stop_stream()
 
     @qc.Slot()
     def s_disconnect_all(self):

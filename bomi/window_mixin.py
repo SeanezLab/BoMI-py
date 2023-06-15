@@ -1,5 +1,6 @@
 import PySide6.QtWidgets as qw
 import PySide6.QtGui as qg
+from bomi.device_managers.protocols import HasInputKind
 
 
 class WindowMixin(object):
@@ -17,9 +18,9 @@ class WindowMixin(object):
             self, "BoMI Confirmation", msg, qw.QMessageBox.Yes | qw.QMessageBox.No
         )
 
-    def no_yost_sensors_error(self): #adjust this, tell it to work without IMU Yost
+    def no_sensors_error(self, dm: HasInputKind):
         return self.error_dialog(
-            "No Yost sensors available. Plug in the devices, then click on 'Discover devices'"
+            f"No {dm.INPUT_KIND} sensors connected. Connect the sensors first."
         )
 
     def start_widget(self, obj: qw.QWidget, maximize=True):

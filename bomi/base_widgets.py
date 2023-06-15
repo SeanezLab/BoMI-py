@@ -51,6 +51,21 @@ class TaskDisplay(qw.QWidget):
     # receive input events on state changes
     sigTaskEventIn: qc.SignalInstance = qc.Signal(TaskEvent)  # type: ignore
 
+    selected_channel: str
+    """
+    The channel to use for the task, e.g. Roll.
+    
+    When StartReact is run, it cannot be changed,
+    although the shown input channels can be changed.
+    
+    Replaces the functionality of SRConfig.angle_type,
+    and allows StartReact to be performed for inputs besides angles.
+    """
+
+    def __init__(self, selected_channel):
+        super().__init__()
+        self.selected_channel = selected_channel
+
 
 def generate_edit_form(
     dc: object,

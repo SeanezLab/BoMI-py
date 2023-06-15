@@ -9,11 +9,13 @@ import threading
 import time
 
 import threespace_api as ts_api
-from bomi.datastructure import Packet
 from bomi.device_managers.yost_serial_comm import (
     Dongles,
     WiredSensors,
+    PacketField
 )
+
+from PySide6.QtCore import Signal, QObject
 
 
 def _print(*args):
@@ -85,13 +87,41 @@ def discover_all_devices() -> Tuple[DongleList, SensorList, SensorList, SensorLi
     return dongles, all_sensors, wired_sensors, wireless_sensors
 
 
-class YostDeviceManager:
+class YostDeviceManager(QObject):
     """
     Manage the discovery, initialization, and data acquisition of all yost body sensors.
     Should only be instantiated once and used as a singleton, though this is not enforced.
     """
+    discover_devices_signal = Signal()
+
+    CHANNEL_LABELS = [
+        PacketField.ROLL,
+        PacketField.PITCH,
+        PacketField.YAW,
+    ]
+
+    @staticmethod
+    def get_channel_unit(channel: str) -> str:
+        match channel:
+            case PacketField.ROLL | PacketField.PITCH | PacketField.YAW:
+                return "deg"
+            case _:
+                raise ValueError("Not a valid Yost channel")
+
+    @staticmethod
+    def get_channel_default_range(channel: str) -> tuple[int, int]:
+        match channel:
+            case PacketField.ROLL | PacketField.YAW:
+                return -180, 180
+            case PacketField.PITCH:
+                return -90, 90
+            case _:
+                raise ValueError("Not a valid Yost channel")
+
+    INPUT_KIND = "Yost"
 
     def __init__(self, data_dir: str | Path = "data", sampling_frequency: float = 100):
+        super().__init__()
         self._data_dir: Path = Path(data_dir)
         self._fs = sampling_frequency
 
@@ -131,6 +161,8 @@ class YostDeviceManager:
             sensor.setCompassEnabled(False)
         self.tare_all_devices()
 
+        self.discover_devices_signal.emit()
+
     def get_all_sensor_serial(self) -> List[str]:
         "Get serial_number_hex of all sensors"
         return [s.serial_number_hex for s in self.all_sensors]
@@ -148,7 +180,7 @@ class YostDeviceManager:
         _print(f"{serial_number_hex} nicknamed {name}")
         self._names[serial_number_hex] = name
 
-    def start_stream(self, queue: Queue[Packet]):
+    def start_stream(self, queue: Queue):
         if not self.has_sensors():
             _print("No sensors found. Aborting stream")
             return
@@ -226,21 +258,13 @@ class YostDeviceManager:
     def close_device(self, device):
         device.close()
 
-        def rm_from_lst(l: list):
-            if device in l:
-                l.remove(device)
+        for devices_list in [self.dongles, self.all_sensors, self.wired_sensors, self.wireless_sensors]:
+            if device in devices_list:
+                devices_list.remove(device)
 
-        rm_from_lst(self.dongles)
-        rm_from_lst(self.all_sensors)
-        rm_from_lst(self.wired_sensors)
-        rm_from_lst(self.wireless_sensors)
-
-        def rm_from_dict(d):
-            if device.serial_number in d:
-                del d[device.serial_number]
-
-        rm_from_dict(ts_api.global_sensorlist)
-        rm_from_dict(ts_api.global_donglist)
+        for devices_dict in [ts_api.global_sensorlist, ts_api.global_donglist]:
+            if device.serial_number in devices_dict:
+                del devices_dict[device.serial_number]
 
     def close_all_devices(self):
         "close all ports"
@@ -261,7 +285,7 @@ class YostDeviceManager:
 
 
 def _handle_stream(
-    queue: Queue[Packet],
+    queue: Queue,
     done: threading.Event,
     fs: int,
     sensor_port_names: List[str],

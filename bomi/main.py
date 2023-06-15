@@ -1,17 +1,21 @@
 from functools import partial
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
+from PySide6.QtWidgets import QTabWidget
 
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.device_managers.yost_widget import YostWidget
 
-from bomi.reaching_widget import ReachingWidget
+from bomi.device_managers.qtm_manager import QtmDeviceManager
+from bomi.device_managers.qtm_widget import QtmWidget
+
 from bomi.start_react_widget import StartReactWidget
 from bomi.window_mixin import WindowMixin
 from bomi.base_widgets import wrap_gb
-from bomi.cursor import CursorControlWidget
 
 from bomi.device_managers.trigno_widget import TrignoWidget, TrignoClient
+
+
 
 __appname__ = "BoMI"
 __all__ = ["MainWindow", "main"]
@@ -24,7 +28,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         super().__init__()
         self.yost_dm = YostDeviceManager()
         self.trigno_client = TrignoClient()
-        #TODO: qtmclient here?
+        self.qtm_dm = QtmDeviceManager()
 
         self.init_ui()
         self.init_actions()
@@ -41,6 +45,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
     def init_ui(self):
         w = qw.QWidget()
         self.setCentralWidget(w)
+        tabs = qw.QTabWidget()
 
         hbox = qw.QHBoxLayout(w)
         vbox1 = qw.QVBoxLayout()
@@ -53,35 +58,28 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         hbox.addWidget(tmp)
 
         ### Device manager group
-        _gb = wrap_gb("Yost Device Manager", YostWidget(self.yost_dm))
-        _gb.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
-        vbox1.addWidget(_gb)
+        ### YOST IMU mamanger group
+        _gbIMU = wrap_gb("Yost devices", YostWidget(self.yost_dm))
+        _gbIMU.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
+        tabs.addTab(_gbIMU, "Yost")
+        #vbox1.addWidget(tabs)
 
         ### Trigno Device manager group
-        vbox1.addWidget(
-            wrap_gb("Trigno Device Manager", TrignoWidget(self.trigno_client))
-        )
+        _gbTrigno = wrap_gb("Trigno devices", TrignoWidget(self.trigno_client))
+        tabs.addTab(_gbTrigno, "Trigno")
 
-        ### StartReact Group
+        ### Biodex manager group
+        _gbBiodex = wrap_gb("Biodex devices", QtmWidget(self.qtm_dm))
+        _gbBiodex.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
+        tabs.addTab(_gbBiodex, "Biodex")
+
+        vbox1.addWidget(tabs) #adds tab widget to vertical box layout 1
+
+        ### StartReact manager group
         vbox2.addWidget(
-            wrap_gb("StartReact", StartReactWidget(self.yost_dm, self.trigno_client))
+            wrap_gb("StartReact", StartReactWidget([self.yost_dm, self.qtm_dm], self.trigno_client))
         )
-
-        ### Cursor Task group
-        btn_reach = qw.QPushButton(text="Reaching")
-        btn_reach.clicked.connect(partial(self.start_widget, ReachingWidget()))  # type: ignore
-
-        vbox2.addWidget(wrap_gb("Cursor Tasks", btn_reach))
-
-        ### Cursor Control group
-        self.cursor_control = CursorControlWidget(
-            dm=self.yost_dm, show_device_manager=False
-        )
-        vbox2.addWidget(wrap_gb("Cursor Control", self.cursor_control))
-        self.installEventFilter(self.cursor_control)
-
-        vbox2.addStretch()
-
+   
     def init_actions(self):
         """
         Initialize QActions

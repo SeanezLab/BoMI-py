@@ -6,16 +6,16 @@ import random
 import traceback
 from pathlib import Path
 from timeit import default_timer
-from typing import Callable, List, NamedTuple, Tuple
+from typing import Callable, List, NamedTuple, Tuple, Protocol
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
-from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form
-from bomi.datastructure import YostBuffer, get_savedir
-from bomi.device_managers.yost_manager import YostDeviceManager
+from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
+from bomi.datastructure import MultichannelBuffer, get_savedir
+from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal, SupportsGetChannelMetadata
 from bomi.scope_widget import ScopeConfig, ScopeWidget
 from bomi.window_mixin import WindowMixin
 from bomi.audio.player import TonePlayer, AudioCalibrationWidget
@@ -37,19 +37,16 @@ class SRState(NamedTuple):
 
 
 """
-TODO: Move SRConfig to StartReact widget, out of SRDisplay
-Persist to disk
+TODO: Persist to disk
 """
-
 
 @dataclass
 class SRConfig:
     """
     Configuration for a StartReact task
     """
-
     HOLD_TIME: int = field(
-        default=500, metadata=dict(range=(500, 5000), name="Hold Time (ms)")
+        default=250, metadata=dict(range=(50, 5000), name="Hold Time (ms)")
     )  # msec
     PAUSE_MIN: int = field(
         default=2000, metadata=dict(range=(500, 5000), name="Pause Min (ms)")
@@ -62,7 +59,7 @@ class SRConfig:
     )
 
     tone_duration: int = field(
-        default=200, metadata=dict(range=(10, 500), name="Tone Duration (ms) ")
+        default=50, metadata=dict(range=(10, 500), name="Tone Duration (ms) ")
     )
 
     tone_frequency: int = field(
@@ -71,22 +68,11 @@ class SRConfig:
     auditory_volume: int = field(default=1, metadata=dict(range=(1, 100)))
     startle_volume: int = field(default=100, metadata=dict(range=(1, 100)))
 
-    angle_type: str = field(
-        default=YostBuffer.LABELS[1], metadata=dict(options=YostBuffer.LABELS)
-    )
-
-    AXIS_MIN: int = field(
-        default=0, metadata=dict(range=(-180, 180), name="Axis Range Min (deg.)")
-    )
-
-    AXIS_MAX: int = field(
-        default=90, metadata=dict(range=(-180, 180), name="Axis Range Max (deg.)")
-    )
-
     def to_disk(self, savedir: Path):
         "Write metadata to `savedir`"
         with (savedir / "start_react_config.json").open("w") as fp:
             json.dump(asdict(self), fp, indent=2)
+
 
 class SRDisplay(TaskDisplay, WindowMixin):
     """StartReact Display
@@ -105,9 +91,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
     BTN_START_TXT = "Begin task"
     BTN_END_TXT = "End task"
 
-    def __init__(self, task_name: str, savedir: Path, config: SRConfig):
+    def __init__(self, task_name: str, savedir: Path, selected_channel: str, config: SRConfig):
         "task_name will be displayed at the top of the widget"
-        super().__init__()
+        super().__init__(selected_channel)
         self.config = config
         self.savedir = savedir
 
@@ -336,40 +322,162 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
 class StartReactWidget(qw.QWidget, WindowMixin):
     """GUI to manage StartReact tasks"""
+    class StartReactDeviceManager(
+        ScopeWidget.ScopeWidgetDeviceManager,
+        SupportsHasSensors,
+        HasDiscoverDevicesSignal,
+        Protocol
+    ):
+        """
+        A device manager for the StartReact widget must
+        be a valid ScopeWidgetDeviceManager,
+        support checking if it has sensors,
+        and support the discover_devices signal.
+        """
 
-    def __init__(self, device_manager: YostDeviceManager, trigno_client: TrignoClient):
+    def __init__(self, device_managers: list[StartReactDeviceManager], trigno_client: TrignoClient):
+        """
+        @param device_managers A list of compatible device managers
+        @param trigno_client A Trigno (EMG) client.
+        """
         super().__init__()
-        self.dm = device_manager #IMU
+        self.available_device_managers = device_managers
+        self.dm = device_managers[0]
+        self.selected_sensor_name = None
+        self.selected_channel_name = self.dm.CHANNEL_LABELS[0]
+        self.y_min, self.y_max = self.dm.get_channel_default_range(self.selected_channel_name)
         self.trigno_client = trigno_client
 
         self.config = SRConfig()
 
         ### Init UI
         main_layout = qw.QVBoxLayout(self)
+        self.setLayout(main_layout)
 
-        btn1 = qw.QPushButton(text="Precision")
-        btn1.clicked.connect(self.s_precision_task)  # type: ignore
-        main_layout.addWidget(btn1)
+        setup_layout = qw.QFormLayout()
+        setup_group_box = qw.QGroupBox("Setup")
+        setup_group_box.setLayout(setup_layout)
+        main_layout.addWidget(setup_group_box)
 
-        btn1 = qw.QPushButton(text="MaxROM")
-        btn1.clicked.connect(self.s_max_rom)  # type: ignore
-        main_layout.addWidget(btn1)
+        # Widget to select input to use
+        input_button_group = qw.QButtonGroup(self)
+        for i, dm in enumerate(self.available_device_managers):
+            input_button_group.addButton(qw.QRadioButton(dm.INPUT_KIND), id=i)
+        input_button_group.buttons()[0].click()  # Set the default choice as the first
+
+        def update_selected_dm(button):
+            self.set_device_manager(
+                self.available_device_managers[input_button_group.id(button)]
+            )
+            self.fill_select_sensor_combo_box()
+            self.fill_select_channel_combo_box()
+
+        input_button_group.buttonClicked.connect(update_selected_dm)
+
+        buttons_box = qw.QVBoxLayout()
+        # We cannot add a group directly https://stackoverflow.com/a/69687211
+        for button in input_button_group.buttons():
+            buttons_box.addWidget(button)
+        setup_layout.addRow(qw.QLabel("Input to use:"), buttons_box)
+
+        # Select sensor UI
+        self.select_sensor_combo_box = qw.QComboBox()
+        setup_layout.addRow(qw.QLabel("Sensor to use:"), self.select_sensor_combo_box)
+        self.fill_select_sensor_combo_box()
+        self.dm.discover_devices_signal.connect(self.fill_select_sensor_combo_box)
+
+        def update_selected_sensor(sensor):
+            self.selected_sensor_name = sensor
+            _print(f"Selected sensor changed to {sensor}")
+
+        self.select_sensor_combo_box.currentTextChanged.connect(update_selected_sensor)
+
+        # Select channel UI
+        self.select_channel_combo_box = qw.QComboBox()
+        setup_layout.addRow(qw.QLabel("Channel to use:"), self.select_channel_combo_box)
+        self.fill_select_channel_combo_box()
+
+        def update_selected_channel(channel):
+            self.selected_channel_name = channel
+            _print(f"Selected channel changed to {channel}")
+            y_min, y_max = self.dm.get_channel_default_range(channel)
+            self.y_min_box.setValue(y_min)
+            self.y_max_box.setValue(y_max)
+
+        self.select_channel_combo_box.currentTextChanged.connect(update_selected_channel)
+
+        # Select range UI
+        self.y_min_box = qw.QSpinBox()
+        setup_layout.addRow(qw.QLabel("Y-min:"), self.y_min_box)
+        self.y_min_box.setRange(-999, 999)
+        self.y_min_box.setValue(self.y_min)
+
+        def update_y_min(value):
+            self.y_min = value
+            _print(f"Y-min changed to {self.y_min}")
+
+        self.y_min_box.valueChanged.connect(update_y_min)
+
+        self.y_max_box = qw.QSpinBox()
+        setup_layout.addRow(qw.QLabel("Y-max:"), self.y_max_box)
+        self.y_max_box.setRange(-999, 999)
+        self.y_max_box.setValue(self.y_max)
+
+        def update_y_max(value):
+            self.y_max = value
+            _print(f"Y-max changed to {self.y_max}")
+
+        self.y_max_box.valueChanged.connect(update_y_max)
 
         self.config_widget = generate_edit_form(
             self.config,
             name="Task config",
             dialog_box=True,
         )
-        self.config_btn = qw.QPushButton("Configure")
+        self.config_btn = qw.QPushButton("Set config...")
         self.config_btn.clicked.connect(self.config_widget.show)  # type: ignore
-        main_layout.addWidget(self.config_btn)
+        setup_layout.addWidget(self.config_btn)
 
         self.audio_calib = AudioCalibrationWidget()
-        main_layout.addWidget(self.audio_calib)
+        main_layout.addWidget(wrap_gb("Audio calibration", self.audio_calib))
+
+        actions_layout = qw.QVBoxLayout()
+        main_layout.addLayout(actions_layout)
+
+        btn1 = qw.QPushButton(text="Precision")
+        btn1.clicked.connect(self.s_precision_task)  # type: ignore
+        actions_layout.addWidget(btn1)
+
+        btn1 = qw.QPushButton(text="MaxROM")
+        btn1.clicked.connect(self.s_max_rom)  # type: ignore
+        actions_layout.addWidget(btn1)
+
+        self._scope_widget = None
+
+    def fill_select_sensor_combo_box(self):
+        sensor_names = self.dm.get_all_sensor_names()
+        self.select_sensor_combo_box.clear()
+        self.select_sensor_combo_box.addItems(
+            sensor_names
+        )
+
+    def fill_select_channel_combo_box(self):
+        channel_names = self.dm.CHANNEL_LABELS
+        self.select_channel_combo_box.clear()
+        self.select_channel_combo_box.addItems(
+            channel_names
+        )
+
+    def set_device_manager(self, device_manager: StartReactDeviceManager) -> None:
+        """
+        Set the device manager to use for StartReact.
+        """
+        _print(f"Selected device manager: {device_manager}")
+        self.dm = device_manager
 
     def check_sensors(self) -> bool: 
         if not self.dm.has_sensors():
-            self.no_yost_sensors_error()
+            self.no_sensors_error(self.dm)
             return False
 
         if not self.trigno_client.connected:
@@ -384,87 +492,63 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         return True
 
-    def s_precision_task(self):
-        "Run the ScopeWidget with the precision task view"
+    def run_startreact(self, task_name: str, file_suffix: str, target_range: tuple[int, int]):
+        """
+        Common code for the precision and max ROM tasks
+        """
         if not self.check_sensors():
             return
 
-        # refer to YostBuffer.LABELS for these
-        show_roll = self.config.angle_type == "Roll"
-        show_pitch = self.config.angle_type == "Pitch"
-        show_yaw = self.config.angle_type == "Yaw"
-        show_rollpitch = self.config.angle_type == "abs(roll) + abs(pitch)"
-        assert (
-            sum([show_roll, show_pitch, show_yaw, show_rollpitch]) == 1
-        ), f"SRConfig: Unknown angle_type: {self.config.angle_type}"
+        input_channels_visibility = {
+            k: False
+            for k in self.dm.CHANNEL_LABELS
+        }
+        input_channels_visibility[self.selected_channel_name] = True
 
         scope_config = ScopeConfig(
-            window_title="Precision",
+            input_channels_visibility=input_channels_visibility,
+            window_title=task_name,
             show_scope_params=True,
             target_show=True,
-            target_range=(35, 40),
+            target_range=target_range,
             base_show=True,
-            yrange=(self.config.AXIS_MIN, self.config.AXIS_MAX),
-            show_roll=show_roll,
-            show_pitch=show_pitch,
-            show_yaw=show_yaw,
-            show_rollpitch=show_rollpitch,
+            yrange=(self.y_min, self.y_max),
         )
 
-        savedir = get_savedir("Precision")  # savedir to write all data
+        savedir = get_savedir(file_suffix)  # savedir to write all data
 
         try:
-            self._precision = ScopeWidget(
+            self._scope_widget = ScopeWidget(
                 self.dm,
+                selected_sensor_name=self.selected_sensor_name,
                 savedir=savedir,
-                task_widget=SRDisplay("Precision Control", savedir, self.config),
+                task_widget=SRDisplay(task_name, savedir, self.selected_channel_name, self.config),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )
-
-            self._precision.showMaximized()
+            self._scope_widget.showMaximized()
         except Exception:
             _print(traceback.format_exc())
             self.dm.stop_stream()
+
+    def s_precision_task(self):
+        """
+        Run the ScopeWidget with the precision task view
+        """
+
+        self.run_startreact(
+            "Precision Control",
+            "Precision",
+            (-20, -30)
+        )
 
     def s_max_rom(self):
-        "Run the ScopeWidget with the MaxROM task view"
-        if not self.check_sensors():
-            return
+        """
+        Run the ScopeWidget with the MaxROM task view
+        """
 
-        # refer to YostBuffer.LABELS for these
-        show_roll = self.config.angle_type == "Roll"
-        show_pitch = self.config.angle_type == "Pitch"
-        show_yaw = self.config.angle_type == "Yaw"
-        show_rollpitch = self.config.angle_type == "abs(roll) + abs(pitch)"
-        assert (
-            sum([show_roll, show_pitch, show_yaw, show_rollpitch]) == 1
-        ), f"SRConfig: Unknown angle_type: {self.config.angle_type}"
-
-        scope_config = ScopeConfig(
-            window_title="MaxROM",
-            show_scope_params=True,
-            target_show=True,
-            target_range=(70,120),
-            base_show=True,
-            yrange=(self.config.AXIS_MIN, self.config.AXIS_MAX), 
-            show_roll=show_roll,
-            show_pitch=show_pitch,
-            show_yaw=show_yaw,
-            show_rollpitch=show_rollpitch,
+        self.run_startreact(
+            "Max Range of Motion",
+            "MaxROM",
+            (-35, -60) #target range set for torque plantar flexion
         )
-
-        savedir = get_savedir("MaxROM")  # savedir to write all data
-
-        try:
-            self._precision = ScopeWidget(
-                self.dm,
-                savedir=savedir,
-                task_widget=SRDisplay("Max Range of Motion", savedir, self.config),
-                config=scope_config,
-                trigno_client=self.trigno_client,
-            )
-            self._precision.showMaximized()
-        except Exception:
-            _print(traceback.format_exc())
-            self.dm.stop_stream()
