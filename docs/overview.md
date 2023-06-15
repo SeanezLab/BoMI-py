@@ -44,19 +44,16 @@ Make sure the **Trigno Control Utility** (Trigno SDK Server) is running on the c
 
 ![](./img/bomi-startreact.png)
 
-- **"Configure"** opens a dialog window to adjust configuration parameters.
-- **"Precision"** Launches the precision control task.
-- **"MaxROM"** Launches the max range of motion task.
+This panel allows you to run a StartReact experiment.
+See [Running a StartReact Experiment](start-react.md) for more information.
 
-You can play a tone at **Frequency**, **Duration** and **Volume** by clicking **"Play tone"**. Note that this setting is for testing sound only, and is not used in the StartReact task. To adjust task settings, click **"Configure"**.
-
-## Cursor Tasks
+## Cursor Tasks (removed in v0.3.0)
 
 ![](./img/bomi-cursor-tasks.png)
 
 Implements some cursor tasks that are fun and can quantify accuracy and speed.
 
-## Cursor Control
+## Cursor Control (removed in v0.3.0)
 
 ![](./img/bomi-cursor-control.png)
 
