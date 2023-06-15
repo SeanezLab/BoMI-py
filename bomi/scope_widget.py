@@ -56,7 +56,7 @@ class ScopeConfig:
     target_range: Tuple[float, float] = (70, 80)
 
     base_show: bool = False
-    base_range: Tuple[float, float] = (-5, 1)
+    base_range: Tuple[float, float] = (-10, 1)
 
     xrange: Tuple[float, float] = (-6, 0)
     yrange: Tuple[float, float] = (-180, 180)
@@ -654,12 +654,30 @@ class ScopeWidget(qw.QWidget):
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         with pg.BusyCursor():
             self.stop_stream()
+            self.print_max_recorded_magnitudes()
 
         self.task_widget and self.task_widget.close()
         # Remove references to MultichannelBuffer objects
         # The filepointers will be closed when GC runs
         self.buffers.clear()
         return super().closeEvent(event)
+
+    def print_max_recorded_magnitudes(self):
+        from numpy import genfromtxt
+
+        print("Max magnitudes:")
+        for path in self.savedir.iterdir():
+            if path.suffix != ".csv":
+                continue
+
+            with open(path) as f:
+                print(f"\t{path.name}:")
+                array = genfromtxt(path, delimiter=",", names=True)
+                for channel in self.dm.CHANNEL_LABELS:
+                    max_magnitude = max(array[channel], key=abs)
+                    print(f"\t\t{channel}: {max_magnitude}")
+                print()
+
 
 
 class _DummyQueue(Queue):
