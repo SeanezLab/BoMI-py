@@ -396,15 +396,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#a-adjust-volume" class="md-nav__link">
-    a. Adjust volume
+  <a href="#main-experiment-setup" class="md-nav__link">
+    Main experiment setup
+  </a>
+  
+    <nav class="md-nav" aria-label="Main experiment setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#additional-configuration" class="md-nav__link">
+    Additional configuration
   </a>
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+        
           <li class="md-nav__item">
-  <a href="#b-set-startreact-configuration" class="md-nav__link">
-    b. Set StartReact configuration
+  <a href="#audio-calibration" class="md-nav__link">
+    Audio calibration
   </a>
   
 </li>
@@ -574,15 +587,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#a-adjust-volume" class="md-nav__link">
-    a. Adjust volume
+  <a href="#main-experiment-setup" class="md-nav__link">
+    Main experiment setup
+  </a>
+  
+    <nav class="md-nav" aria-label="Main experiment setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#additional-configuration" class="md-nav__link">
+    Additional configuration
   </a>
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+        
           <li class="md-nav__item">
-  <a href="#b-set-startreact-configuration" class="md-nav__link">
-    b. Set StartReact configuration
+  <a href="#audio-calibration" class="md-nav__link">
+    Audio calibration
   </a>
   
 </li>
@@ -690,20 +716,29 @@ Default Gateway . . . . . . . . . : 10.229.96.254
 <img alt="" src="../img/bomi-trigno-scope.png" /></p>
 <h2 id="4-configure-startreact">4. Configure StartReact</h2>
 <p>After the Yost 3-Space Sensors and Trigno EMG Sensors are setup, we can configure StartReact.</p>
-<h3 id="a-adjust-volume">a. Adjust volume</h3>
-<p>First, make sure speakers to produce the auditory and startling sound effects are plugged into the computer. Test the tone by clicking on <strong>"Play tone"</strong>. Make sure you can achieve a ~115 dB sound with the volume at 100, and ~80 dB with the volume at 1.</p>
-<p><img alt="" src="../img/bomi-sr-playtone.png" /></p>
-<h3 id="b-set-startreact-configuration">b. Set StartReact configuration</h3>
-<p>Click on <strong>"Configure"</strong> to bring up a configuration dialog.</p>
-<p><img alt="" src="../img/bomi-sr-config-btn.png" /></p>
+<h3 id="main-experiment-setup">Main experiment setup</h3>
+<p><img alt="&quot;Setup&quot; panel" src="../img/bomi-sr-setup.png" /></p>
+<p>In this panel, first select the kind of input to use with the experiment.</p>
+<p>Then, select the sensor to use from the drop-down of available sensors.
+The experiment will only show and save data from one sensor.</p>
+<p>Then, select the channel to use from the drop-down of available channels.
+The experiment will use that channel's data to determine when the participant enters the target range.
+However, data from all available channels will be saved.</p>
+<p>After the channel has been selected, the Y-min and Y-max fields
+will be filled with the default values for the channel.
+Adjust the fields if necessary.</p>
+<h4 id="additional-configuration">Additional configuration</h4>
+<p>Additional configuration can be set inside <strong>"Set config..."</strong>.</p>
 <p><img alt="" src="../img/bomi-sr-config.png" /></p>
 <ul>
 <li><strong>Hold Time</strong>: Amount of time one must hold the angle inside the target to count as success.</li>
 <li><strong>Pause Min</strong>: Minimum pause between trials.</li>
 <li><strong>Pause Random</strong>: Max random pause to add on top of <strong>Pause Min</strong>.</li>
 <li><strong>No. Trials per cue</strong>: Number of trials for each cue. Since there are three cues (visual, auditory, startling), there will be 3x this number of trials in total.</li>
-<li><strong>Angle Type</strong>: Which angle will be used for the <em>StartReact</em> task metrics. <em><strong>Pitch</strong></em> has been a good one to use.</li>
 </ul>
+<h3 id="audio-calibration">Audio calibration</h3>
+<p><img alt="" src="../img/bomi-sr-audio.png" /></p>
+<p>Make sure speakers to produce the auditory and startling sound effects are plugged into the computer. Test the tone by clicking on <strong>"Play tone"</strong>. Make sure you can achieve a ~115 dB sound with the volume at 100, and ~80 dB with the volume at 1.</p>
 <h2 id="5-run-an-experiment">5. Run an experiment</h2>
 <p>Finally, click on either StartReact task button to open the experiment interface. The interface for <strong>"Precision"</strong> and <strong>"MaxROM"</strong> are basically identical.</p>
 <ul>
@@ -722,7 +757,7 @@ Default Gateway . . . . . . . . . : 10.229.96.254
 </ul>
 <p>Click <strong>"Ok"</strong> to save the metadata to file.</p>
 <h3 id="b-begin-task">b. Begin Task</h3>
-<p>Click <strong>"Begin task"</strong> to start the experiment! All raw data will be stored to disk (Yost 3-Space Sensor, Trigno EMG, task events, metadata, and configurations etc.)</p>
+<p>Click <strong>"Begin task"</strong> to start the experiment! All raw data will be stored to disk (main input, Trigno EMG, task events, metadata, and configurations etc.)</p>
 <p><img alt="" src="../img/bomi-sr-precision-begintask.png" /></p>
 
 
