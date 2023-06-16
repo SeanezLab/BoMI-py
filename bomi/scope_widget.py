@@ -633,7 +633,7 @@ class ScopeWidget(qw.QWidget):
             tmin, tmax = self.target_range
             bmin, bmax = self.base_range
             for name in self.dev_names:
-                angle = self.buffers[name].last_angle
+                angle = self.buffers[name].last_measurement
 
                 if self.last_state == AngleState.IN_TARGET:
                     if not tmin <= angle <= tmax:

@@ -58,8 +58,8 @@ class MultichannelBuffer:
         # name of this device
         self.name: str = name
 
-        self._angle_in_use: int = -1  # idx of the labelled angle in use
-        self.last_angle: float = 0.0  # angle used for task purposes
+        self._channel_index: int = -1  # index of the labelled channel in use
+        self.last_measurement: float = 0.0  # last measurement from the channel selected for the task
 
         self.savedir: Path = savedir
         header = ",".join(("t", *self.channel_labels)) + "\n"
@@ -74,7 +74,7 @@ class MultichannelBuffer:
 
     def set_angle_type(self, label: str):
         i = self.channel_labels.index(label)
-        self._angle_in_use = i
+        self._channel_index = i
 
     def add_packet(self, packet: dict[str, int | float]):
         "Add `Packet` of sensor data"
@@ -89,7 +89,7 @@ class MultichannelBuffer:
         self.timestamp[:-1] = self.timestamp[1:]
         self.timestamp[-1] = packet["Time"]
 
-        self.last_angle = _packet[self._angle_in_use]
+        self.last_measurement = _packet[self._channel_index]
 
 
 class DelsysBuffer:
