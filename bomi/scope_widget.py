@@ -603,10 +603,9 @@ class ScopeWidget(qw.QWidget):
 
         for _ in range(qsize):  # process current items in queue
             packet = q.get()
-            
-            name = packet["Name"]
+
             try:
-                buffer = self.buffers[name]
+                buffer = self.buffers[packet.device_name]
             except KeyError:
                 # When we select a single sensor,
                 # the device manager will still populate the queue

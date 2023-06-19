@@ -4,6 +4,9 @@ import xml.etree.ElementTree as ET
 from enum import Enum
 import timeit
 import threading
+from queue import Queue
+
+from bomi.datastructure import Packet
 
 # This script is to be used in conjunction with the Analog_Testing Project in QTM.
 # First open QTM. When prompted for the filename, choose Analog_Testing.
@@ -33,7 +36,7 @@ class ConversionFactors():
         self.position_conv = (1/0.0292)
 
 
-def real_time_stream(q_analog, done: threading.Event, IPaddress: str, port: int, version: str):
+def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: str, port: int, version: str):
     """
     Defines main asynchronous function, runs main coroutine
     """
@@ -44,12 +47,10 @@ def real_time_stream(q_analog, done: threading.Event, IPaddress: str, port: int,
         """
         info, data = packet.get_analog() #get analog data from qtm, from qtm sdk commands
         if len(data) > 0:
-            data_all_elements = {}
+            channel_readings = {}
             for i, channel in enumerate(Channel):
-                data_all_elements[channel] = recv_conv(data[i][2][0][0], channel)
-            data_all_elements['Time'] = timeit.default_timer()
-            data_all_elements['Name'] = 'QTM'
-            q_analog.put(data_all_elements)
+                channel_readings[channel] = recv_conv(data[i][2][0][0], channel)
+            q_analog.put(Packet(timeit.default_timer(), "QTM", channel_readings))
         else:
             print("Empty data from packet")
 
