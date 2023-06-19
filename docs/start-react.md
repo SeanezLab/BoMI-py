@@ -101,7 +101,7 @@ Additional configuration can be set inside **"Set config..."**.
 
 ![](./img/bomi-sr-config.png)
 
-- **Hold Time**: Amount of time one must hold the angle inside the target to count as success.
+- **Hold Time**: Amount of time one must hold inside the target to count as success.
 - **Pause Min**: Minimum pause between trials.
 - **Pause Random**: Max random pause to add on top of **Pause Min**.
 - **No. Trials per cue**: Number of trials for each cue. Since there are three cues (visual, auditory, startling), there will be 3x this number of trials in total.
@@ -114,9 +114,11 @@ Make sure speakers to produce the auditory and startling sound effects are plugg
 
 ## 5. Run an experiment
 
-Finally, click on either StartReact task button to open the experiment interface. The interface for **"Precision"** and **"MaxROM"** are basically identical.
+Finally, click on either StartReact task button to open the experiment interface.
+The interface for **"Precision"** and **"MaxROM"** are basically identical;
+they just configure the filename and the target range size.
 
-- **"Precision"**: Precision angle matching task.
+- **"Precision"**: Precision matching task.
 - **"MaxROM"**: Max range of motion (ROM) task.
 
 ![](./img/bomi-sr-begin.png)
