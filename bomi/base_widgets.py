@@ -25,7 +25,7 @@ def set_spinbox(
 
 class TaskEvent(Enum):
     """
-    Angle matching task event types
+    Measurement matching task event types
     """
 
     OUTSIDE = 0
@@ -37,7 +37,7 @@ class TaskEvent(Enum):
 
 class TaskDisplay(qw.QWidget):
     """
-    Angle matching task display widget
+    Measurement matching task display widget
     provides signals for communication with a Scope
     """
 
