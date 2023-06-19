@@ -480,10 +480,6 @@ class ScopeWidget(qw.QWidget):
                 input_kind=self.dm.INPUT_KIND,
                 channel_labels=self.dm.CHANNEL_LABELS
             )
-            if self.task_widget:
-                self.buffers[device_name].set_angle_type(
-                    self.task_widget.selected_channel
-                )  # type: ignore
 
     def init_ui(self):
         ### Init UI
@@ -607,14 +603,17 @@ class ScopeWidget(qw.QWidget):
 
         for _ in range(qsize):  # process current items in queue
             packet = q.get()
+            
+            name = packet["Name"]
             try:
-                self.buffers[packet["Name"]].add_packet(packet)
+                buffer = self.buffers[name]
             except KeyError:
                 # When we select a single sensor,
                 # the device manager will still populate the queue
                 # with packets from the other sensors (not ideal).
                 # Ignore these.
-                pass
+                continue
+            buffer.add_packet(packet)
 
         # On successful read from queue, update curves
         now = default_timer()
@@ -623,8 +622,8 @@ class ScopeWidget(qw.QWidget):
             curves = self.plot_handles[name].curves
 
             x = -(now - buf.timestamp)
-            for i, label in enumerate(self.dm.CHANNEL_LABELS):
-                curves[label].setData(x=x, y=buf.data[:, i])
+            for label in self.dm.CHANNEL_LABELS:
+                curves[label].setData(x=x, y=buf.data[label])
 
         ### Update task states if needed
         # 1. Check if angle is within target range
@@ -633,7 +632,7 @@ class ScopeWidget(qw.QWidget):
             tmin, tmax = self.target_range
             bmin, bmax = self.base_range
             for name in self.dev_names:
-                angle = self.buffers[name].last_angle
+                angle = self.buffers[name].data[self.task_widget.selected_channel][-1]
 
                 if self.last_state == AngleState.IN_TARGET:
                     if not tmin <= angle <= tmax:
