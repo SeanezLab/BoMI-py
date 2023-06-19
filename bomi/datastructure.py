@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from timeit import default_timer
-from typing import TextIO, Tuple
+from typing import TextIO, Tuple, Any
 
 import numpy as np
 
@@ -36,6 +36,32 @@ class SubjectMetadata:
         """Write metadata to `savedir`"""
         with (savedir / "meta.json").open("w") as fp:
             json.dump(asdict(self), fp, indent=2)
+
+
+@dataclass(frozen=True)
+class Packet:
+    """
+    Represents a packet of data from an individual sensor.
+    """
+
+    time: float
+    """
+    The time that this packet object was created,
+    as returned by timeit.default_timer().
+    """
+
+    device_name: str
+    """
+    The name of the device that reported the data
+    in this packet.
+    """
+
+    channel_readings: dict[str, Any]
+    """
+    A dictionary of the channel readings,
+    where the keys are the device's channel labels,
+    and the values are the readings.
+    """
 
 
 class MultichannelBuffer:
