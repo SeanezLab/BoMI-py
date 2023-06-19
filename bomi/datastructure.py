@@ -76,7 +76,7 @@ class MultichannelBuffer:
 
     def add_packet(self, packet: dict[str, int | float]):
         """Add `Packet` of sensor data"""
-        _packet = [packet[key] for key in self.channel_labels]
+        _packet = tuple(packet[key] for key in self.channel_labels)
 
         # Write to file pointer
         self.sensor_fp.write(",".join((str(v) for v in (packet["Time"], *_packet))) + "\n")
