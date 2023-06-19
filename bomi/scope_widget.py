@@ -167,7 +167,7 @@ class PlotHandle:
     ### Base methods]]]
 
 
-class AngleState(Enum):
+class TaskState(Enum):
     OUTSIDE = 0
     IN_TARGET = 1
     IN_BASE = 2
@@ -222,9 +222,9 @@ class ScopeWidget(qw.QWidget):
         self.buffers: Dict[str, MultichannelBuffer] = {}
         self.meta = SubjectMetadata()
 
-        self.last_state: AngleState = (
-            AngleState.OUTSIDE
-        )  # keep track of last angle state
+        self.last_state = (
+            TaskState.OUTSIDE
+        )
 
         def write_meta():
             print("write_meta", self.meta.dict())
@@ -626,29 +626,30 @@ class ScopeWidget(qw.QWidget):
                 curves[label].setData(x=x, y=buf.data[label])
 
         ### Update task states if needed
-        # 1. Check if angle is within target range
-        # 2. Check if angle is within base range
+        # 1. Check if last measurement is within target range
+        # 2. Check if last measurement is within base range
         if self.task_widget:
             tmin, tmax = self.target_range
             bmin, bmax = self.base_range
             for name in self.dev_names:
-                angle = self.buffers[name].data[self.task_widget.selected_channel][-1]
+                buffer = self.buffers[name]
+                most_recent_measurement = buffer.data[self.task_widget.selected_channel][-1]
 
-                if self.last_state == AngleState.IN_TARGET:
-                    if not tmin <= angle <= tmax:
+                if self.last_state == TaskState.IN_TARGET:
+                    if not tmin <= most_recent_measurement <= tmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_TARGET)
-                        self.last_state = AngleState.OUTSIDE
-                elif self.last_state == AngleState.IN_BASE:
-                    if not bmin <= angle <= bmax:
+                        self.last_state = TaskState.OUTSIDE
+                elif self.last_state == TaskState.IN_BASE:
+                    if not bmin <= most_recent_measurement <= bmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_BASE)
-                        self.last_state = AngleState.OUTSIDE
+                        self.last_state = TaskState.OUTSIDE
                 else:  # Outside base and target
-                    if tmin <= angle <= tmax:
+                    if tmin <= most_recent_measurement <= tmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_TARGET)
-                        self.last_state = AngleState.IN_TARGET
-                    elif bmin <= angle <= bmax:
+                        self.last_state = TaskState.IN_TARGET
+                    elif bmin <= most_recent_measurement <= bmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_BASE)
-                        self.last_state = AngleState.IN_BASE
+                        self.last_state = TaskState.IN_BASE
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         with pg.BusyCursor():
