@@ -49,15 +49,19 @@ class MultichannelBuffer:
         # 1D array of timestamps
         self.timestamp: np.ndarray = np.zeros(bufsize)
         # 2D array of `labels`
-        self.data: np.ndarray = np.zeros((bufsize, len(self.channel_labels)))
+        self.data: np.ndarray = np.recarray(
+            shape=(bufsize,),
+            dtype=[
+                (name, np.number)
+                for name in channel_labels
+            ]
+        )
+        self.data.fill(0)
 
         # file pointer to write CSV data to
         self.sensor_fp: TextIO = open(savedir / f"{input_kind}_{name}.csv", "w")
         # name of this device
         self.name: str = name
-
-        self._channel_index: int = -1  # index of the labelled channel in use
-        self.last_measurement: float = 0.0  # last measurement from the channel selected for the task
 
         self.savedir: Path = savedir
         header = ",".join(("t", *self.channel_labels)) + "\n"
@@ -69,10 +73,6 @@ class MultichannelBuffer:
     def __del__(self):
         """Close open file pointers"""
         self.sensor_fp.close()
-
-    def set_angle_type(self, label: str):
-        i = self.channel_labels.index(label)
-        self._channel_index = i
 
     def add_packet(self, packet: dict[str, int | float]):
         """Add `Packet` of sensor data"""
@@ -86,8 +86,6 @@ class MultichannelBuffer:
         self.data[-1] = _packet
         self.timestamp[:-1] = self.timestamp[1:]
         self.timestamp[-1] = packet["Time"]
-
-        self.last_measurement = _packet[self._channel_index]
 
 
 class DelsysBuffer:
