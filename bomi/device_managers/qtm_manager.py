@@ -1,13 +1,9 @@
-import multiprocessing
 import time
 import bomi.device_managers.analog_streaming_client as AS
 from bomi.datastructure import Packet
-from bomi.device_managers.protocols import SupportsGetSensorMetadata, SupportsHasSensors, SupportsStreaming, \
-    HasDiscoverDevicesSignal, HasChannelLabels, HasInputKind
 from queue import Queue
-from typing import Protocol, Iterable
+from typing import Iterable
 import threading
-from threading import Event
 from PySide6.QtCore import Signal, QObject
 from bomi.device_managers.analog_streaming_client import Channel
 
@@ -117,7 +113,7 @@ class QtmDeviceManager(QObject):
             _print("No sensors found. Aborting stream")
             return
 
-        if self.qtm_streaming == False:
+        if not self.qtm_streaming:
             _print("Start streaming")
             self._done_streaming.clear()
             self._thread = threading.Thread(
@@ -178,4 +174,3 @@ if __name__ == '__main__':
         if i == 9:
             print("stop again")
             qtm.stop_stream()
-print('finished')
