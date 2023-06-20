@@ -3,7 +3,7 @@ import bomi.device_managers.analog_streaming_client as AS
 from bomi.datastructure import Packet
 from queue import Queue
 from typing import Iterable
-import threading
+from threading import Event, Thread
 from PySide6.QtCore import Signal, QObject
 from bomi.device_managers.analog_streaming_client import Channel
 
@@ -55,13 +55,13 @@ class QtmDeviceManager(QObject):
     def __init__(self):
         super().__init__()
         self.qtm_streaming = False
-        self.all_channels: SensorList = []
+        self.all_channels = []
         self.queue = Queue()  # use for debugging with if __name__ == '__main__':
         self.qtm_ip = '10.229.96.105'  # connect to QLineEdit input of Biodex Widget
         self.port = 22223
         self.version = '1.22'
-        self._done_streaming = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._done_streaming = Event()
+        self._thread: Thread | None = None
 
     def status(self) -> str:
         """
@@ -116,7 +116,7 @@ class QtmDeviceManager(QObject):
         if not self.qtm_streaming:
             _print("Start streaming")
             self._done_streaming.clear()
-            self._thread = threading.Thread(
+            self._thread = Thread(
                 target=AS.real_time_stream,
                 args=(
                     queue,
