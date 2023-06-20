@@ -77,18 +77,13 @@ class QtmDeviceManager(QObject):
         their ID's.
         """
         try:
-            analog_idx = [[x] for x in AS.get_channel_number(self.qtm_ip, self.port, self.version)]
-            self.all_channels = analog_idx  # channels from QTM connection
-            _print(self.status())
-            self.discover_devices_signal.emit()
-        except:
-            # attempt to connect to QTM one more time, the first connection just opens the recording.
-            try:
-                time.sleep(6)
-                analog_idx = [analog_dict[x] for x in AS.get_channel_number(self.qtm_ip, self.port, self.version)]
-                self.all_channels = analog_idx  # channels from QTM connection
-            except:
-                print("Error in connecting to QTM")
+            channels = AS.get_channel_number(self.qtm_ip, self.port, self.version)
+        except AS.QTMConnectionError:
+            return None
+        analog_idx = [[x] for x in channels]
+        self.all_channels = analog_idx  # channels from QTM connection
+        _print(self.status())
+        self.discover_devices_signal.emit()
 
     def get_all_sensor_names(self) -> Iterable[str]:
         """

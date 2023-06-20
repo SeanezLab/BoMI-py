@@ -107,6 +107,12 @@ def recv_conv(data, channel: Channel):
             raise ValueError("Not a valid QTM channel")
 
 
+class QTMConnectionError(Exception):
+    """
+    Raised when the client could not connect to QTM.
+    """
+
+
 def get_channel_number(IPaddress: str, port: int, version: str):
     """
     Main asynchronus function to run main coroutine
@@ -120,8 +126,7 @@ def get_channel_number(IPaddress: str, port: int, version: str):
         connection = await qtm.connect(IPaddress, port, version)
 
         if connection is None:
-            print("failed to connect")
-            return
+            raise QTMConnectionError
 
         async with qtm.TakeControl(connection, 'jd'):
             await connection.new()
