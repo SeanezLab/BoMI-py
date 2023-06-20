@@ -38,7 +38,7 @@ class SubjectMetadata:
             json.dump(asdict(self), fp, indent=2)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Packet:
     """
     Represents a packet of data from an individual sensor.
