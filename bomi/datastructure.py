@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from timeit import default_timer
-from typing import TextIO, Tuple
+from typing import TextIO, Tuple, Any
 
 import numpy as np
 
@@ -36,6 +36,32 @@ class SubjectMetadata:
         """Write metadata to `savedir`"""
         with (savedir / "meta.json").open("w") as fp:
             json.dump(asdict(self), fp, indent=2)
+
+
+@dataclass(frozen=True)
+class Packet:
+    """
+    Represents a packet of data from an individual sensor.
+    """
+
+    time: float
+    """
+    The time that this packet object was created,
+    as returned by timeit.default_timer().
+    """
+
+    device_name: str
+    """
+    The name of the device that reported the data
+    in this packet.
+    """
+
+    channel_readings: dict[str, Any]
+    """
+    A dictionary of the channel readings,
+    where the keys are the device's channel labels,
+    and the values are the readings.
+    """
 
 
 class MultichannelBuffer:
@@ -74,18 +100,18 @@ class MultichannelBuffer:
         """Close open file pointers"""
         self.sensor_fp.close()
 
-    def add_packet(self, packet: dict[str, int | float]):
+    def add_packet(self, packet: Packet):
         """Add `Packet` of sensor data"""
-        _packet = tuple(packet[key] for key in self.channel_labels)
+        readings = tuple(packet.channel_readings[key] for key in self.channel_labels)
 
         # Write to file pointer
-        self.sensor_fp.write(",".join((str(v) for v in (packet["Time"], *_packet))) + "\n")
+        self.sensor_fp.write(",".join((str(v) for v in (packet.time, *readings))) + "\n")
 
         # Shift buffer when full, never changing buffer size
         self.data[:-1] = self.data[1:]
-        self.data[-1] = _packet
+        self.data[-1] = readings
         self.timestamp[:-1] = self.timestamp[1:]
-        self.timestamp[-1] = packet["Time"]
+        self.timestamp[-1] = packet.time
 
 
 class DelsysBuffer:

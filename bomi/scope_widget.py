@@ -16,7 +16,7 @@ from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
-from bomi.datastructure import MultichannelBuffer, SubjectMetadata
+from bomi.datastructure import MultichannelBuffer, SubjectMetadata, Packet
 from bomi.device_managers.protocols import (
     SupportsStreaming,
     SupportsGetSensorMetadata,
@@ -214,7 +214,7 @@ class ScopeWidget(qw.QWidget):
         else:
             self.trigno_client = None
 
-        self.queue: Queue = Queue()
+        self.queue: Queue[Packet] = Queue()
 
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
@@ -603,10 +603,9 @@ class ScopeWidget(qw.QWidget):
 
         for _ in range(qsize):  # process current items in queue
             packet = q.get()
-            
-            name = packet["Name"]
+
             try:
-                buffer = self.buffers[name]
+                buffer = self.buffers[packet.device_name]
             except KeyError:
                 # When we select a single sensor,
                 # the device manager will still populate the queue
