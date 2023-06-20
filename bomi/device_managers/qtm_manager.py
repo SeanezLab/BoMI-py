@@ -1,6 +1,7 @@
 import multiprocessing
 import time
 import bomi.device_managers.analog_streaming_client as AS
+from bomi.datastructure import Packet
 from bomi.device_managers.protocols import SupportsGetSensorMetadata, SupportsHasSensors, SupportsStreaming, HasDiscoverDevicesSignal, HasChannelLabels, HasInputKind
 from queue import Queue
 from typing import Protocol, Iterable
@@ -106,7 +107,7 @@ class QtmDeviceManager(QObject):
         return ["QTM"]
 
     # def start_stream(self): #for debugging with if __name__ == '__main__':
-    def start_stream(self, queue: Queue) -> None:
+    def start_stream(self, queue: Queue[Packet]) -> None:
         """
         Start streaming data to the passed in queue
         """

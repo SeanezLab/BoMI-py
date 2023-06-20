@@ -2,9 +2,11 @@ from typing import Protocol, Sequence, ClassVar
 from queue import Queue
 from PySide6.QtCore import Signal
 
+from bomi.datastructure import Packet
+
 
 class SupportsStreaming(Protocol):
-    def start_stream(self, queue: Queue) -> None:
+    def start_stream(self, queue: Queue[Packet]) -> None:
         """
         Start streaming data to the passed in queue
         """

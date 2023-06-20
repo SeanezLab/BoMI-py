@@ -9,6 +9,7 @@ import threading
 import time
 
 import threespace_api as ts_api
+from bomi.datastructure import Packet
 from bomi.device_managers.yost_serial_comm import (
     Dongles,
     WiredSensors,
@@ -180,7 +181,7 @@ class YostDeviceManager(QObject):
         _print(f"{serial_number_hex} nicknamed {name}")
         self._names[serial_number_hex] = name
 
-    def start_stream(self, queue: Queue):
+    def start_stream(self, queue: Queue[Packet]):
         if not self.has_sensors():
             _print("No sensors found. Aborting stream")
             return
@@ -285,7 +286,7 @@ class YostDeviceManager(QObject):
 
 
 def _handle_stream(
-    queue: Queue,
+    queue: Queue[Packet],
     done: threading.Event,
     fs: int,
     sensor_port_names: List[str],
