@@ -1,4 +1,3 @@
-import time
 import bomi.device_managers.analog_streaming_client as AS
 from bomi.datastructure import Packet
 from queue import Queue
@@ -56,7 +55,6 @@ class QtmDeviceManager(QObject):
         super().__init__()
         self.qtm_streaming = False
         self.all_channels = []
-        self.queue = Queue()  # use for debugging with if __name__ == '__main__':
         self.qtm_ip = '10.229.96.105'  # connect to QLineEdit input of Biodex Widget
         self.port = 22223
         self.version = '1.22'
@@ -99,7 +97,6 @@ class QtmDeviceManager(QObject):
         """
         return ["QTM"]
 
-    # def start_stream(self): #for debugging with if __name__ == '__main__':
     def start_stream(self, queue: Queue[Packet]) -> None:
         """
         Start streaming data to the passed in queue
@@ -153,19 +150,21 @@ if __name__ == '__main__':
     qtm = QtmDeviceManager()
     qtm.discover_devices()
     print("What devices?", qtm.status())
-    qtm.start_stream(qtm.queue)
+
+    testing_queue = Queue()
+    qtm.start_stream(testing_queue)
     for i in range(elements_to_get):
         if i < 5:
             print('i:', i)
-            print(qtm.queue.get())
+            print(testing_queue.get())
         if i == 5:
             print("Go ahead and stop")
             qtm.stop_stream()
             print("Start again after this")
         if i > 5:
-            qtm.start_stream(qtm.queue)
+            qtm.start_stream(testing_queue)
             print('i:', i)
-            print(qtm.queue.get())
+            print(testing_queue.get())
         if i == 9:
             print("stop again")
             qtm.stop_stream()
