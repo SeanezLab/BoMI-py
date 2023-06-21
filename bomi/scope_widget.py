@@ -16,7 +16,7 @@ from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
-from bomi.datastructure import MultichannelBuffer, SubjectMetadata
+from bomi.datastructure import MultichannelBuffer, SubjectMetadata, Packet
 from bomi.device_managers.protocols import (
     SupportsStreaming,
     SupportsGetSensorMetadata,
@@ -66,7 +66,7 @@ class ScopeConfig:
 
 @dataclass
 class PlotHandle:
-    "Holds a PlotItem and its curves"
+    """Holds a PlotItem and its curves"""
     plot: pg.PlotItem | pg.ViewBox
     curves: dict[str, pg.PlotCurveItem | pg.PlotDataItem]
     target: pg.LinearRegionItem | None
@@ -83,7 +83,7 @@ class PlotHandle:
         target_range: Tuple[float, float] = None,
         base_range: Tuple[float, float] = None,
     ) -> PlotHandle:
-        "Create curves on the given plot object"
+        """Create curves on the given plot object"""
         curves = {
             label: plot.plot(pen=pen, name=label)
             for pen, label in zip(PENS, channel_labels)
@@ -103,7 +103,6 @@ class PlotHandle:
 
         return PlotHandle(plot=plot, curves=curves, target=target, base=base)
 
-
     @staticmethod
     def init_line_region(
         plot: pg.PlotItem,
@@ -111,7 +110,7 @@ class PlotHandle:
         label="Target",
         movable=False,
     ) -> pg.LinearRegionItem:
-        "Create a Region on the plot (target or base)"
+        """Create a Region on the plot (target or base)"""
         region = pg.LinearRegionItem(
             values=target_range,
             orientation="horizontal",
@@ -124,7 +123,7 @@ class PlotHandle:
 
     ### [[[ Target methods
     def update_target(self, target_range: Tuple[float, float]):
-        "Update the 'target' region's position"
+        """Update the 'target' region's position"""
         if self.target is None:
             self.target = self.init_line_region(
                 self.plot, target_range, label=self.TARGET_NAME
@@ -138,7 +137,7 @@ class PlotHandle:
             self.target.setBrush(*args, **argv)
 
     def clear_target(self):
-        "Remove the 'target' line region"
+        """Remove the 'target' line region"""
         self.plot.removeItem(self.target)
         self.target = None
 
@@ -146,7 +145,7 @@ class PlotHandle:
 
     ### [[[ Base methods
     def update_base(self, base_range: Tuple[float, float]):
-        "Update the 'base' region's position"
+        """Update the 'base' region's position"""
         if self.base is None:
             self.base = self.init_line_region(
                 self.plot, base_range, label=self.BASE_NAME
@@ -160,14 +159,14 @@ class PlotHandle:
             self.base.setBrush(*args, **argv)
 
     def clear_base(self):
-        "Remove the 'base' line region"
+        """Remove the 'base' line region"""
         self.plot.removeItem(self.base)
         self.base = None
 
     ### Base methods]]]
 
 
-class AngleState(Enum):
+class TaskState(Enum):
     OUTSIDE = 0
     IN_TARGET = 1
     IN_BASE = 2
@@ -214,7 +213,7 @@ class ScopeWidget(qw.QWidget):
         else:
             self.trigno_client = None
 
-        self.queue: Queue = Queue()
+        self.queue: Queue[Packet] = Queue()
 
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
@@ -222,9 +221,9 @@ class ScopeWidget(qw.QWidget):
         self.buffers: Dict[str, MultichannelBuffer] = {}
         self.meta = SubjectMetadata()
 
-        self.last_state: AngleState = (
-            AngleState.OUTSIDE
-        )  # keep track of last angle state
+        self.last_state = (
+            TaskState.OUTSIDE
+        )
 
         def write_meta():
             print("write_meta", self.meta.dict())
@@ -311,13 +310,6 @@ class ScopeWidget(qw.QWidget):
             children=ptparams,
         )
 
-        key2label = {  # map from config name to the corresponding Buffer.labels
-            "show_roll": "Roll",
-            "show_pitch": "Pitch",
-            "show_yaw": "Yaw",
-            "show_rollpitch": "abs(roll) + abs(pitch)",
-        }
-
         def onShowHideChange(_, changes):
             for param, _, is_visible in changes:
                 channel = param.name()
@@ -389,7 +381,7 @@ class ScopeWidget(qw.QWidget):
             plot_handle.clear_target()
 
     def update_targets(self):
-        "Handle updating target position (range)"
+        """Handle updating target position (range)"""
         if self.param_tshow.value():
             target_range = (
                 self.param_tmin.value(),
@@ -404,7 +396,7 @@ class ScopeWidget(qw.QWidget):
                 self.plot_handles[name].update_target(target_range)
 
     def update_target_color(self, *args, **kwargs):
-        "Handle updating target color on plot"
+        """Handle updating target color on plot"""
         for name in self.dev_names:
             self.plot_handles[name].update_target_color(*args, **kwargs)
 
@@ -417,7 +409,7 @@ class ScopeWidget(qw.QWidget):
             plot_handle.clear_base()
 
     def update_base(self):
-        "Handle updating target position (range)"
+        """Handle updating target position (range)"""
         if self.param_bshow.value():
             self.base_range = base_range = (
                 self.param_bmin.value(),
@@ -431,7 +423,7 @@ class ScopeWidget(qw.QWidget):
                 self.plot_handles[name].update_base(base_range)
 
     def update_base_color(self, *args, **kwargs):
-        "Handle updating target color on plot"
+        """Handle updating target color on plot"""
         for name in self.dev_names:
             self.plot_handles[name].update_base_color(*args, **kwargs)
 
@@ -448,7 +440,6 @@ class ScopeWidget(qw.QWidget):
                 handle.plot.removeItem(handle.curves[name])
 
     def showEvent(self, event: qg.QShowEvent) -> None:
-        
         """Override showEvent to initialise data params and UI after the window is shown.
         This is because we need to know the number of sensors available to create the
         same number of plots
@@ -480,10 +471,6 @@ class ScopeWidget(qw.QWidget):
                 input_kind=self.dm.INPUT_KIND,
                 channel_labels=self.dm.CHANNEL_LABELS
             )
-            if self.task_widget:
-                self.buffers[device_name].set_angle_type(
-                    self.task_widget.selected_channel
-                )  # type: ignore
 
     def init_ui(self):
         ### Init UI
@@ -607,14 +594,16 @@ class ScopeWidget(qw.QWidget):
 
         for _ in range(qsize):  # process current items in queue
             packet = q.get()
+
             try:
-                self.buffers[packet["Name"]].add_packet(packet)
+                buffer = self.buffers[packet.device_name]
             except KeyError:
                 # When we select a single sensor,
                 # the device manager will still populate the queue
                 # with packets from the other sensors (not ideal).
                 # Ignore these.
-                pass
+                continue
+            buffer.add_packet(packet)
 
         # On successful read from queue, update curves
         now = default_timer()
@@ -623,33 +612,34 @@ class ScopeWidget(qw.QWidget):
             curves = self.plot_handles[name].curves
 
             x = -(now - buf.timestamp)
-            for i, label in enumerate(self.dm.CHANNEL_LABELS):
-                curves[label].setData(x=x, y=buf.data[:, i])
+            for label in self.dm.CHANNEL_LABELS:
+                curves[label].setData(x=x, y=buf.data[label])
 
         ### Update task states if needed
-        # 1. Check if angle is within target range
-        # 2. Check if angle is within base range
+        # 1. Check if last measurement is within target range
+        # 2. Check if last measurement is within base range
         if self.task_widget:
             tmin, tmax = self.target_range
             bmin, bmax = self.base_range
             for name in self.dev_names:
-                angle = self.buffers[name].last_angle
+                buffer = self.buffers[name]
+                most_recent_measurement = buffer.data[self.task_widget.selected_channel][-1]
 
-                if self.last_state == AngleState.IN_TARGET:
-                    if not tmin <= angle <= tmax:
+                if self.last_state == TaskState.IN_TARGET:
+                    if not tmin <= most_recent_measurement <= tmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_TARGET)
-                        self.last_state = AngleState.OUTSIDE
-                elif self.last_state == AngleState.IN_BASE:
-                    if not bmin <= angle <= bmax:
+                        self.last_state = TaskState.OUTSIDE
+                elif self.last_state == TaskState.IN_BASE:
+                    if not bmin <= most_recent_measurement <= bmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_BASE)
-                        self.last_state = AngleState.OUTSIDE
+                        self.last_state = TaskState.OUTSIDE
                 else:  # Outside base and target
-                    if tmin <= angle <= tmax:
+                    if tmin <= most_recent_measurement <= tmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_TARGET)
-                        self.last_state = AngleState.IN_TARGET
-                    elif bmin <= angle <= bmax:
+                        self.last_state = TaskState.IN_TARGET
+                    elif bmin <= most_recent_measurement <= bmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_BASE)
-                        self.last_state = AngleState.IN_BASE
+                        self.last_state = TaskState.IN_BASE
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         with pg.BusyCursor():
@@ -677,7 +667,6 @@ class ScopeWidget(qw.QWidget):
                     max_magnitude = max(array[channel], key=abs)
                     print(f"\t\t{channel}: {max_magnitude}")
                 print()
-
 
 
 class _DummyQueue(Queue):

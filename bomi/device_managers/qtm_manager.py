@@ -1,16 +1,15 @@
-import multiprocessing
-import time
 import bomi.device_managers.analog_streaming_client as AS
-from bomi.device_managers.protocols import SupportsGetSensorMetadata, SupportsHasSensors, SupportsStreaming, HasDiscoverDevicesSignal, HasChannelLabels, HasInputKind
+from bomi.datastructure import Packet
 from queue import Queue
-from typing import Protocol, Iterable
-import threading
-from threading import Event
+from typing import Iterable
+from threading import Event, Thread
 from PySide6.QtCore import Signal, QObject
 from bomi.device_managers.analog_streaming_client import Channel
 
+
 def _print(*args):
     print("[QTM]", *args)
+
 
 class QtmDeviceManager(QObject):
     """
@@ -55,13 +54,12 @@ class QtmDeviceManager(QObject):
     def __init__(self):
         super().__init__()
         self.qtm_streaming = False
-        self.all_channels: SensorList = []
-        self.queue = Queue()  #use for debugging with if __name__ == '__main__':
-        self.qtm_ip = '10.229.96.105' #connect to QLineEdit input of Biodex Widget
+        self.all_channels = []
+        self.qtm_ip = '10.229.96.105'  # connect to QLineEdit input of Biodex Widget
         self.port = 22223
         self.version = '1.22'
-        self._done_streaming = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._done_streaming = Event()
+        self._thread: Thread | None = None
 
     def status(self) -> str:
         """
@@ -77,19 +75,13 @@ class QtmDeviceManager(QObject):
         their ID's.
         """
         try:
-            analog_idx = [[x] for x in AS.get_channel_number(self.qtm_ip, self.port, self.version)]
-            self.all_channels = analog_idx #channels from QTM connection
-            _print(self.status())
-            self.discover_devices_signal.emit()
-        except:
-            # attempt to connect to QTM one more time, the first connection just opens the recording.
-            try:
-                time.sleep(6)
-                analog_idx = [analog_dict[x] for x in AS.get_channel_number(self.qtm_ip, self.port, self.version)]
-                self.all_channels = analog_idx #channels from QTM connection
-            except:
-                print("Error in connecting to QTM")
-
+            channels = AS.get_channel_number(self.qtm_ip, self.port, self.version)
+        except AS.QTMConnectionError:
+            return None
+        analog_idx = [[x] for x in channels]
+        self.all_channels = analog_idx  # channels from QTM connection
+        _print(self.status())
+        self.discover_devices_signal.emit()
 
     def get_all_sensor_names(self) -> Iterable[str]:
         """
@@ -102,11 +94,10 @@ class QtmDeviceManager(QObject):
         """
         Returns the hex serials of the sensors added to this device manager
         "QTM does not have multiple sensors, so also return a list w/ string "QTM"
-        """  
+        """
         return ["QTM"]
 
-    # def start_stream(self): #for debugging with if __name__ == '__main__':
-    def start_stream(self, queue: Queue) -> None:
+    def start_stream(self, queue: Queue[Packet]) -> None:
         """
         Start streaming data to the passed in queue
         """
@@ -114,14 +105,16 @@ class QtmDeviceManager(QObject):
             _print("No sensors found. Aborting stream")
             return
 
-        if self.qtm_streaming == False:
+        if not self.qtm_streaming:
             _print("Start streaming")
             self._done_streaming.clear()
-            self._thread = threading.Thread(target = AS.real_time_stream,
+            self._thread = Thread(
+                target=AS.real_time_stream,
                 args=(
                     queue,
                     self._done_streaming,
-                    self.qtm_ip, self.port, self.version,),
+                    self.qtm_ip, self.port, self.version,
+                ),
             )
             self._thread.start()
 
@@ -157,20 +150,21 @@ if __name__ == '__main__':
     qtm = QtmDeviceManager()
     qtm.discover_devices()
     print("What devices?", qtm.status())
-    qtm.start_stream(qtm.queue)
+
+    testing_queue = Queue()
+    qtm.start_stream(testing_queue)
     for i in range(elements_to_get):
         if i < 5:
             print('i:', i)
-            print(qtm.queue.get())
+            print(testing_queue.get())
         if i == 5:
-           print("Go ahead and stop")
-           qtm.stop_stream()
-           print("Start again after this")
+            print("Go ahead and stop")
+            qtm.stop_stream()
+            print("Start again after this")
         if i > 5:
-            qtm.start_stream(qtm.queue)
+            qtm.start_stream(testing_queue)
             print('i:', i)
-            print(qtm.queue.get())
+            print(testing_queue.get())
         if i == 9:
             print("stop again")
             qtm.stop_stream()
-print('finished')

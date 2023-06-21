@@ -365,9 +365,9 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             input_button_group.addButton(qw.QRadioButton(dm.INPUT_KIND), id=i)
         input_button_group.buttons()[0].click()  # Set the default choice as the first
 
-        def update_selected_dm(button):
+        def update_selected_dm(dm_button):
             self.set_device_manager(
-                self.available_device_managers[input_button_group.id(button)]
+                self.available_device_managers[input_button_group.id(dm_button)]
             )
             self.fill_select_sensor_combo_box()
             self.fill_select_channel_combo_box()
@@ -387,6 +387,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.dm.discover_devices_signal.connect(self.fill_select_sensor_combo_box)
 
         def update_selected_sensor(sensor):
+            if sensor == "":
+                # Ignore when the combo box is cleared
+                return
+
             self.selected_sensor_name = sensor
             _print(f"Selected sensor changed to {sensor}")
 
@@ -398,6 +402,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.fill_select_channel_combo_box()
 
         def update_selected_channel(channel):
+            if channel == "":
+                # ignore when the combo box is cleared
+                return
+
             self.selected_channel_name = channel
             _print(f"Selected channel changed to {channel}")
             y_min, y_max = self.dm.get_channel_default_range(channel)
@@ -539,7 +547,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Precision Control",
             "Precision",
-            (-20, -30)
+            (-30, -20)
         )
 
     def s_max_rom(self):
@@ -550,5 +558,5 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Max Range of Motion",
             "MaxROM",
-            (-35, -60) #target range set for torque plantar flexion
+            (-60, -35)  # target range set for torque plantar flexion
         )

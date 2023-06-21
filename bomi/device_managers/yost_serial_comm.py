@@ -19,6 +19,7 @@ from serial import Serial
 import struct
 
 from .yost_cmds import Cmd, Cmds, WLCmds
+from bomi.datastructure import Packet
 
 RAD2DEG = 180 / math.pi
 
@@ -108,7 +109,7 @@ class Dongles:
         self.ports = []
         self.logical_ids = []
 
-    def recv(self, queue: Queue) -> int:
+    def recv(self, queue: Queue[Packet]) -> int:
         """
         Read all available packets into queue.
         Returns the number of packets read.
@@ -119,15 +120,13 @@ class Dongles:
             failed, logical_id, raw = read_dongle_port(port)
             if failed == 0 and raw and len(raw) == self.out_sz:
                 b = struct.unpack(self.out_struct, raw)
-                packet = {
+                channel_readings = {
                     PacketField.PITCH: b[0] * RAD2DEG,
                     PacketField.YAW: b[1] * RAD2DEG,
                     PacketField.ROLL: b[2] * RAD2DEG,
                     PacketField.BATTERY: b[3],
-                    PacketField.TIME: now,
-                    PacketField.NAME: wl_mp[logical_id],
                 }
-                queue.put(packet)
+                queue.put(Packet(now, wl_mp[logical_id], channel_readings))
                 i += 1
         return i
 
@@ -194,7 +193,7 @@ class WiredSensors:
             port.close()
         self.ports = []
 
-    def recv(self, queue: Queue) -> int:
+    def recv(self, queue: Queue[Packet]) -> int:
         """
         Read all available packets into queue.
         Returns the number of packets read.
@@ -204,15 +203,13 @@ class WiredSensors:
         for port, name in zip(self.ports, self.names):
             raw = port.read(self.out_sz)
             b = struct.unpack(self.out_struct, raw)
-            packet = {
+            channel_readings = {
                 PacketField.PITCH: b[0] * RAD2DEG,
                 PacketField.YAW: b[1] * RAD2DEG,
                 PacketField.ROLL: b[2] * RAD2DEG,
                 PacketField.BATTERY: b[3],
-                PacketField.TIME: now,
-                PacketField.NAME: name,
             }
-            queue.put(packet)
+            queue.put(Packet(now, name, channel_readings))
             i += 1
         return i
 
