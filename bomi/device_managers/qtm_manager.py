@@ -1,10 +1,10 @@
-import bomi.device_managers.analog_streaming_client as AS
+import bomi.device_managers.qtm_streaming_client as qsc
 from bomi.datastructure import Packet
 from queue import Queue
 from typing import Iterable
 from threading import Event, Thread
 from PySide6.QtCore import Signal, QObject
-from bomi.device_managers.analog_streaming_client import Channel
+from bomi.device_managers.qtm_streaming_client import Channel
 
 
 def _print(*args):
@@ -75,8 +75,8 @@ class QtmDeviceManager(QObject):
         their ID's.
         """
         try:
-            channels = AS.get_channel_number(self.qtm_ip, self.port, self.version)
-        except AS.QTMConnectionError:
+            channels = qsc.get_channel_number(self.qtm_ip, self.port, self.version)
+        except qsc.QTMConnectionError:
             return None
         analog_idx = [[x] for x in channels]
         self.all_channels = analog_idx  # channels from QTM connection
@@ -109,7 +109,7 @@ class QtmDeviceManager(QObject):
             _print("Start streaming")
             self._done_streaming.clear()
             self._thread = Thread(
-                target=AS.real_time_stream,
+                target=qsc.real_time_stream,
                 args=(
                     queue,
                     self._done_streaming,
