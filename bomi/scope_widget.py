@@ -311,13 +311,6 @@ class ScopeWidget(qw.QWidget):
             children=ptparams,
         )
 
-        key2label = {  # map from config name to the corresponding Buffer.labels
-            "show_roll": "Roll",
-            "show_pitch": "Pitch",
-            "show_yaw": "Yaw",
-            "show_rollpitch": "abs(roll) + abs(pitch)",
-        }
-
         def onShowHideChange(_, changes):
             for param, _, is_visible in changes:
                 channel = param.name()
