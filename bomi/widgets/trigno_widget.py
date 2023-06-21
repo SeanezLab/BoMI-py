@@ -20,7 +20,7 @@ import numpy as np
 from bomi.datastructure import get_savedir, DelsysBuffer
 from bomi.widgets.window_mixin import WindowMixin
 
-from trigno_sdk.client import TrignoClient, EMGSensor, EMGSensorMeta
+from bomi.device_managers.trigno.client import TrignoClient, EMGSensor, EMGSensorMeta
 
 __all__ = ("TrignoClient", "TrignoWidget", "MUSCLES")
 

@@ -25,7 +25,7 @@ from bomi.device_managers.protocols import (
     SupportsGetChannelMetadata
 )
 import bomi.colors as bcolors
-from trigno_sdk.client import TrignoClient
+from bomi.device_managers.trigno.client import TrignoClient
 
 
 def _print(*args):
