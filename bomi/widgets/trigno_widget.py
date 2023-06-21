@@ -18,7 +18,7 @@ from PySide6.QtCore import Qt
 import numpy as np
 
 from bomi.datastructure import get_savedir, DelsysBuffer
-from bomi.window_mixin import WindowMixin
+from bomi.widgets.window_mixin import WindowMixin
 
 from trigno_sdk.client import TrignoClient, EMGSensor, EMGSensorMeta
 

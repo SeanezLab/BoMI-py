@@ -13,11 +13,11 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 
-from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
-from bomi.datastructure import MultichannelBuffer, get_savedir
-from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal, SupportsGetChannelMetadata
-from bomi.scope_widget import ScopeConfig, ScopeWidget
-from bomi.window_mixin import WindowMixin
+from bomi.widgets.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
+from bomi.datastructure import get_savedir
+from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal
+from bomi.widgets.scope_widget import ScopeConfig, ScopeWidget
+from bomi.widgets.window_mixin import WindowMixin
 from bomi.audio.player import TonePlayer, AudioCalibrationWidget
 import bomi.colors as bcolors
 
