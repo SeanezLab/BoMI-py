@@ -278,8 +278,7 @@ class TrignoWidget(qw.QWidget, WindowMixin):
         self.setWindowTitle("Trigno SDK Client")
         self.setMinimumSize(680, 390)
 
-        trigno_client = trigno_client if trigno_client else TrignoClient()
-        self.trigno_client = trigno_client
+        self.trigno_client = trigno_client if trigno_client else TrignoClient()
         #self.meta_path = Path("emg_meta.json") #orignial startreact
         self.meta_path = Path("emg_meta_excitability.json") #excitability
         self.load_meta(self.meta_path)
