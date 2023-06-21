@@ -387,6 +387,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.dm.discover_devices_signal.connect(self.fill_select_sensor_combo_box)
 
         def update_selected_sensor(sensor):
+            if sensor == "":
+                # Ignore when the combo box is cleared
+                return
+
             self.selected_sensor_name = sensor
             _print(f"Selected sensor changed to {sensor}")
 
@@ -398,6 +402,10 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.fill_select_channel_combo_box()
 
         def update_selected_channel(channel):
+            if channel == "":
+                # ignore when the combo box is cleared
+                return
+
             self.selected_channel_name = channel
             _print(f"Selected channel changed to {channel}")
             y_min, y_max = self.dm.get_channel_default_range(channel)
