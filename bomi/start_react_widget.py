@@ -365,9 +365,9 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             input_button_group.addButton(qw.QRadioButton(dm.INPUT_KIND), id=i)
         input_button_group.buttons()[0].click()  # Set the default choice as the first
 
-        def update_selected_dm(button):
+        def update_selected_dm(dm_button):
             self.set_device_manager(
-                self.available_device_managers[input_button_group.id(button)]
+                self.available_device_managers[input_button_group.id(dm_button)]
             )
             self.fill_select_sensor_combo_box()
             self.fill_select_channel_combo_box()
