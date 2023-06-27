@@ -392,6 +392,12 @@ class TrignoClient:
             for sensor in self.sensors if sensor is not None
         ]
 
+    def has_sensors(self) -> bool:
+        """
+        Returns True if the device manager has sensors added.
+        """
+        return any([sensor is not None for sensor in self.sensors])
+
 
 def load_full_emg_meta(fpath: Path):
     with open(fpath, "r") as fp:
