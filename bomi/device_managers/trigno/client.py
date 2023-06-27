@@ -24,7 +24,7 @@ to this point when two <CR><LF> are received
 
 from timeit import default_timer
 import pkg_resources
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Sequence
 from pathlib import Path
 from queue import Queue
 from dataclasses import asdict
@@ -373,6 +373,24 @@ class TrignoClient:
 
     def __del__(self):
         self.close()
+
+    def get_all_sensor_names(self) -> Sequence[str]:
+        """
+        Returns the names of the sensors added to this device manager
+        """
+        return [
+            str(sensor.start_idx)
+            for sensor in self.sensors if sensor is not None
+        ]
+
+    def get_all_sensor_serial(self) -> Sequence[str]:
+        """
+        Returns the hex serials of the sensors added to this device manager
+        """
+        return [
+            sensor.serial
+            for sensor in self.sensors if sensor is not None
+        ]
 
 
 def load_full_emg_meta(fpath: Path):
