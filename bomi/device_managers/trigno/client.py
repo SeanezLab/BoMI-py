@@ -110,6 +110,11 @@ class TrignoClient(QObject):
 
     AVANTI_MODES = AVANTI_MODES
 
+    CHANNEL_LABEL = "Voltage"
+    CHANNEL_LABELS = [CHANNEL_LABEL]
+
+    INPUT_KIND = "Trigno"
+
     discover_devices_signal = Signal()
 
     def __init__(self, host_ip: str = IP_ADDR):
