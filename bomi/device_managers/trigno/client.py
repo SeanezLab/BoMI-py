@@ -60,6 +60,7 @@ AUX_DATA_PORT = 50044  # sends auxiliary data
 # IP_ADDR = "10.229.96.239"
 IP_ADDR = "10.229.96.105"
 
+CHANNEL_LABEL = "Voltage"
 
 def _print(*args, **kwargs):
     print("[TrignoClient]", *args, **kwargs)
@@ -110,7 +111,6 @@ class TrignoClient(QObject):
 
     AVANTI_MODES = AVANTI_MODES
 
-    CHANNEL_LABEL = "Voltage"
     CHANNEL_LABELS = [CHANNEL_LABEL]
 
     INPUT_KIND = "Trigno"
@@ -408,6 +408,25 @@ class TrignoClient(QObject):
         Returns True if the device manager has sensors added.
         """
         return any([sensor is not None for sensor in self.sensors])
+
+    @staticmethod
+    def get_channel_unit(channel: str) -> str:
+        """
+        Gets the unit for the data of a given channel.
+        """
+        if channel != CHANNEL_LABEL:
+            raise ValueError("Not a valid Trigno channel")
+        return "V"
+
+    @staticmethod
+    def get_channel_default_range(channel: str) -> tuple[int, int]:
+        """
+        Gets a reasonable range for the data of a given channel.
+        """
+        if channel != CHANNEL_LABEL:
+            raise ValueError("Not a valid Trigno channel")
+        return 0, 10
+
 
 
 def load_full_emg_meta(fpath: Path):
