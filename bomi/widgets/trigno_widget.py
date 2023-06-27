@@ -371,9 +371,9 @@ class TrignoWidget(qw.QWidget, WindowMixin):
     def toggle_connect(self):
         with pg.BusyCursor():
             if self.trigno_client.connected:
-                self.trigno_client.disconnect()
+                self.trigno_client.close_connection()
             else:
-                err = self.trigno_client.connect()
+                err = self.trigno_client.open_connection()
                 if err:
                     self.error_dialog(err)
 

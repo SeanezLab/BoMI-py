@@ -33,6 +33,7 @@ import json
 import struct
 import socket
 from io import StringIO
+from PySide6.QtCore import Signal, QObject
 
 from .datastructure import DSChannel, EMGSensor, EMGSensorMeta
 
@@ -77,7 +78,7 @@ def recv_sz(sock: socket.socket, sz: int) -> bytes:
     return buf
 
 
-class TrignoClient:
+class TrignoClient(QObject):
     """
     DelsysClient interfaces with the Delsys SDK server via its TCP sockets.
     Handles device management and data streaming
@@ -109,7 +110,10 @@ class TrignoClient:
 
     AVANTI_MODES = AVANTI_MODES
 
+    discover_devices_signal = Signal()
+
     def __init__(self, host_ip: str = IP_ADDR):
+        super().__init__()
         self.connected = False
         self.host_ip = host_ip
         self._init_state()
@@ -146,7 +150,9 @@ class TrignoClient:
     def __len__(self) -> int:
         return len(self.sensors)
 
-    def disconnect(self):
+    def close_connection(self):
+        # It would be simply called "disconnect",
+        # but since we inherit from QObject, that name's taken.
         self.stop_stream()
         self.command_sock.close()
         self.emg_data_sock.close()
@@ -154,7 +160,7 @@ class TrignoClient:
         self.connected = False
         _print("Disconnected")
 
-    def connect(self) -> str:
+    def open_connection(self) -> str:
         """Called once during init to setup base station.
 
         Set little endian
