@@ -164,6 +164,7 @@ class EMGScope(qw.QWidget, WindowMixin):
 
     def showEvent(self, event: qg.QShowEvent) -> None:
         self.dm.start_stream(self.queue, savedir=self.savedir)
+        self.dm.save_meta(self.savedir / "trigno_meta.json")
         self.timer.start()
         return super().showEvent(event)
 
@@ -171,6 +172,7 @@ class EMGScope(qw.QWidget, WindowMixin):
         with pg.BusyCursor():
             self.timer.stop()
             self.dm.stop_stream()
+            self.dm.save_meta(self.savedir / "trigno_meta.json")
         return super().closeEvent(event)
 
     def update(self):

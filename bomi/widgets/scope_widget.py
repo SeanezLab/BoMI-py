@@ -565,6 +565,7 @@ class ScopeWidget(qw.QWidget):
         dummy_queue = _DummyQueue()
         if self.trigno_client:
             self.trigno_client.start_stream(dummy_queue, self.savedir)
+            self.trigno_client.save_meta(self.savedir / "trigno_meta.json")
         self.dm.start_stream(self.queue)
         #start QTM stream
         self.timer.start()
@@ -572,8 +573,11 @@ class ScopeWidget(qw.QWidget):
     def stop_stream(self):
         """Stop the data stream and update timer"""
         self.dm.stop_stream()
-        hasattr(self, "timer") and self.timer.stop()
-        self.trigno_client and self.trigno_client.stop_stream()
+        if hasattr(self, "timer"):
+            self.timer.stop()
+        if self.trigno_client is not None:
+            self.trigno_client.stop_stream()
+            self.trigno_client.save_meta(self.savedir / "trigno_meta.json")
         #stop QTM stream
 
     def update(self):

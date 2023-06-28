@@ -317,7 +317,6 @@ class TrignoClient(QObject):
         self.start_time = default_timer()
         self._done_streaming.clear()
 
-        self.save_meta(savedir / "trigno_meta.json")
         self._worker_thread = threading.Thread(
             target=self.stream_worker, args=(queue, savedir)
         )
@@ -340,8 +339,6 @@ class TrignoClient(QObject):
                         continue
                     queue.put(emg)
                     fp.write(",".join([str(v) for v in emg]) + "\n")
-
-            self.save_meta(savedir / "trigno_meta.json")
 
     def close(self):
         self.stop_stream()
