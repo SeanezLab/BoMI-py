@@ -309,7 +309,6 @@ class TrignoClient(QObject):
         """
         If `queue` is passed, append data into the queue.
         If `savedir` is passed, write to `savedir/sensor_EMG.csv`.
-            Also persist metadata in `savedir` before and after stream
         """
         assert self.connected
 
