@@ -305,7 +305,7 @@ class TrignoClient(QObject):
         buf = recv_sz(self.emg_data_sock, 4 * 16)  # 16 devices, 4 byte float
         return struct.unpack("<ffffffffffffffff", buf)
 
-    def start_stream(self, queue: Queue[Tuple[float]], savedir: Path):
+    def start_stream(self, queue: Queue[Tuple[float]]):
         """
         If `queue` is passed, append data into the queue.
         If `savedir` is passed, write to `savedir/sensor_EMG.csv`.
@@ -317,27 +317,21 @@ class TrignoClient(QObject):
         self._done_streaming.clear()
 
         self._worker_thread = threading.Thread(
-            target=self.stream_worker, args=(queue, savedir)
+            target=self.stream_worker, args=[queue]
         )
         self._worker_thread.start()
 
-    def stream_worker(self, queue: Queue[Tuple[float]], savedir: Path = None):
+    def stream_worker(self, queue: Queue[Tuple[float]]):
         """
         Stream worker calls `recv_emg` continuously until `self.streaming = False`
         """
-        if not savedir:
-            while not self._done_streaming.is_set():
-                queue.put(self.recv_emg())
-        else:
-            with open(Path(savedir) / "trigno_emg.csv", "w") as fp:
-                while not self._done_streaming.is_set():
-                    try:
-                        emg = self.recv_emg()
-                    except struct.error as e:
-                        _print("Failed to parse packet", e)
-                        continue
-                    queue.put(emg)
-                    fp.write(",".join([str(v) for v in emg]) + "\n")
+        while not self._done_streaming.is_set():
+            try:
+                emg = self.recv_emg()
+            except struct.error as e:
+                _print("Failed to parse packet", e)
+                continue
+            queue.put(emg)
 
     def close(self):
         self.stop_stream()
