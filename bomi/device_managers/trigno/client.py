@@ -437,10 +437,3 @@ def load_full_emg_meta(fpath: Path):
 if __name__ == "__main__":
     dm = TrignoClient()
     print(dm)
-    breakpoint()
-
-    dm.start_stream()
-    while True:
-        buf = dm.recv_emg()
-        if any(buf):
-            print(buf)
