@@ -208,6 +208,7 @@ class ScopeWidget(qw.QWidget):
         self.task_widget = task_widget
         self.config = config
 
+        self.trigno_client: TrignoClient | None
         if trigno_client and trigno_client.n_sensors:
             self.trigno_client = trigno_client
         else:
