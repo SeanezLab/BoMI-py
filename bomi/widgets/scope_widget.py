@@ -564,7 +564,7 @@ class ScopeWidget(qw.QWidget):
 
         dummy_queue = _DummyQueue()
         if self.trigno_client:
-            self.trigno_client.handle_stream(dummy_queue, self.savedir)
+            self.trigno_client.start_stream(dummy_queue, self.savedir)
         self.dm.start_stream(self.queue)
         #start QTM stream
         self.timer.start()

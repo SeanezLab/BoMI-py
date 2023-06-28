@@ -163,7 +163,7 @@ class EMGScope(qw.QWidget, WindowMixin):
         self.timer.timeout.connect(self.update)  # type: ignore
 
     def showEvent(self, event: qg.QShowEvent) -> None:
-        self.dm.handle_stream(self.queue, savedir=self.savedir)
+        self.dm.start_stream(self.queue, savedir=self.savedir)
         self.timer.start()
         return super().showEvent(event)
 

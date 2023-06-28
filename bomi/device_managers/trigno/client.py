@@ -305,7 +305,7 @@ class TrignoClient(QObject):
         buf = recv_sz(self.emg_data_sock, 4 * 16)  # 16 devices, 4 byte float
         return struct.unpack("<ffffffffffffffff", buf)
 
-    def handle_stream(self, queue: Queue[Tuple[float]], savedir: Path):
+    def start_stream(self, queue: Queue[Tuple[float]], savedir: Path):
         """
         If `queue` is passed, append data into the queue.
         If `savedir` is passed, write to `savedir/sensor_EMG.csv`.
