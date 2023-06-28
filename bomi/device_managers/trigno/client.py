@@ -292,12 +292,6 @@ class TrignoClient(QObject):
         self.command_sock.send(b"\r\n")
         return [recv(self.command_sock) for _ in cmds]
 
-    def start_stream(self):
-        assert self.connected
-        self.send_cmd("START")
-        self.start_time = default_timer()
-        self._done_streaming.clear()
-
     def stop_stream(self):
         self._done_streaming.set()
         self._worker_thread and self._worker_thread.join()
@@ -318,7 +312,11 @@ class TrignoClient(QObject):
             Also persist metadata in `savedir` before and after stream
         """
         assert self.connected
-        self.start_stream()
+
+        self.send_cmd("START")
+        self.start_time = default_timer()
+        self._done_streaming.clear()
+
         self.save_meta(savedir / "trigno_meta.json")
         self._worker_thread = threading.Thread(
             target=self.stream_worker, args=(queue, savedir)
