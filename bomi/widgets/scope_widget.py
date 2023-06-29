@@ -473,6 +473,18 @@ class ScopeWidget(qw.QWidget):
                 input_kind=self.dm.INPUT_KIND,
                 channel_labels=self.dm.CHANNEL_LABELS
             )
+        if self.trigno_client is not None and self.trigno_client != self.dm:
+            for device_name in self.trigno_client.get_all_sensor_names():
+                if device_name in self.buffers:
+                    continue
+                self.buffers[device_name] = MultichannelBuffer(
+                    bufsize=1,
+                    savedir=self.savedir,
+                    name=device_name,
+                    input_kind=self.trigno_client.INPUT_KIND,
+                    channel_labels=self.trigno_client.CHANNEL_LABELS
+                )
+
 
     def init_ui(self):
         ### Init UI
@@ -563,12 +575,21 @@ class ScopeWidget(qw.QWidget):
         """
         self.init_data()
 
-        dummy_queue = _DummyQueue()
-        if self.trigno_client:
-            self.trigno_client.start_stream(dummy_queue)
-            self.trigno_client.save_meta(self.savedir / "trigno_meta.json")
         self.dm.start_stream(self.queue)
-        #start QTM stream
+
+        if self.trigno_client:
+            if self.trigno_client != self.dm:
+                # If using trigno as the main input, we've already started streaming.
+                # Only call trigno_client.start_stream if we're using a different kind of input.
+
+                # We pass the same queue that's used for the other data.
+                # This works because the packet structure is the same.
+                # However, there must not be a collision between any of the trigno sensor names
+                # and the main input sensor names.
+                self.trigno_client.start_stream(self.queue)
+
+            self.trigno_client.save_meta(self.savedir / "trigno_meta.json")
+
         self.timer.start()
 
     def stop_stream(self):
