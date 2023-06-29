@@ -345,7 +345,7 @@ class TrignoClient(QObject):
                     time=time,
                     device_name=str(sensor.start_idx),
                     channel_readings={
-                        CHANNEL_LABEL: emg[sensor.start_idx - 1]
+                        CHANNEL_LABEL: abs(emg[sensor.start_idx - 1])
                     }
                 )
                 queue.put(packet)
