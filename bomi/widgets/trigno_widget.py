@@ -18,6 +18,7 @@ from PySide6.QtCore import Qt
 import numpy as np
 
 from bomi.datastructure import get_savedir, DelsysBuffer
+from bomi.widgets.scope_widget import ScopeWidget, ScopeConfig
 from bomi.widgets.window_mixin import WindowMixin
 
 from bomi.device_managers.trigno.client import TrignoClient, EMGSensor, EMGSensorMeta
@@ -417,11 +418,17 @@ class TrignoWidget(qw.QWidget, WindowMixin):
             )
 
         try:
-            self.scope = EMGScope(self.trigno_client, get_savedir("EMGScope"))
-            self.scope.show()
-        except EMGLayoutError as e:
-            self.error_dialog(str(e))
-            self.trigno_client.stop_stream()
+            self._sw = ScopeWidget(
+                self.trigno_client,
+                get_savedir("Scope"),
+                ScopeConfig(
+                    input_channels_visibility={
+                        channel: True for channel in self.trigno_client.CHANNEL_LABELS
+                    },
+                    yrange=self.trigno_client.get_channel_default_range(self.trigno_client.CHANNEL_LABELS[0])
+                )
+            )
+            self._sw.showMaximized()
         except Exception as e:
             _print(traceback.format_exc())
             self.trigno_client.stop_stream()
