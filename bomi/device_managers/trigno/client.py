@@ -36,6 +36,7 @@ from io import StringIO
 from PySide6.QtCore import Signal, QObject
 
 from .datastructure import DSChannel, EMGSensor, EMGSensorMeta
+from bomi.datastructure import Packet
 
 __all__ = ("TrignoClient",)
 
@@ -95,6 +96,7 @@ class TrignoClient(QObject):
         "n_sensors",
         "sensor_meta",
         "start_time",
+        "num_packets_received",
         "_done_streaming",
         "_worker_thread",
         "backwards_compatibility",
@@ -134,6 +136,7 @@ class TrignoClient(QObject):
         self.sensor_meta: Dict[str, EMGSensorMeta] = {}  # Mapping[serial, meta]
 
         self.start_time = 0.0
+        self.num_packets_received = 0
         self._done_streaming = threading.Event()
         self._worker_thread: threading.Thread | None = None
 
@@ -303,9 +306,10 @@ class TrignoClient(QObject):
         Receive one EMG frame
         """
         buf = recv_sz(self.emg_data_sock, 4 * 16)  # 16 devices, 4 byte float
+        self.num_packets_received += 1
         return struct.unpack("<ffffffffffffffff", buf)
 
-    def start_stream(self, queue: Queue[Tuple[float]]):
+    def start_stream(self, queue: Queue[Packet]):
         """
         If `queue` is passed, append data into the queue.
         If `savedir` is passed, write to `savedir/sensor_EMG.csv`.
@@ -315,13 +319,14 @@ class TrignoClient(QObject):
         self.send_cmd("START")
         self.start_time = default_timer()
         self._done_streaming.clear()
+        self.num_packets_received = 0
 
         self._worker_thread = threading.Thread(
             target=self.stream_worker, args=[queue]
         )
         self._worker_thread.start()
 
-    def stream_worker(self, queue: Queue[Tuple[float]]):
+    def stream_worker(self, queue: Queue[Packet]):
         """
         Stream worker calls `recv_emg` continuously until `self.streaming = False`
         """
@@ -331,7 +336,19 @@ class TrignoClient(QObject):
             except struct.error as e:
                 _print("Failed to parse packet", e)
                 continue
-            queue.put(emg)
+
+            time = self.start_time + self.num_packets_received / self.emg_sample_rate
+            for sensor in self.sensors:
+                if sensor is None:
+                    continue
+                packet = Packet(
+                    time=time,
+                    device_name=str(sensor.start_idx),
+                    channel_readings={
+                        CHANNEL_LABEL: emg[sensor.start_idx - 1]
+                    }
+                )
+                queue.put(packet)
 
     def close(self):
         self.stop_stream()
@@ -414,7 +431,6 @@ class TrignoClient(QObject):
         if channel != CHANNEL_LABEL:
             raise ValueError("Not a valid Trigno channel")
         return 0, 10
-
 
 
 def load_full_emg_meta(fpath: Path):

@@ -75,7 +75,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
         ### StartReact manager group
         vbox2.addWidget(
-            wrap_gb("StartReact", StartReactWidget([self.yost_dm, self.qtm_dm], self.trigno_client))
+            wrap_gb("StartReact", StartReactWidget([self.yost_dm, self.qtm_dm, self.trigno_client], self.trigno_client))
         )
    
     def init_actions(self):
