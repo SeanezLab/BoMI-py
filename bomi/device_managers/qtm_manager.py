@@ -27,6 +27,9 @@ class QtmDeviceManager(QObject):
 
     INPUT_KIND = "QTM"
 
+    DEFAULT_BASE_RANGE = (-10, 10)
+    DEFAULT_TARGET_RANGE = (-60, -35)
+
     @staticmethod
     def get_channel_unit(channel: str) -> str:
         match channel:

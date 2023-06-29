@@ -117,6 +117,9 @@ class TrignoClient(QObject):
 
     INPUT_KIND = "Trigno"
 
+    DEFAULT_BASE_RANGE = (0, 0.001)
+    DEFAULT_TARGET_RANGE = (0.007, 0.1)
+
     discover_devices_signal = Signal()
 
     def __init__(self, host_ip: str = IP_ADDR):

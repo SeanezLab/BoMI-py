@@ -15,7 +15,7 @@ from PySide6.QtCore import Qt
 
 from bomi.widgets.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
 from bomi.datastructure import get_savedir
-from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal
+from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal, HasDefaultRanges
 from bomi.widgets.scope_widget import ScopeConfig, ScopeWidget
 from bomi.widgets.window_mixin import WindowMixin
 from bomi.audio.player import TonePlayer, AudioCalibrationWidget
@@ -326,13 +326,15 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         ScopeWidget.ScopeWidgetDeviceManager,
         SupportsHasSensors,
         HasDiscoverDevicesSignal,
+        HasDefaultRanges,
         Protocol
     ):
         """
         A device manager for the StartReact widget must
         be a valid ScopeWidgetDeviceManager,
         support checking if it has sensors,
-        and support the discover_devices signal.
+        support the discover_devices signal,
+        have default base and target ranges
         """
 
     def __init__(self, device_managers: list[StartReactDeviceManager], trigno_client: TrignoClient):
@@ -452,13 +454,9 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         actions_layout = qw.QVBoxLayout()
         main_layout.addLayout(actions_layout)
 
-        btn1 = qw.QPushButton(text="Precision")
-        btn1.clicked.connect(self.s_precision_task)  # type: ignore
-        actions_layout.addWidget(btn1)
-
-        btn1 = qw.QPushButton(text="MaxROM")
-        btn1.clicked.connect(self.s_max_rom)  # type: ignore
-        actions_layout.addWidget(btn1)
+        start_react_button = qw.QPushButton(text="Run StartReact")
+        start_react_button.clicked.connect(self.run_startreact)  # type: ignore
+        actions_layout.addWidget(start_react_button)
 
         self._scope_widget = None
 
@@ -500,10 +498,12 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         return True
 
-    def run_startreact(self, task_name: str, file_suffix: str, target_range: tuple[int, int]):
+    def run_startreact(self):
         """
         Common code for the precision and max ROM tasks
         """
+        title = "StartReact"
+
         if not self.check_sensors():
             return
 
@@ -515,22 +515,23 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         scope_config = ScopeConfig(
             input_channels_visibility=input_channels_visibility,
-            window_title=task_name,
+            window_title=title,
             show_scope_params=True,
             target_show=True,
-            target_range=target_range,
+            target_range=self.dm.DEFAULT_TARGET_RANGE,
             base_show=True,
+            base_range=self.dm.DEFAULT_BASE_RANGE,
             yrange=(self.y_min, self.y_max),
         )
 
-        savedir = get_savedir(file_suffix)  # savedir to write all data
+        savedir = get_savedir(title)  # savedir to write all data
 
         try:
             self._scope_widget = ScopeWidget(
                 self.dm,
                 selected_sensor_name=self.selected_sensor_name,
                 savedir=savedir,
-                task_widget=SRDisplay(task_name, savedir, self.selected_channel_name, self.config),
+                task_widget=SRDisplay(title, savedir, self.selected_channel_name, self.config),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )
@@ -538,25 +539,3 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         except Exception:
             _print(traceback.format_exc())
             self.dm.stop_stream()
-
-    def s_precision_task(self):
-        """
-        Run the ScopeWidget with the precision task view
-        """
-
-        self.run_startreact(
-            "Precision Control",
-            "Precision",
-            (-30, -20)
-        )
-
-    def s_max_rom(self):
-        """
-        Run the ScopeWidget with the MaxROM task view
-        """
-
-        self.run_startreact(
-            "Max Range of Motion",
-            "MaxROM",
-            (-60, -35)  # target range set for torque plantar flexion
-        )

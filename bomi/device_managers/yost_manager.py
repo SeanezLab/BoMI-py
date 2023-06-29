@@ -101,6 +101,9 @@ class YostDeviceManager(QObject):
         PacketField.YAW,
     ]
 
+    DEFAULT_BASE_RANGE = (-10, 1)
+    DEFAULT_TARGET_RANGE = (70, 80)
+
     @staticmethod
     def get_channel_unit(channel: str) -> str:
         match channel:
