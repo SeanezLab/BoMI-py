@@ -110,7 +110,7 @@ class YostDeviceManager(QObject):
                 raise ValueError("Not a valid Yost channel")
 
     @staticmethod
-    def get_channel_default_range(channel: str) -> tuple[int, int]:
+    def get_channel_default_range(channel: str) -> tuple[float, float]:
         match channel:
             case PacketField.ROLL | PacketField.YAW:
                 return -180, 180

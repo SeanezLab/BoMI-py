@@ -67,7 +67,7 @@ class SupportsGetChannelMetadata(Protocol):
         """
 
     @staticmethod
-    def get_channel_default_range(channel: str) -> tuple[int, int]:
+    def get_channel_default_range(channel: str) -> tuple[float, float]:
         """
         Gets a reasonable range for the data of a given channel.
         """

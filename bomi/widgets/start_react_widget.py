@@ -415,7 +415,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.select_channel_combo_box.currentTextChanged.connect(update_selected_channel)
 
         # Select range UI
-        self.y_min_box = qw.QSpinBox()
+        self.y_min_box = qw.QDoubleSpinBox()
         setup_layout.addRow(qw.QLabel("Y-min:"), self.y_min_box)
         self.y_min_box.setRange(-999, 999)
         self.y_min_box.setValue(self.y_min)
@@ -426,7 +426,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         self.y_min_box.valueChanged.connect(update_y_min)
 
-        self.y_max_box = qw.QSpinBox()
+        self.y_max_box = qw.QDoubleSpinBox()
         setup_layout.addRow(qw.QLabel("Y-max:"), self.y_max_box)
         self.y_max_box.setRange(-999, 999)
         self.y_max_box.setValue(self.y_max)

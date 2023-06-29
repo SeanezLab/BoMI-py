@@ -424,13 +424,13 @@ class TrignoClient(QObject):
         return "V"
 
     @staticmethod
-    def get_channel_default_range(channel: str) -> tuple[int, int]:
+    def get_channel_default_range(channel: str) -> tuple[float, float]:
         """
         Gets a reasonable range for the data of a given channel.
         """
         if channel != CHANNEL_LABEL:
             raise ValueError("Not a valid Trigno channel")
-        return 0, 10
+        return 0, 0.010
 
 
 def load_full_emg_meta(fpath: Path):
