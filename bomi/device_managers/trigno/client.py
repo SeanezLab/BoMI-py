@@ -330,6 +330,8 @@ class TrignoClient(QObject):
         """
         Stream worker calls `recv_emg` continuously until `self.streaming = False`
         """
+        connected_sensors = [sensor for sensor in self.sensors if sensor is not None]
+
         while not self._done_streaming.is_set():
             try:
                 emg = self.recv_emg()
@@ -338,9 +340,7 @@ class TrignoClient(QObject):
                 continue
 
             time = self.start_time + self.num_packets_received / self.emg_sample_rate
-            for sensor in self.sensors:
-                if sensor is None:
-                    continue
+            for sensor in connected_sensors:
                 packet = Packet(
                     time=time,
                     device_name=str(sensor.start_idx),
