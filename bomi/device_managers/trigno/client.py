@@ -121,7 +121,7 @@ class TrignoClient(QObject):
     INPUT_KIND = "Trigno"
 
     DEFAULT_BASE_RANGE = (0, 0.001)
-    DEFAULT_TARGET_RANGE = (0.007, 0.1)
+    DEFAULT_TARGET_RANGE = (0.004, 0.1)
 
     MOVING_AVERAGE_POINTS = 128
 
