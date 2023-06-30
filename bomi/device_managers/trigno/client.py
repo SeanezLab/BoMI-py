@@ -21,8 +21,10 @@ two consecutive <CR><LF> pairs, and the server will process app commands receive
 to this point when two <CR><LF> are received
 
 """
-
+from collections import deque
 from timeit import default_timer
+
+import numpy as np
 import pkg_resources
 from typing import Dict, Tuple, List, Sequence
 from pathlib import Path
@@ -109,6 +111,7 @@ class TrignoClient(QObject):
         "endianness",
         "base_firmware",
         "base_serial",
+        "moving_average_array"
     )
 
     AVANTI_MODES = AVANTI_MODES
@@ -119,6 +122,8 @@ class TrignoClient(QObject):
 
     DEFAULT_BASE_RANGE = (0, 0.001)
     DEFAULT_TARGET_RANGE = (0.007, 0.1)
+
+    MOVING_AVERAGE_POINTS = 128
 
     discover_devices_signal = Signal()
 
@@ -142,6 +147,18 @@ class TrignoClient(QObject):
         self.num_packets_received = 0
         self._done_streaming = threading.Event()
         self._worker_thread: threading.Thread | None = None
+
+        self.moving_average_buffers = [deque()] * 17
+        """
+        Each deque contains the array for a specific sensor.
+        1-indexed, just like self.sensor.
+        """
+
+        self.previous_moving_averages: list[float | None] = [None] * 17
+        """
+        Stores the previous moving averages for each sensor.
+        1-indexed.
+        """
 
     def __call__(self, cmd: str):
         return self.send_cmd(cmd)
@@ -335,11 +352,24 @@ class TrignoClient(QObject):
 
             time = self.start_time + self.num_packets_received / self.emg_sample_rate
             for sensor in connected_sensors:
+                reading = abs(emg[sensor.start_idx - 1])
+                moving_average_buffer = self.moving_average_buffers[sensor.start_idx]
+
+                moving_average_buffer.append(reading)
+                if len(moving_average_buffer) < self.MOVING_AVERAGE_POINTS:
+                    # Compute the average normally.
+                    average = sum(moving_average_buffer) / len(moving_average_buffer)
+                else:
+                    # Use a shortcut to compute the average, based on the old average.
+                    previous = self.previous_moving_averages[sensor.start_idx]
+                    average = previous + (reading - moving_average_buffer.popleft()) / self.MOVING_AVERAGE_POINTS
+                self.previous_moving_averages[sensor.start_idx] = average
+
                 packet = Packet(
                     time=time,
                     device_name=str(sensor.start_idx),
                     channel_readings={
-                        CHANNEL_LABEL: abs(emg[sensor.start_idx - 1])
+                        CHANNEL_LABEL: average
                     }
                 )
                 queue.put(packet)
