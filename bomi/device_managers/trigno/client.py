@@ -98,7 +98,7 @@ class TrignoClient(QObject):
         "n_sensors",
         "sensor_meta",
         "start_time",
-        "num_packets_received",
+        "last_frame_time",
         "_done_streaming",
         "_worker_thread",
         "backwards_compatibility",
@@ -144,7 +144,7 @@ class TrignoClient(QObject):
         self.sensor_meta: Dict[str, EMGSensorMeta] = {}  # Mapping[serial, meta]
 
         self.start_time = 0.0
-        self.num_packets_received = 0
+        self.last_frame_time: float | None = None
         self._done_streaming = threading.Event()
         self._worker_thread: threading.Thread | None = None
 
@@ -219,6 +219,7 @@ class TrignoClient(QObject):
         # expected maximum samples per frame for EMG channels. Divide by the frame interval to get expected EMG sample rate
         self.max_samples_emg = float(cmd("MAX SAMPLES EMG?"))
         self.emg_sample_rate = self.max_samples_emg / self.frame_interval
+        self.emg_sample_interval = 1 / self.emg_sample_rate
 
         # expected maximum samples per frame for AUX channels. Divide by the frame interval to get the expected AUX samples rate
         self.max_samples_aux = float(cmd("MAX SAMPLES AUX?"))
@@ -317,7 +318,7 @@ class TrignoClient(QObject):
         Receive one EMG frame
         """
         buf = recv_sz(self.emg_data_sock, 4 * 16)  # 16 devices, 4 byte float
-        self.num_packets_received += 1
+        self.last_frame_time += self.emg_sample_interval
         return struct.unpack("<ffffffffffffffff", buf)
 
     def start_stream(self, queue: Queue[Packet]):
@@ -329,8 +330,8 @@ class TrignoClient(QObject):
 
         self.send_cmd("START")
         self.start_time = default_timer()
+        self.last_frame_time = self.start_time
         self._done_streaming.clear()
-        self.num_packets_received = 0
 
         self._worker_thread = threading.Thread(
             target=self.stream_worker, args=[queue]
@@ -350,7 +351,6 @@ class TrignoClient(QObject):
                 _print("Failed to parse packet", e)
                 continue
 
-            time = self.start_time + self.num_packets_received / self.emg_sample_rate
             for sensor in connected_sensors:
                 reading = abs(emg[sensor.start_idx - 1])
                 moving_average_buffer = self.moving_average_buffers[sensor.start_idx]
@@ -366,7 +366,7 @@ class TrignoClient(QObject):
                 self.previous_moving_averages[sensor.start_idx] = average
 
                 packet = Packet(
-                    time=time,
+                    time=self.last_frame_time,
                     device_name=str(sensor.start_idx),
                     channel_readings={
                         CHANNEL_LABEL: average
