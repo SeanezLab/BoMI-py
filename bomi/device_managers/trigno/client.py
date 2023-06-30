@@ -146,15 +146,6 @@ class TrignoClient(QObject):
     def __call__(self, cmd: str):
         return self.send_cmd(cmd)
 
-    def __repr__(self):
-        return "<{_class} @{_id:x} {_attrs}>".format(
-            _class=self.__class__.__name__,
-            _id=id(self) & 0xFFFFFF,
-            _attrs=" ".join(
-                "{}={!r}".format(k, getattr(self, k)) for k in sorted(self.__slots__)
-            ),
-        )
-
     def __getitem__(self, idx: int):
         return self.sensors[idx]
 
