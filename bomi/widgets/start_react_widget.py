@@ -45,8 +45,8 @@ class SRConfig:
     """
     Configuration for a StartReact task
     """
-    HOLD_TIME: float = field(
-        default=250, metadata=dict(range=(0, 5000), name="Hold Time (ms)")
+    HOLD_TIME: int = field(
+        default=250, metadata=dict(range=(50, 5000), name="Hold Time (ms)")
     )  # msec
     PAUSE_MIN: int = field(
         default=2000, metadata=dict(range=(500, 5000), name="Pause Min (ms)")
