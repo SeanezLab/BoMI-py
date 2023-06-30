@@ -478,7 +478,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         """
         Set the device manager to use for StartReact.
         """
-        _print(f"Selected device manager: {device_manager}")
+        _print(f"Selected device manager: {type(device_manager).__name__}")
         self.dm = device_manager
 
     def check_sensors(self) -> bool: 
