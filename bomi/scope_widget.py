@@ -53,10 +53,10 @@ class ScopeConfig:
     show_scope_params: bool = True
 
     target_show: bool = False
-    target_range: Tuple[float, float] = (5, 50)
+    target_range: Tuple[float, float] = (-50, 50)
 
     base_show: bool = False
-    base_range: Tuple[float, float] = (-5, 2)
+    base_range: Tuple[float, float] = (-6, -3)
 
     xrange: Tuple[float, float] = (-6, 0)
     yrange: Tuple[float, float] = (-180, 180)

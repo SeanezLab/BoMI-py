@@ -555,7 +555,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Precision Control",
             "Precision",
-            (3, 6) #target range set for torque dorsiflexion
+            (5, 15) #target range set for torque dorsiflexion
         )
 
     def s_max_rom(self):
@@ -566,5 +566,5 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Max Range of Motion",
             "MaxROM",
-            (5, 10) #target range set for torque dorsiflexion
+            (10, 30) #target range set for torque dorsiflexion
         )

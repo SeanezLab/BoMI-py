@@ -24,7 +24,7 @@ class TonePlayer(qc.QObject):
     a QSoundEffect. s
     """
 
-    def __init__(self, freq: int = 500, duration_ms: int = 500):
+    def __init__(self, freq: int = 500, duration_ms: int = 50):
         super().__init__()
         self.tmpdir = qc.QTemporaryDir()
         assert self.tmpdir.isValid()
