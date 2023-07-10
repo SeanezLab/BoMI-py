@@ -66,7 +66,7 @@ class ScopeConfig:
 
 @dataclass
 class PlotHandle:
-    "Holds a PlotItem and its curves"
+    """Holds a PlotItem and its curves"""
     plot: pg.PlotItem | pg.ViewBox
     curves: dict[str, pg.PlotCurveItem | pg.PlotDataItem]
     target: pg.LinearRegionItem | None
@@ -83,7 +83,7 @@ class PlotHandle:
         target_range: Tuple[float, float] = None,
         base_range: Tuple[float, float] = None,
     ) -> PlotHandle:
-        "Create curves on the given plot object"
+        """Create curves on the given plot object"""
         curves = {
             label: plot.plot(pen=pen, name=label)
             for pen, label in zip(PENS, channel_labels)
@@ -103,7 +103,6 @@ class PlotHandle:
 
         return PlotHandle(plot=plot, curves=curves, target=target, base=base)
 
-
     @staticmethod
     def init_line_region(
         plot: pg.PlotItem,
@@ -111,7 +110,7 @@ class PlotHandle:
         label="Target",
         movable=False,
     ) -> pg.LinearRegionItem:
-        "Create a Region on the plot (target or base)"
+        """Create a Region on the plot (target or base)"""
         region = pg.LinearRegionItem(
             values=target_range,
             orientation="horizontal",
@@ -124,7 +123,7 @@ class PlotHandle:
 
     ### [[[ Target methods
     def update_target(self, target_range: Tuple[float, float]):
-        "Update the 'target' region's position"
+        """Update the 'target' region's position"""
         if self.target is None:
             self.target = self.init_line_region(
                 self.plot, target_range, label=self.TARGET_NAME
@@ -138,7 +137,7 @@ class PlotHandle:
             self.target.setBrush(*args, **argv)
 
     def clear_target(self):
-        "Remove the 'target' line region"
+        """Remove the 'target' line region"""
         self.plot.removeItem(self.target)
         self.target = None
 
@@ -146,7 +145,7 @@ class PlotHandle:
 
     ### [[[ Base methods
     def update_base(self, base_range: Tuple[float, float]):
-        "Update the 'base' region's position"
+        """Update the 'base' region's position"""
         if self.base is None:
             self.base = self.init_line_region(
                 self.plot, base_range, label=self.BASE_NAME
@@ -160,7 +159,7 @@ class PlotHandle:
             self.base.setBrush(*args, **argv)
 
     def clear_base(self):
-        "Remove the 'base' line region"
+        """Remove the 'base' line region"""
         self.plot.removeItem(self.base)
         self.base = None
 
@@ -311,13 +310,6 @@ class ScopeWidget(qw.QWidget):
             children=ptparams,
         )
 
-        key2label = {  # map from config name to the corresponding Buffer.labels
-            "show_roll": "Roll",
-            "show_pitch": "Pitch",
-            "show_yaw": "Yaw",
-            "show_rollpitch": "abs(roll) + abs(pitch)",
-        }
-
         def onShowHideChange(_, changes):
             for param, _, is_visible in changes:
                 channel = param.name()
@@ -389,7 +381,7 @@ class ScopeWidget(qw.QWidget):
             plot_handle.clear_target()
 
     def update_targets(self):
-        "Handle updating target position (range)"
+        """Handle updating target position (range)"""
         if self.param_tshow.value():
             target_range = (
                 self.param_tmin.value(),
@@ -404,7 +396,7 @@ class ScopeWidget(qw.QWidget):
                 self.plot_handles[name].update_target(target_range)
 
     def update_target_color(self, *args, **kwargs):
-        "Handle updating target color on plot"
+        """Handle updating target color on plot"""
         for name in self.dev_names:
             self.plot_handles[name].update_target_color(*args, **kwargs)
 
@@ -417,7 +409,7 @@ class ScopeWidget(qw.QWidget):
             plot_handle.clear_base()
 
     def update_base(self):
-        "Handle updating target position (range)"
+        """Handle updating target position (range)"""
         if self.param_bshow.value():
             self.base_range = base_range = (
                 self.param_bmin.value(),
@@ -431,7 +423,7 @@ class ScopeWidget(qw.QWidget):
                 self.plot_handles[name].update_base(base_range)
 
     def update_base_color(self, *args, **kwargs):
-        "Handle updating target color on plot"
+        """Handle updating target color on plot"""
         for name in self.dev_names:
             self.plot_handles[name].update_base_color(*args, **kwargs)
 
@@ -448,7 +440,6 @@ class ScopeWidget(qw.QWidget):
                 handle.plot.removeItem(handle.curves[name])
 
     def showEvent(self, event: qg.QShowEvent) -> None:
-        
         """Override showEvent to initialise data params and UI after the window is shown.
         This is because we need to know the number of sensors available to create the
         same number of plots
@@ -676,7 +667,6 @@ class ScopeWidget(qw.QWidget):
                     max_magnitude = max(array[channel], key=abs)
                     print(f"\t\t{channel}: {max_magnitude}")
                 print()
-
 
 
 class _DummyQueue(Queue):

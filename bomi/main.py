@@ -1,7 +1,5 @@
-from functools import partial
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
-from PySide6.QtWidgets import QTabWidget
 
 from bomi.device_managers.yost_manager import YostDeviceManager
 from bomi.device_managers.yost_widget import YostWidget
