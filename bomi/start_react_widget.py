@@ -566,5 +566,5 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Max Range of Motion",
             "MaxROM",
-            (-35, -60) #target range set for torque plantar flexion
+            (5, 10) #target range set for torque plantar flexion
         )
