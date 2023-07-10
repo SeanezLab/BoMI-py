@@ -183,6 +183,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.task_history.write(
             f"target_moved t={default_timer()} tmin={trange[0]} tmax={trange[1]}\n"
         )
+        self.task_history.flush()
 
     @qc.Property(int)  # type: ignore
     def pval(self):  # type: ignore
@@ -249,6 +250,8 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """
         _print("Begin block")
         self.task_history.write(f"begin_block t={default_timer()}\n")
+        self.task_history.flush()
+
         self.start_stop_btn.setText(self.BTN_END_TXT)
         self.progress_bar.setValue(0)
 
@@ -264,7 +267,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def end_block(self):
         """Finish the task, reset widget to initial states"""
+        print("end_block", default_timer())
         self.task_history.write(f"end_block t={default_timer()}\n")
+        self.task_history.flush()
         self._task_stack.clear()
 
         self.start_stop_btn.setText(self.BTN_START_TXT)
@@ -308,7 +313,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def emit_begin(self, event_name: str):
         self.sigTrialBegin.emit()
+        print("emit_begin", default_timer())
         self.task_history.write(f"begin_{event_name} t={default_timer()}\n")
+        self.task_history.flush()
         self._task_stack.append(event_name)
 
     def emit_end(self):
@@ -318,6 +325,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
             self.task_history.write(
                 f"end_{self._task_stack.pop()} t={default_timer()}\n"
             )
+            self.task_history.flush()
 
 
 class StartReactWidget(qw.QWidget, WindowMixin):
@@ -539,7 +547,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Precision Control",
             "Precision",
-            (-20, -30)
+            (3, 6)
         )
 
     def s_max_rom(self):
@@ -550,5 +558,5 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Max Range of Motion",
             "MaxROM",
-            (-35, -60) #target range set for torque plantar flexion
+            (5, 10) #target range set for torque plantar flexion
         )

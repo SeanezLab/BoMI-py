@@ -35,6 +35,8 @@ class ConversionFactors():
         self.velocity_conv = (1/0.1563)
         self.position_conv = (1/0.0292)
 
+def _print(*args):
+    print("[QTM]", *args)
 
 def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: str, port: int, version: str):
     """
@@ -52,7 +54,7 @@ def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: 
                 channel_readings[channel] = recv_conv(data[i][2][0][0], channel)
             q_analog.put(Packet(timeit.default_timer(), "QTM", channel_readings))
         else:
-            print("Empty data from packet")
+            _print("Empty data from packet")
 
     async def get_frames_from_qtm():
         """
@@ -62,7 +64,7 @@ def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: 
         connection = await qtm.connect(IPaddress, port, version)
 
         if connection is None:
-            print("failed to connect")
+            _print("Failed to connect")
             return
 
         async with qtm.TakeControl(connection, 'jd'):
@@ -77,18 +79,17 @@ def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: 
         for x in xml[0][0].findall('Channel'):
             print(x[0].text) 
 
-        print('Preparing to run in analog_streaming_client')
         while not done.is_set():
             await connection.stream_frames(components=['analog'], on_packet = on_packet)
 
-        print('stopping in analog_streaming_client')
+        _print('Stopping stream in analog_streaming_client')
         await connection.stream_frames_stop()
 
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     # Set the policy to prevent "Event loop is closed" error on Windows - https://github.com/encode/httpx/issues/914
         #An event loop policy is a global object used to get and set the current event loop, as well as create new event loops. 
         #set_event_loop_policy: Set the current process-wide policy to policy. If policy is set to None, the default policy is restored.
-    print('waiting to run in analog_streaming_client')
+    _print('Waiting in analog_streaming_client')
     asyncio.run(get_frames_from_qtm()) #running Coroutine
 
 def recv_conv(data, channel: Channel):

@@ -17,7 +17,6 @@
             "type": "python",
             "request": "launch",
             "module": "bomi",
-            "python": "C:\\App\\Anaconda\\envs\\bomi\\python.exe"
         }
     ]
 }
