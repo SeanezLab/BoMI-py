@@ -25,7 +25,7 @@ from bomi.device_managers.protocols import (
     SupportsGetChannelMetadata
 )
 import bomi.colors as bcolors
-from bomi.device_managers.trigno.client import TrignoClient
+from bomi.device_managers.trigno.client import TrignoClient, RollingAverageTrignoClient
 
 
 def _print(*args):
@@ -198,21 +198,23 @@ class ScopeWidget(qw.QWidget):
         config: ScopeConfig,
         selected_sensor_name: str | Ellipsis = ...,
         task_widget: TaskDisplay = None,
-        trigno_client: TrignoClient = None,
+        trigno_client: TrignoClient | None = None,
     ):
         super().__init__()
         self.setWindowTitle(config.window_title)
+
+        if dm.__class__ == TrignoClient:
+            dm = RollingAverageTrignoClient(dm)
         self.dm = dm
+
         self.savedir = savedir
         self.selected_sensor_name = selected_sensor_name
         self.task_widget = task_widget
         self.config = config
 
-        self.trigno_client: TrignoClient | None
-        if trigno_client and trigno_client.n_sensors:
-            self.trigno_client = trigno_client
-        else:
-            self.trigno_client = None
+        self.trigno_client = trigno_client
+        if self.trigno_client.n_sensors < 1:
+            _print(f"Warning: {self.trigno_client.n_sensors=}")
 
         self.queue: Queue[Packet] = Queue()
 

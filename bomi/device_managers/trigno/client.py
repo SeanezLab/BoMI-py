@@ -42,6 +42,7 @@ from bomi.datastructure import Packet
 
 __all__ = ("TrignoClient",)
 
+
 # Load Avanti Modes file. Must use Unix line endings
 def load_avanti_modes():
     raw = pkg_resources.resource_string(__name__, "avanti_modes.tsv").decode()
@@ -64,6 +65,7 @@ AUX_DATA_PORT = 50044  # sends auxiliary data
 IP_ADDR = "10.229.96.105"
 
 CHANNEL_LABEL = "Voltage"
+
 
 def _print(*args, **kwargs):
     print("[TrignoClient]", *args, **kwargs)
@@ -122,8 +124,6 @@ class TrignoClient(QObject):
 
     DEFAULT_BASE_RANGE = (0, 0.001)
     DEFAULT_TARGET_RANGE = (0.004, 0.1)
-
-    MOVING_AVERAGE_POINTS = 128
 
     discover_devices_signal = Signal()
 
@@ -353,23 +353,11 @@ class TrignoClient(QObject):
 
             for sensor in connected_sensors:
                 reading = abs(emg[sensor.start_idx - 1])
-                moving_average_buffer = self.moving_average_buffers[sensor.start_idx]
-
-                moving_average_buffer.append(reading)
-                if len(moving_average_buffer) < self.MOVING_AVERAGE_POINTS:
-                    # Compute the average normally.
-                    average = sum(moving_average_buffer) / len(moving_average_buffer)
-                else:
-                    # Use a shortcut to compute the average, based on the old average.
-                    previous = self.previous_moving_averages[sensor.start_idx]
-                    average = previous + (reading - moving_average_buffer.popleft()) / self.MOVING_AVERAGE_POINTS
-                self.previous_moving_averages[sensor.start_idx] = average
-
                 packet = Packet(
                     time=self.last_frame_time,
                     device_name=str(sensor.start_idx),
                     channel_readings={
-                        CHANNEL_LABEL: average
+                        CHANNEL_LABEL: reading
                     }
                 )
                 queue.put(packet)
@@ -455,6 +443,53 @@ class TrignoClient(QObject):
         if channel != CHANNEL_LABEL:
             raise ValueError("Not a valid Trigno channel")
         return 0, 0.010
+
+
+class RollingAverageTrignoClient(TrignoClient):
+    """
+    Subclass of TrignoClient where the data reported goes through a rolling average.
+    """
+
+    MOVING_AVERAGE_POINTS = 128
+
+    def __init__(self, trigno_client):
+        super().__init__(trigno_client.host_ip)
+
+    def stream_worker(self, queue: Queue[Packet]):
+        """
+        Overrides TrignoClient's stream_worker so to save a rolling average
+        """
+        connected_sensors = [sensor for sensor in self.sensors if sensor is not None]
+
+        while not self._done_streaming.is_set():
+            try:
+                emg = self.recv_emg()
+            except struct.error as e:
+                _print("Failed to parse packet", e)
+                continue
+
+            for sensor in connected_sensors:
+                reading = abs(emg[sensor.start_idx - 1])
+                moving_average_buffer = self.moving_average_buffers[sensor.start_idx]
+
+                moving_average_buffer.append(reading)
+                if len(moving_average_buffer) < self.MOVING_AVERAGE_POINTS:
+                    # Compute the average normally.
+                    average = sum(moving_average_buffer) / len(moving_average_buffer)
+                else:
+                    # Use a shortcut to compute the average, based on the old average.
+                    previous = self.previous_moving_averages[sensor.start_idx]
+                    average = previous + (reading - moving_average_buffer.popleft()) / self.MOVING_AVERAGE_POINTS
+                self.previous_moving_averages[sensor.start_idx] = average
+
+                packet = Packet(
+                    time=self.last_frame_time,
+                    device_name=str(sensor.start_idx),
+                    channel_readings={
+                        CHANNEL_LABEL: average
+                    }
+                )
+                queue.put(packet)
 
 
 def load_full_emg_meta(fpath: Path):
