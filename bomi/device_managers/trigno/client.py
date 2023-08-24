@@ -148,7 +148,7 @@ class TrignoClient(QObject):
         self._done_streaming = threading.Event()
         self._worker_thread: threading.Thread | None = None
 
-        self.moving_average_buffers = [deque()] * 17
+        self.moving_average_buffers = [deque() for _ in range(17)]
         """
         Each deque contains the array for a specific sensor.
         1-indexed, just like self.sensor.
