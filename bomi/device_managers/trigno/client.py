@@ -123,7 +123,7 @@ class TrignoClient(QObject):
     DEFAULT_BASE_RANGE = (0, 0.001)
     DEFAULT_TARGET_RANGE = (0.004, 0.1)
 
-    MOVING_AVERAGE_POINTS = 128
+    MOVING_AVERAGE_POINTS = 1024
 
     discover_devices_signal = Signal()
 
