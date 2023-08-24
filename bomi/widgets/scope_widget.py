@@ -173,6 +173,9 @@ class TaskState(Enum):
 
 
 class ScopeWidget(qw.QWidget):
+    """
+    A widget that plots the data from a selected device manager in real time.
+    """
     class ScopeWidgetDeviceManager(
         SupportsStreaming,
         SupportsGetSensorMetadata,
@@ -200,6 +203,11 @@ class ScopeWidget(qw.QWidget):
         task_widget: TaskDisplay = None,
         trigno_client: TrignoClient | None = None,
     ):
+        """
+        @param selected_sensor_name If using ScopeWidget for a StartReact experiment,
+        pass the name of the sensor that will be used to determine if the participant is inside the target region.
+        Otherwise, pass Ellipsis (...).
+        """
         super().__init__()
         self.setWindowTitle(config.window_title)
         self.dm = dm
