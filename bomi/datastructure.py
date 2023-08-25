@@ -75,14 +75,13 @@ class MultichannelBuffer:
         # 1D array of timestamps
         self.timestamp: np.ndarray = np.zeros(bufsize)
         # 2D array of `labels`
-        self._raw_data: np.ndarray = np.recarray(
+        self._raw_data = np.zeros(
             shape=(bufsize,),
             dtype=[
-                (name, np.number)
+                (name, np.float64)
                 for name in channel_labels
             ]
         )
-        self._raw_data.fill(0)
         # The publicly exposed data is simply a reference to the raw data; i.e. there is no transformation applied.
         self.data = self._raw_data
 
