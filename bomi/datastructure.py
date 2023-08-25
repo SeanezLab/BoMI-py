@@ -72,9 +72,10 @@ class MultichannelBuffer:
     def __init__(self, bufsize: int, savedir: Path, name: str, input_kind: str, channel_labels: list[str]):
         self.bufsize = bufsize
         self.channel_labels = channel_labels
+
         # 1D array of timestamps
         self.timestamp = np.zeros(bufsize)
-        # 2D array of `labels`
+
         self._raw_data = np.zeros(
             shape=(bufsize,),
             dtype=[
@@ -84,6 +85,12 @@ class MultichannelBuffer:
         )
         # The publicly exposed data is simply a reference to the raw data; i.e. there is no transformation applied.
         self.data = self._raw_data
+        """
+        The buffer's data.
+        It's a structured array:
+        this allows you to get a single channel's data by indexing by that channel name,
+        e.g. buffer.data["Roll"].
+        """
 
         # file pointer to write CSV data to
         self.sensor_fp = open(savedir / f"{input_kind}_{name}.csv", "w")
