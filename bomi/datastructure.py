@@ -133,7 +133,7 @@ class AveragedMultichannelBuffer(MultichannelBuffer):
         super().add_packet(*args, **kwargs)
 
         moving_average_slice = self._raw_data[-self.moving_average_points:]
-        averages = moving_average_slice.mean()
+        averages = tuple(moving_average_slice[col_name].mean() for col_name in moving_average_slice.dtype.names)
 
         self.data[:-1] = self.data[1:]
         self.data[-1] = averages
