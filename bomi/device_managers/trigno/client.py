@@ -111,7 +111,6 @@ class TrignoClient(QObject):
         "endianness",
         "base_firmware",
         "base_serial",
-        "moving_average_array"
     )
 
     AVANTI_MODES = AVANTI_MODES
