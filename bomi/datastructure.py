@@ -75,14 +75,16 @@ class MultichannelBuffer:
         # 1D array of timestamps
         self.timestamp: np.ndarray = np.zeros(bufsize)
         # 2D array of `labels`
-        self.data: np.ndarray = np.recarray(
+        self._raw_data: np.ndarray = np.recarray(
             shape=(bufsize,),
             dtype=[
                 (name, np.number)
                 for name in channel_labels
             ]
         )
-        self.data.fill(0)
+        self._raw_data.fill(0)
+        # The publicly exposed data is simply a reference to the raw data; i.e. there is no transformation applied.
+        self.data = self._raw_data
 
         # file pointer to write CSV data to
         self.sensor_fp: TextIO = open(savedir / f"{input_kind}_{name}.csv", "w")
@@ -108,10 +110,33 @@ class MultichannelBuffer:
         self.sensor_fp.write(",".join((str(v) for v in (packet.time, *readings))) + "\n")
 
         # Shift buffer when full, never changing buffer size
-        self.data[:-1] = self.data[1:]
-        self.data[-1] = readings
+        self._raw_data[:-1] = self._raw_data[1:]
+        self._raw_data[-1] = readings
         self.timestamp[:-1] = self.timestamp[1:]
         self.timestamp[-1] = packet.time
+
+
+class AveragedMultichannelBuffer(MultichannelBuffer):
+    DEFAULT_MOVING_AVERAGE_POINTS = 1024
+    """
+    The number of points for the moving average by default.
+    If the buffer is initialized with a size lower than this,
+    the number of points for the moving average will be the size.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.data = self._raw_data.copy()
+        self.moving_average_points = min(self.bufsize, self.DEFAULT_MOVING_AVERAGE_POINTS)
+
+    def add_packet(self, *args, **kwargs):
+        super().add_packet(*args, **kwargs)
+
+        moving_average_slice = self._raw_data[-self.moving_average_points:]
+        averages = moving_average_slice.mean()
+
+        self.data[:-1] = self.data[1:]
+        self.data[-1] = averages
 
 
 class DelsysBuffer:

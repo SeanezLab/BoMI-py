@@ -123,8 +123,6 @@ class TrignoClient(QObject):
     DEFAULT_BASE_RANGE = (0, 0.001)
     DEFAULT_TARGET_RANGE = (0.004, 0.1)
 
-    MOVING_AVERAGE_POINTS = 1024
-
     discover_devices_signal = Signal()
 
     def __init__(self, host_ip: str = IP_ADDR):
@@ -353,23 +351,12 @@ class TrignoClient(QObject):
 
             for sensor in connected_sensors:
                 reading = abs(emg[sensor.start_idx - 1])
-                moving_average_buffer = self.moving_average_buffers[sensor.start_idx]
-
-                moving_average_buffer.append(reading)
-                if len(moving_average_buffer) < self.MOVING_AVERAGE_POINTS:
-                    # Compute the average normally.
-                    average = sum(moving_average_buffer) / len(moving_average_buffer)
-                else:
-                    # Use a shortcut to compute the average, based on the old average.
-                    previous = self.previous_moving_averages[sensor.start_idx]
-                    average = previous + (reading - moving_average_buffer.popleft()) / self.MOVING_AVERAGE_POINTS
-                self.previous_moving_averages[sensor.start_idx] = average
 
                 packet = Packet(
                     time=self.last_frame_time,
                     device_name=str(sensor.start_idx),
                     channel_readings={
-                        CHANNEL_LABEL: average
+                        CHANNEL_LABEL: reading
                     }
                 )
                 queue.put(packet)

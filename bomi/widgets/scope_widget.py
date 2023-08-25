@@ -16,7 +16,7 @@ from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
 from bomi.widgets.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
-from bomi.datastructure import MultichannelBuffer, SubjectMetadata, Packet
+from bomi.datastructure import MultichannelBuffer, SubjectMetadata, Packet, AveragedMultichannelBuffer
 from bomi.device_managers.protocols import (
     SupportsStreaming,
     SupportsGetSensorMetadata,
@@ -469,27 +469,42 @@ class ScopeWidget(qw.QWidget):
         else:
             self.shown_devices = self.dev_names
 
-        for device_name in self.dev_names:
-            if device_name in self.buffers:  # buffer already initialized
-                continue
-            self.buffers[device_name] = MultichannelBuffer(
-                bufsize=self.init_bufsize,
-                savedir=self.savedir,
-                name=device_name,
-                input_kind=self.dm.INPUT_KIND,
-                channel_labels=self.dm.CHANNEL_LABELS
-            )
-        if self.trigno_client is not None and self.trigno_client != self.dm:
-            for device_name in self.trigno_client.get_all_sensor_names():
-                if device_name in self.buffers:
+        if isinstance(self.dm, TrignoClient):
+            # Create buffers, use moving average.
+            for device_name in self.dev_names:
+                if device_name in self.buffers:  # buffer already initialized
                     continue
-                self.buffers[device_name] = MultichannelBuffer(
-                    bufsize=1,
+                self.buffers[device_name] = AveragedMultichannelBuffer(
+                    bufsize=self.init_bufsize,
                     savedir=self.savedir,
                     name=device_name,
-                    input_kind=self.trigno_client.INPUT_KIND,
-                    channel_labels=self.trigno_client.CHANNEL_LABELS
+                    input_kind=self.dm.INPUT_KIND,
+                    channel_labels=self.dm.CHANNEL_LABELS
                 )
+        else:
+            # Create buffers, don't use moving average.
+            for device_name in self.dev_names:
+                if device_name in self.buffers:  # buffer already initialized
+                    continue
+                self.buffers[device_name] = MultichannelBuffer(
+                    bufsize=self.init_bufsize,
+                    savedir=self.savedir,
+                    name=device_name,
+                    input_kind=self.dm.INPUT_KIND,
+                    channel_labels=self.dm.CHANNEL_LABELS
+                )
+            # Also, if Trigno is connected, add buffers for it.
+            if self.trigno_client is not None:
+                for device_name in self.trigno_client.get_all_sensor_names():
+                    if device_name in self.buffers:
+                        continue
+                    self.buffers[device_name] = MultichannelBuffer(
+                        bufsize=1,
+                        savedir=self.savedir,
+                        name=device_name,
+                        input_kind=self.trigno_client.INPUT_KIND,
+                        channel_labels=self.trigno_client.CHANNEL_LABELS
+                    )
 
 
     def init_ui(self):
