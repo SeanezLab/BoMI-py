@@ -217,7 +217,7 @@ class ScopeWidget(qw.QWidget):
         self.config = config
 
         self.trigno_client = trigno_client
-        if self.trigno_client.n_sensors < 1:
+        if self.trigno_client is not None and self.trigno_client.n_sensors < 1:
             _print(f"Warning: {self.trigno_client.n_sensors=}")
 
         self.queue: Queue[Packet] = Queue()
