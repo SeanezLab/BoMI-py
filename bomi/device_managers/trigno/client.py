@@ -201,6 +201,7 @@ class TrignoClient(QObject):
                 return err_str
 
         self.connected = True
+        self.discover_devices_signal.emit()
         cmd = lambda _cmd: self.send_cmd(_cmd).decode()
 
         # Change settings
