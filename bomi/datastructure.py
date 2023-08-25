@@ -73,7 +73,7 @@ class MultichannelBuffer:
         self.bufsize = bufsize
         self.channel_labels = channel_labels
         # 1D array of timestamps
-        self.timestamp: np.ndarray = np.zeros(bufsize)
+        self.timestamp = np.zeros(bufsize)
         # 2D array of `labels`
         self._raw_data = np.zeros(
             shape=(bufsize,),
@@ -86,11 +86,11 @@ class MultichannelBuffer:
         self.data = self._raw_data
 
         # file pointer to write CSV data to
-        self.sensor_fp: TextIO = open(savedir / f"{input_kind}_{name}.csv", "w")
+        self.sensor_fp = open(savedir / f"{input_kind}_{name}.csv", "w")
         # name of this device
-        self.name: str = name
+        self.name = name
 
-        self.savedir: Path = savedir
+        self.savedir = savedir
         header = ",".join(("t", *self.channel_labels)) + "\n"
         self.sensor_fp.write(header)
 
