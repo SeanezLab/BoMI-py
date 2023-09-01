@@ -53,10 +53,10 @@ class ScopeConfig:
     show_scope_params: bool = True
 
     target_show: bool = False
-    target_range: Tuple[float, float] = (70, 80)
+    target_range: Tuple[float, float] = (-50, 50)
 
     base_show: bool = False
-    base_range: Tuple[float, float] = (-10, 1)
+    base_range: Tuple[float, float] = (-6, -3)
 
     xrange: Tuple[float, float] = (-6, 0)
     yrange: Tuple[float, float] = (-180, 180)
@@ -636,7 +636,7 @@ class ScopeWidget(qw.QWidget):
             fps = self.fps_counter / interval
             self.fps_counter = 0
             self.fps_last_time = now
-            _print("FPS: ", fps)
+            #_print("FPS: ", fps)
 
         q = self.queue
         qsize = q.qsize()

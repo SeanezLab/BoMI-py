@@ -97,7 +97,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         self.file_menu.addActions(self.actions())
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
-        self.cursor_control.stop()
+        #self.cursor_control.stop()
         return super().closeEvent(event)
 
 

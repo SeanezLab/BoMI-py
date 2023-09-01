@@ -324,7 +324,7 @@ def _handle_stream(
                 fps = fps_packet_counter / (now - fps_start_time)
                 fps_start_time = now
                 fps_packet_counter = 0
-                _print(f"Throughput: {fps:.2f} packets/sec")
+                #_print(f"Throughput: {fps:.2f} packets/sec")
 
     time.sleep(0.2)
 

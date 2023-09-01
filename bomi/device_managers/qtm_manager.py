@@ -46,7 +46,7 @@ class QtmDeviceManager(QObject):
     def get_channel_default_range(channel: str) -> tuple[float, float]:
         match channel:
             case Channel.TORQUE:
-                return -60, 10
+                return -10, 50
             case Channel.VELOCITY:
                 return -40, 40
             case Channel.POSITION:
@@ -126,7 +126,7 @@ class QtmDeviceManager(QObject):
         Stop streaming data
         """
         if self._thread and not self._done_streaming.is_set():
-            _print("Stopping stream")
+            #_print("Stopping stream")
             self._done_streaming.set()
             self._thread.join()
             self._thread = None

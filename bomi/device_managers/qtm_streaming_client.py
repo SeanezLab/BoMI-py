@@ -24,17 +24,20 @@ class Channel(str, Enum):
 class ConversionFactors():
     """
     Based on Biodex scaling factors, see SeanezLab/Research_Material/User Manuals/Biodex/A3. Analog Settings for Biodex System 4.pdf
-    Ensure Application Settings --> Analog System Settings: Velocity Scaling = 0-32 deg/sec, Torque Scaling = 0-128 ft*lb (174 N*m), Position Scaling = Fullscale 0 - 360 deg
-        Torque Conversion: V*(1 ftlb/0.0391V)*(1.3558179483 Nm/ftlb)
+    Ensure Application Settings --> Analog System Settings: Velocity Scaling = 0-32 deg/sec, Torque Scaling = 0-64 ft*lb (87 N*m), Position Scaling = Fullscale 0 - 360 deg
+        Torque Conversion: V*(1 ftlb/0.0781)*(1.3558179483 Nm/ftlb)
         Velocity Conversion: V*(1 deg/sec / 0.1563V)
         Position Conversion: V*(1 deg/0.0292V)
     **If you change the scaling factors on the Biodex, you need to change the conversion factors here
     """
+    TODO: "Add in all conversion factors for all scaling possiblities" 
     def __init__(self):
-        self.torque_conv = (1/0.0391) * (1.3558179483)
+        self.torque_conv = (1/0.0781) * (1.3558179483)
         self.velocity_conv = (1/0.1563)
         self.position_conv = (1/0.0292)
 
+def _print(*args):
+    print("[QTM]", *args)
 
 def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: str, port: int, version: str):
     """
@@ -52,7 +55,7 @@ def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: 
                 channel_readings[channel] = recv_conv(data[i][2][0][0], channel)
             q_analog.put(Packet(timeit.default_timer(), "QTM", channel_readings))
         else:
-            print("Empty data from packet")
+            _print("Empty data from packet")
 
     async def get_frames_from_qtm():
         """
@@ -62,7 +65,7 @@ def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: 
         connection = await qtm.connect(IPaddress, port, version)
 
         if connection is None:
-            print("failed to connect")
+            _print("Failed to connect")
             return
 
         async with qtm.TakeControl(connection, 'jd'):
@@ -77,18 +80,17 @@ def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: 
         for x in xml[0][0].findall('Channel'):
             print(x[0].text) 
 
-        print('Preparing to run in analog_streaming_client')
         while not done.is_set():
             await connection.stream_frames(components=['analog'], on_packet = on_packet)
 
-        print('stopping in analog_streaming_client')
+        _print('Stopping stream in analog_streaming_client')
         await connection.stream_frames_stop()
 
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     # Set the policy to prevent "Event loop is closed" error on Windows - https://github.com/encode/httpx/issues/914
         #An event loop policy is a global object used to get and set the current event loop, as well as create new event loops. 
         #set_event_loop_policy: Set the current process-wide policy to policy. If policy is set to None, the default policy is restored.
-    print('waiting to run in analog_streaming_client')
+    _print('Waiting in analog_streaming_client')
     asyncio.run(get_frames_from_qtm()) #running Coroutine
 
 def recv_conv(data, channel: Channel):

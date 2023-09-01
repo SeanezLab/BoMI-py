@@ -283,7 +283,7 @@ class TrignoWidget(qw.QWidget, WindowMixin):
 
         self.trigno_client = trigno_client if trigno_client else TrignoClient()
         #self.meta_path = Path("emg_meta.json") #orignial startreact
-        self.meta_path = Path("emg_meta_excitability.json") #excitability
+        self.meta_path = Path("emg_meta_excitability_TA.json") #excitability
         self.load_meta(self.meta_path)
 
         ### Init UI
