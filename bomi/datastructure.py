@@ -130,13 +130,13 @@ class AveragedMultichannelBuffer(MultichannelBuffer):
     the number of points for the moving average will be the size.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, bufsize: int, savedir: Path, name: str, input_kind: str, channel_labels: list[str]):
+        super().__init__(bufsize, savedir, name, input_kind, channel_labels)
         self.data = self._raw_data.copy()
         self.moving_average_points = min(self.bufsize, self.DEFAULT_MOVING_AVERAGE_POINTS)
 
-    def add_packet(self, *args, **kwargs):
-        super().add_packet(*args, **kwargs)
+    def add_packet(self, packet: Packet):
+        super().add_packet(packet)
 
         moving_average_slice = self._raw_data[-self.moving_average_points:]
         averages = tuple(moving_average_slice[col_name].mean() for col_name in moving_average_slice.dtype.names)
