@@ -93,7 +93,8 @@ class MultichannelBuffer:
         """
 
         # file pointer to write CSV data to
-        self.sensor_fp = open(savedir / f"{input_kind}_{name}.csv", "w")
+        self.save_file = savedir / f"{input_kind}_{name}.csv"
+        self.sensor_fp = open(self.save_file, "w")
         # name of this device
         self.name = name
 
