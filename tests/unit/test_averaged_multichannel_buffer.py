@@ -32,12 +32,8 @@ def test_saves_correct_data(tmp_path, multichannel_data_file):
         )
         buffer.add_packet(packet)
 
-    # We need to delete the buffer so that it can close its file pointer and finish writing.
-    # Before that, get the name of its save file.
-    save_file = buffer.save_file
-    del buffer
-
-    actual = np.genfromtxt(save_file, delimiter=",", skip_header=1)
+    buffer.sensor_fp.flush()
+    actual = np.genfromtxt(buffer.save_file, delimiter=",", skip_header=1)
     expected = np.genfromtxt(multichannel_data_file, delimiter=",", skip_header=1)
     assert(np.array_equal(actual, expected))
 
