@@ -67,7 +67,19 @@ class SupportsGetChannelMetadata(Protocol):
         """
 
     @staticmethod
-    def get_channel_default_range(channel: str) -> tuple[int, int]:
+    def get_channel_default_range(channel: str) -> tuple[float, float]:
         """
         Gets a reasonable range for the data of a given channel.
         """
+
+
+class HasDefaultRanges(Protocol):
+    DEFAULT_BASE_RANGE: tuple[float, float]
+    """
+    Default (min, max) for the ScopeWidget base region when using this device manager.
+    """
+
+    DEFAULT_TARGET_RANGE: tuple[float, float]
+    """
+    Default (min, max) for the ScopeWidget target region when using this device manager.
+    """

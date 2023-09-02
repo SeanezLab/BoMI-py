@@ -72,24 +72,33 @@ class MultichannelBuffer:
     def __init__(self, bufsize: int, savedir: Path, name: str, input_kind: str, channel_labels: list[str]):
         self.bufsize = bufsize
         self.channel_labels = channel_labels
+
         # 1D array of timestamps
-        self.timestamp: np.ndarray = np.zeros(bufsize)
-        # 2D array of `labels`
-        self.data: np.ndarray = np.recarray(
+        self.timestamp = np.zeros(bufsize)
+
+        self._raw_data = np.zeros(
             shape=(bufsize,),
             dtype=[
-                (name, np.number)
+                (name, np.float64)
                 for name in channel_labels
             ]
         )
-        self.data.fill(0)
+        # The publicly exposed data is simply a reference to the raw data; i.e. there is no transformation applied.
+        self.data = self._raw_data
+        """
+        The buffer's data.
+        It's a structured array:
+        this allows you to get a single channel's data by indexing by that channel name,
+        e.g. buffer.data["Roll"].
+        """
 
         # file pointer to write CSV data to
-        self.sensor_fp: TextIO = open(savedir / f"{input_kind}_{name}.csv", "w")
+        self.save_file = savedir / f"{input_kind}_{name}.csv"
+        self.sensor_fp = open(self.save_file, "w")
         # name of this device
-        self.name: str = name
+        self.name = name
 
-        self.savedir: Path = savedir
+        self.savedir = savedir
         header = ",".join(("t", *self.channel_labels)) + "\n"
         self.sensor_fp.write(header)
 
@@ -108,10 +117,33 @@ class MultichannelBuffer:
         self.sensor_fp.write(",".join((str(v) for v in (packet.time, *readings))) + "\n")
 
         # Shift buffer when full, never changing buffer size
-        self.data[:-1] = self.data[1:]
-        self.data[-1] = readings
+        self._raw_data[:-1] = self._raw_data[1:]
+        self._raw_data[-1] = readings
         self.timestamp[:-1] = self.timestamp[1:]
         self.timestamp[-1] = packet.time
+
+
+class AveragedMultichannelBuffer(MultichannelBuffer):
+    DEFAULT_MOVING_AVERAGE_POINTS = 1024
+    """
+    The number of points for the moving average by default.
+    If the buffer is initialized with a size lower than this,
+    the number of points for the moving average will be the size.
+    """
+
+    def __init__(self, bufsize: int, savedir: Path, name: str, input_kind: str, channel_labels: list[str]):
+        super().__init__(bufsize, savedir, name, input_kind, channel_labels)
+        self.data = self._raw_data.copy()
+        self.moving_average_points = min(self.bufsize, self.DEFAULT_MOVING_AVERAGE_POINTS)
+
+    def add_packet(self, packet: Packet):
+        super().add_packet(packet)
+
+        moving_average_slice = self._raw_data[-self.moving_average_points:]
+        averages = tuple(moving_average_slice[col_name].mean() for col_name in moving_average_slice.dtype.names)
+
+        self.data[:-1] = self.data[1:]
+        self.data[-1] = averages
 
 
 class DelsysBuffer:

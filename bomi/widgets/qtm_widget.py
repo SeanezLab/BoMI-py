@@ -6,21 +6,16 @@ from typing import Final, Tuple
 import pyqtgraph as pg
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
-from PySide6.QtCore import Qt
 
 from bomi.datastructure import get_savedir
-from bomi.device_managers.table_model import (
-    TableModel,
+from bomi.widgets.table_model import (
     ColumnProps,
-    prop_getter,
-    make_getter,
-    make_setter,
 )
 from bomi.device_managers.qtm_manager import QtmDeviceManager
-from bomi.scope_widget import ScopeWidget, ScopeConfig
+from bomi.widgets.scope_widget import ScopeWidget, ScopeConfig
 
 # from bomi.scope_widget import ScopeWidget
-from bomi.window_mixin import WindowMixin
+from bomi.widgets.window_mixin import WindowMixin
 
 __all__ = ("QtmWidget",)
 

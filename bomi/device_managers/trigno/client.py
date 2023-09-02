@@ -21,10 +21,12 @@ two consecutive <CR><LF> pairs, and the server will process app commands receive
 to this point when two <CR><LF> are received
 
 """
-
+from collections import deque
 from timeit import default_timer
+
+import numpy as np
 import pkg_resources
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Sequence
 from pathlib import Path
 from queue import Queue
 from dataclasses import asdict
@@ -33,8 +35,10 @@ import json
 import struct
 import socket
 from io import StringIO
+from PySide6.QtCore import Signal, QObject
 
 from .datastructure import DSChannel, EMGSensor, EMGSensorMeta
+from bomi.datastructure import Packet
 
 __all__ = ("TrignoClient",)
 
@@ -59,6 +63,7 @@ AUX_DATA_PORT = 50044  # sends auxiliary data
 # IP_ADDR = "10.229.96.239"
 IP_ADDR = "10.229.96.105"
 
+CHANNEL_LABEL = "Voltage"
 
 def _print(*args, **kwargs):
     print("[TrignoClient]", *args, **kwargs)
@@ -77,7 +82,7 @@ def recv_sz(sock: socket.socket, sz: int) -> bytes:
     return buf
 
 
-class TrignoClient:
+class TrignoClient(QObject):
     """
     DelsysClient interfaces with the Delsys SDK server via its TCP sockets.
     Handles device management and data streaming
@@ -93,6 +98,7 @@ class TrignoClient:
         "n_sensors",
         "sensor_meta",
         "start_time",
+        "last_frame_time",
         "_done_streaming",
         "_worker_thread",
         "backwards_compatibility",
@@ -109,7 +115,17 @@ class TrignoClient:
 
     AVANTI_MODES = AVANTI_MODES
 
+    CHANNEL_LABELS = [CHANNEL_LABEL]
+
+    INPUT_KIND = "Trigno"
+
+    DEFAULT_BASE_RANGE = (0, 0.001)
+    DEFAULT_TARGET_RANGE = (0.004, 0.1)
+
+    discover_devices_signal = Signal()
+
     def __init__(self, host_ip: str = IP_ADDR):
+        super().__init__()
         self.connected = False
         self.host_ip = host_ip
         self._init_state()
@@ -125,20 +141,24 @@ class TrignoClient:
         self.sensor_meta: Dict[str, EMGSensorMeta] = {}  # Mapping[serial, meta]
 
         self.start_time = 0.0
+        self.last_frame_time: float | None = None
         self._done_streaming = threading.Event()
         self._worker_thread: threading.Thread | None = None
 
+        self.moving_average_buffers = [deque() for _ in range(17)]
+        """
+        Each deque contains the array for a specific sensor.
+        1-indexed, just like self.sensor.
+        """
+
+        self.previous_moving_averages: list[float | None] = [None] * 17
+        """
+        Stores the previous moving averages for each sensor.
+        1-indexed.
+        """
+
     def __call__(self, cmd: str):
         return self.send_cmd(cmd)
-
-    def __repr__(self):
-        return "<{_class} @{_id:x} {_attrs}>".format(
-            _class=self.__class__.__name__,
-            _id=id(self) & 0xFFFFFF,
-            _attrs=" ".join(
-                "{}={!r}".format(k, getattr(self, k)) for k in sorted(self.__slots__)
-            ),
-        )
 
     def __getitem__(self, idx: int):
         return self.sensors[idx]
@@ -146,7 +166,9 @@ class TrignoClient:
     def __len__(self) -> int:
         return len(self.sensors)
 
-    def disconnect(self):
+    def close_connection(self):
+        # It would be simply called "disconnect",
+        # but since we inherit from QObject, that name's taken.
         self.stop_stream()
         self.command_sock.close()
         self.emg_data_sock.close()
@@ -154,7 +176,7 @@ class TrignoClient:
         self.connected = False
         _print("Disconnected")
 
-    def connect(self) -> str:
+    def open_connection(self) -> str:
         """Called once during init to setup base station.
 
         Set little endian
@@ -179,6 +201,7 @@ class TrignoClient:
                 return err_str
 
         self.connected = True
+        self.discover_devices_signal.emit()
         cmd = lambda _cmd: self.send_cmd(_cmd).decode()
 
         # Change settings
@@ -194,6 +217,7 @@ class TrignoClient:
         # expected maximum samples per frame for EMG channels. Divide by the frame interval to get expected EMG sample rate
         self.max_samples_emg = float(cmd("MAX SAMPLES EMG?"))
         self.emg_sample_rate = self.max_samples_emg / self.frame_interval
+        self.emg_sample_interval = 1 / self.emg_sample_rate
 
         # expected maximum samples per frame for AUX channels. Divide by the frame interval to get the expected AUX samples rate
         self.max_samples_aux = float(cmd("MAX SAMPLES AUX?"))
@@ -281,12 +305,6 @@ class TrignoClient:
         self.command_sock.send(b"\r\n")
         return [recv(self.command_sock) for _ in cmds]
 
-    def start_stream(self):
-        assert self.connected
-        self.send_cmd("START")
-        self.start_time = default_timer()
-        self._done_streaming.clear()
-
     def stop_stream(self):
         self._done_streaming.set()
         self._worker_thread and self._worker_thread.join()
@@ -298,41 +316,50 @@ class TrignoClient:
         Receive one EMG frame
         """
         buf = recv_sz(self.emg_data_sock, 4 * 16)  # 16 devices, 4 byte float
+        self.last_frame_time += self.emg_sample_interval
         return struct.unpack("<ffffffffffffffff", buf)
 
-    def handle_stream(self, queue: Queue[Tuple[float]], savedir: Path):
+    def start_stream(self, queue: Queue[Packet]):
         """
         If `queue` is passed, append data into the queue.
         If `savedir` is passed, write to `savedir/sensor_EMG.csv`.
-            Also persist metadata in `savedir` before and after stream
         """
         assert self.connected
-        self.start_stream()
-        self.save_meta(savedir / "trigno_meta.json")
+
+        self.send_cmd("START")
+        self.start_time = default_timer()
+        self.last_frame_time = self.start_time
+        self._done_streaming.clear()
+
         self._worker_thread = threading.Thread(
-            target=self.stream_worker, args=(queue, savedir)
+            target=self.stream_worker, args=[queue]
         )
         self._worker_thread.start()
 
-    def stream_worker(self, queue: Queue[Tuple[float]], savedir: Path = None):
+    def stream_worker(self, queue: Queue[Packet]):
         """
         Stream worker calls `recv_emg` continuously until `self.streaming = False`
         """
-        if not savedir:
-            while not self._done_streaming.is_set():
-                queue.put(self.recv_emg())
-        else:
-            with open(Path(savedir) / "trigno_emg.csv", "w") as fp:
-                while not self._done_streaming.is_set():
-                    try:
-                        emg = self.recv_emg()
-                    except struct.error as e:
-                        _print("Failed to parse packet", e)
-                        continue
-                    queue.put(emg)
-                    fp.write(",".join([str(v) for v in emg]) + "\n")
+        connected_sensors = [sensor for sensor in self.sensors if sensor is not None]
 
-            self.save_meta(savedir / "trigno_meta.json")
+        while not self._done_streaming.is_set():
+            try:
+                emg = self.recv_emg()
+            except struct.error as e:
+                _print("Failed to parse packet", e)
+                continue
+
+            for sensor in connected_sensors:
+                reading = abs(emg[sensor.start_idx - 1])
+
+                packet = Packet(
+                    time=self.last_frame_time,
+                    device_name=str(sensor.start_idx),
+                    channel_readings={
+                        CHANNEL_LABEL: reading
+                    }
+                )
+                queue.put(packet)
 
     def close(self):
         self.stop_stream()
@@ -374,6 +401,48 @@ class TrignoClient:
     def __del__(self):
         self.close()
 
+    def get_all_sensor_names(self) -> Sequence[str]:
+        """
+        Returns the names of the sensors added to this device manager
+        """
+        return [
+            str(sensor.start_idx)
+            for sensor in self.sensors if sensor is not None
+        ]
+
+    def get_all_sensor_serial(self) -> Sequence[str]:
+        """
+        Returns the hex serials of the sensors added to this device manager
+        """
+        return [
+            sensor.serial
+            for sensor in self.sensors if sensor is not None
+        ]
+
+    def has_sensors(self) -> bool:
+        """
+        Returns True if the device manager has sensors added.
+        """
+        return any([sensor is not None for sensor in self.sensors])
+
+    @staticmethod
+    def get_channel_unit(channel: str) -> str:
+        """
+        Gets the unit for the data of a given channel.
+        """
+        if channel != CHANNEL_LABEL:
+            raise ValueError("Not a valid Trigno channel")
+        return "V"
+
+    @staticmethod
+    def get_channel_default_range(channel: str) -> tuple[float, float]:
+        """
+        Gets a reasonable range for the data of a given channel.
+        """
+        if channel != CHANNEL_LABEL:
+            raise ValueError("Not a valid Trigno channel")
+        return 0, 0.010
+
 
 def load_full_emg_meta(fpath: Path):
     with open(fpath, "r") as fp:
@@ -383,10 +452,3 @@ def load_full_emg_meta(fpath: Path):
 if __name__ == "__main__":
     dm = TrignoClient()
     print(dm)
-    breakpoint()
-
-    dm.start_stream()
-    while True:
-        buf = dm.recv_emg()
-        if any(buf):
-            print(buf)
