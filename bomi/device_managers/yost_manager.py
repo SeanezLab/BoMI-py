@@ -101,6 +101,9 @@ class YostDeviceManager(QObject):
         PacketField.YAW,
     ]
 
+    DEFAULT_BASE_RANGE = (-10, 1)
+    DEFAULT_TARGET_RANGE = (70, 80)
+
     @staticmethod
     def get_channel_unit(channel: str) -> str:
         match channel:
@@ -110,7 +113,7 @@ class YostDeviceManager(QObject):
                 raise ValueError("Not a valid Yost channel")
 
     @staticmethod
-    def get_channel_default_range(channel: str) -> tuple[int, int]:
+    def get_channel_default_range(channel: str) -> tuple[float, float]:
         match channel:
             case PacketField.ROLL | PacketField.YAW:
                 return -180, 180
@@ -321,7 +324,7 @@ def _handle_stream(
                 fps = fps_packet_counter / (now - fps_start_time)
                 fps_start_time = now
                 fps_packet_counter = 0
-                _print(f"Throughput: {fps:.2f} packets/sec")
+                #_print(f"Throughput: {fps:.2f} packets/sec")
 
     time.sleep(0.2)
 

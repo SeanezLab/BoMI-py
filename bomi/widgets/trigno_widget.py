@@ -18,9 +18,10 @@ from PySide6.QtCore import Qt
 import numpy as np
 
 from bomi.datastructure import get_savedir, DelsysBuffer
-from bomi.window_mixin import WindowMixin
+from bomi.widgets.scope_widget import ScopeWidget, ScopeConfig
+from bomi.widgets.window_mixin import WindowMixin
 
-from trigno_sdk.client import TrignoClient, EMGSensor, EMGSensorMeta
+from bomi.device_managers.trigno.client import TrignoClient, EMGSensor, EMGSensorMeta
 
 __all__ = ("TrignoClient", "TrignoWidget", "MUSCLES")
 
@@ -163,7 +164,8 @@ class EMGScope(qw.QWidget, WindowMixin):
         self.timer.timeout.connect(self.update)  # type: ignore
 
     def showEvent(self, event: qg.QShowEvent) -> None:
-        self.dm.handle_stream(self.queue, savedir=self.savedir)
+        self.dm.start_stream(self.queue)
+        self.dm.save_meta(self.savedir / "trigno_meta.json")
         self.timer.start()
         return super().showEvent(event)
 
@@ -171,6 +173,7 @@ class EMGScope(qw.QWidget, WindowMixin):
         with pg.BusyCursor():
             self.timer.stop()
             self.dm.stop_stream()
+            self.dm.save_meta(self.savedir / "trigno_meta.json")
         return super().closeEvent(event)
 
     def update(self):
@@ -280,7 +283,7 @@ class TrignoWidget(qw.QWidget, WindowMixin):
 
         self.trigno_client = trigno_client if trigno_client else TrignoClient()
         #self.meta_path = Path("emg_meta.json") #orignial startreact
-        self.meta_path = Path("emg_meta_excitability.json") #excitability
+        self.meta_path = Path("emg_meta_excitability_TA.json") #excitability
         self.load_meta(self.meta_path)
 
         ### Init UI
@@ -371,9 +374,9 @@ class TrignoWidget(qw.QWidget, WindowMixin):
     def toggle_connect(self):
         with pg.BusyCursor():
             if self.trigno_client.connected:
-                self.trigno_client.disconnect()
+                self.trigno_client.close_connection()
             else:
-                err = self.trigno_client.connect()
+                err = self.trigno_client.open_connection()
                 if err:
                     self.error_dialog(err)
 
@@ -415,11 +418,17 @@ class TrignoWidget(qw.QWidget, WindowMixin):
             )
 
         try:
-            self.scope = EMGScope(self.trigno_client, get_savedir("EMGScope"))
-            self.scope.show()
-        except EMGLayoutError as e:
-            self.error_dialog(str(e))
-            self.trigno_client.stop_stream()
+            self._sw = ScopeWidget(
+                self.trigno_client,
+                get_savedir("Scope"),
+                ScopeConfig(
+                    input_channels_visibility={
+                        channel: True for channel in self.trigno_client.CHANNEL_LABELS
+                    },
+                    yrange=self.trigno_client.get_channel_default_range(self.trigno_client.CHANNEL_LABELS[0])
+                )
+            )
+            self._sw.showMaximized()
         except Exception as e:
             _print(traceback.format_exc())
             self.trigno_client.stop_stream()

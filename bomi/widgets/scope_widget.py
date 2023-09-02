@@ -15,8 +15,8 @@ import PySide6.QtWidgets as qw
 from pyqtgraph.parametertree.parameterTypes import ActionParameter
 from pyqtgraph.parametertree.parameterTypes.basetypes import Parameter
 
-from bomi.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
-from bomi.datastructure import MultichannelBuffer, SubjectMetadata, Packet
+from bomi.widgets.base_widgets import TaskEvent, TaskDisplay, generate_edit_form
+from bomi.datastructure import MultichannelBuffer, SubjectMetadata, Packet, AveragedMultichannelBuffer
 from bomi.device_managers.protocols import (
     SupportsStreaming,
     SupportsGetSensorMetadata,
@@ -25,7 +25,7 @@ from bomi.device_managers.protocols import (
     SupportsGetChannelMetadata
 )
 import bomi.colors as bcolors
-from trigno_sdk.client import TrignoClient
+from bomi.device_managers.trigno.client import TrignoClient
 
 
 def _print(*args):
@@ -53,10 +53,10 @@ class ScopeConfig:
     show_scope_params: bool = True
 
     target_show: bool = False
-    target_range: Tuple[float, float] = (70, 80)
+    target_range: Tuple[float, float] = (-50, 50)
 
     base_show: bool = False
-    base_range: Tuple[float, float] = (-10, 1)
+    base_range: Tuple[float, float] = (-6, -3)
 
     xrange: Tuple[float, float] = (-6, 0)
     yrange: Tuple[float, float] = (-180, 180)
@@ -173,6 +173,9 @@ class TaskState(Enum):
 
 
 class ScopeWidget(qw.QWidget):
+    """
+    A widget that plots the data from a selected device manager in real time.
+    """
     class ScopeWidgetDeviceManager(
         SupportsStreaming,
         SupportsGetSensorMetadata,
@@ -198,8 +201,13 @@ class ScopeWidget(qw.QWidget):
         config: ScopeConfig,
         selected_sensor_name: str | Ellipsis = ...,
         task_widget: TaskDisplay = None,
-        trigno_client: TrignoClient = None,
+        trigno_client: TrignoClient | None = None,
     ):
+        """
+        @param selected_sensor_name If using ScopeWidget for a StartReact experiment,
+        pass the name of the sensor that will be used to determine if the participant is inside the target region.
+        Otherwise, pass Ellipsis (...).
+        """
         super().__init__()
         self.setWindowTitle(config.window_title)
         self.dm = dm
@@ -208,15 +216,16 @@ class ScopeWidget(qw.QWidget):
         self.task_widget = task_widget
         self.config = config
 
-        if trigno_client and trigno_client.n_sensors:
-            self.trigno_client = trigno_client
-        else:
-            self.trigno_client = None
+        self.trigno_client = trigno_client
+        if self.trigno_client is not None and self.trigno_client.n_sensors < 1:
+            _print(f"Warning: {self.trigno_client.n_sensors=}")
 
         self.queue: Queue[Packet] = Queue()
 
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
+        self.shown_devices: list[str] = []  # subset of dev_names for shown devices
+
         self.init_bufsize = 2500  # buffer size
         self.buffers: Dict[str, MultichannelBuffer] = {}
         self.meta = SubjectMetadata()
@@ -376,7 +385,7 @@ class ScopeWidget(qw.QWidget):
 
     ### [[[ Targets methods
     def clear_targets(self):
-        for name in self.dev_names:
+        for name in self.shown_devices:
             plot_handle = self.plot_handles[name]
             plot_handle.clear_target()
 
@@ -392,19 +401,19 @@ class ScopeWidget(qw.QWidget):
             if self.task_widget:
                 self.task_widget.sigTargetMoved.emit(target_range)
 
-            for name in self.dev_names:
+            for name in self.shown_devices:
                 self.plot_handles[name].update_target(target_range)
 
     def update_target_color(self, *args, **kwargs):
         """Handle updating target color on plot"""
-        for name in self.dev_names:
+        for name in self.shown_devices:
             self.plot_handles[name].update_target_color(*args, **kwargs)
 
     ### Targets methods ]]]
 
     ### [[[ Base methods
     def clear_base(self):
-        for name in self.dev_names:
+        for name in self.shown_devices:
             plot_handle = self.plot_handles[name]
             plot_handle.clear_base()
 
@@ -419,23 +428,23 @@ class ScopeWidget(qw.QWidget):
             if self.task_widget:
                 self.task_widget.sigBaseMoved.emit(base_range)
 
-            for name in self.dev_names:
+            for name in self.shown_devices:
                 self.plot_handles[name].update_base(base_range)
 
     def update_base_color(self, *args, **kwargs):
         """Handle updating target color on plot"""
-        for name in self.dev_names:
+        for name in self.shown_devices:
             self.plot_handles[name].update_base_color(*args, **kwargs)
 
     ### Base methods ]]]
 
     def show_hide_curve(self, name: str, show: bool):  #TODO:
         if show:
-            for dev in self.dev_names:
+            for dev in self.shown_devices:
                 handle = self.plot_handles[dev]
                 handle.plot.addCurve(handle.curves[name])
         else:
-            for dev in self.dev_names:
+            for dev in self.shown_devices:
                 handle = self.plot_handles[dev]
                 handle.plot.removeItem(handle.curves[name])
 
@@ -454,23 +463,49 @@ class ScopeWidget(qw.QWidget):
             self.queue.get()
         self.dev_names = self.dm.get_all_sensor_names()
         self.dev_sn = self.dm.get_all_sensor_serial()
-        # instead of checking everywhere if we have selected_sensor_name set,
-        # check once here and overwrite dev_names and dev_sn
+        self.shown_devices: list[str]
         if self.selected_sensor_name is not ...:
-            selected_index = self.dev_names.index(self.selected_sensor_name)
-            self.dev_sn = [self.dev_sn[selected_index]]
-            self.dev_names = [self.selected_sensor_name]
+            self.shown_devices = [self.selected_sensor_name]
+        else:
+            self.shown_devices = self.dev_names
 
-        for device_name in self.dev_names:
-            if device_name in self.buffers:  # buffer already initialized
-                continue
-            self.buffers[device_name] = MultichannelBuffer(
-                bufsize=self.init_bufsize,
-                savedir=self.savedir,
-                name=device_name,
-                input_kind=self.dm.INPUT_KIND,
-                channel_labels=self.dm.CHANNEL_LABELS
-            )
+        if isinstance(self.dm, TrignoClient):
+            # Create buffers, use moving average.
+            for device_name in self.dev_names:
+                if device_name in self.buffers:  # buffer already initialized
+                    continue
+                self.buffers[device_name] = AveragedMultichannelBuffer(
+                    bufsize=self.init_bufsize,
+                    savedir=self.savedir,
+                    name=device_name,
+                    input_kind=self.dm.INPUT_KIND,
+                    channel_labels=self.dm.CHANNEL_LABELS
+                )
+        else:
+            # Create buffers, don't use moving average.
+            for device_name in self.dev_names:
+                if device_name in self.buffers:  # buffer already initialized
+                    continue
+                self.buffers[device_name] = MultichannelBuffer(
+                    bufsize=self.init_bufsize,
+                    savedir=self.savedir,
+                    name=device_name,
+                    input_kind=self.dm.INPUT_KIND,
+                    channel_labels=self.dm.CHANNEL_LABELS
+                )
+            # Also, if Trigno is connected, add buffers for it.
+            if self.trigno_client is not None:
+                for device_name in self.trigno_client.get_all_sensor_names():
+                    if device_name in self.buffers:
+                        continue
+                    self.buffers[device_name] = MultichannelBuffer(
+                        bufsize=1,
+                        savedir=self.savedir,
+                        name=device_name,
+                        input_kind=self.trigno_client.INPUT_KIND,
+                        channel_labels=self.trigno_client.CHANNEL_LABELS
+                    )
+
 
     def init_ui(self):
         ### Init UI
@@ -489,6 +524,9 @@ class ScopeWidget(qw.QWidget):
         self.plot_handles: Dict[str, PlotHandle] = {}
         plot_style = {"color": "k"}  # label style
         for name, sn in zip(self.dev_names, self.dev_sn):
+            if name not in self.shown_devices:
+                continue
+
             plot: pg.PlotItem = glw.addPlot(row=row, col=0)
             row += 1
             plot.showAxis('right', show=True)
@@ -558,18 +596,31 @@ class ScopeWidget(qw.QWidget):
         """
         self.init_data()
 
-        dummy_queue = _DummyQueue()
-        if self.trigno_client:
-            self.trigno_client.handle_stream(dummy_queue, self.savedir)
         self.dm.start_stream(self.queue)
-        #start QTM stream
+
+        if self.trigno_client:
+            if self.trigno_client != self.dm:
+                # If using trigno as the main input, we've already started streaming.
+                # Only call trigno_client.start_stream if we're using a different kind of input.
+
+                # We pass the same queue that's used for the other data.
+                # This works because the packet structure is the same.
+                # However, there must not be a collision between any of the trigno sensor names
+                # and the main input sensor names.
+                self.trigno_client.start_stream(self.queue)
+
+            self.trigno_client.save_meta(self.savedir / "trigno_meta.json")
+
         self.timer.start()
 
     def stop_stream(self):
         """Stop the data stream and update timer"""
         self.dm.stop_stream()
-        hasattr(self, "timer") and self.timer.stop()
-        self.trigno_client and self.trigno_client.stop_stream()
+        if hasattr(self, "timer"):
+            self.timer.stop()
+        if self.trigno_client is not None:
+            self.trigno_client.stop_stream()
+            self.trigno_client.save_meta(self.savedir / "trigno_meta.json")
         #stop QTM stream
 
     def update(self):
@@ -585,7 +636,7 @@ class ScopeWidget(qw.QWidget):
             fps = self.fps_counter / interval
             self.fps_counter = 0
             self.fps_last_time = now
-            _print("FPS: ", fps)
+            #_print("FPS: ", fps)
 
         q = self.queue
         qsize = q.qsize()
@@ -595,21 +646,15 @@ class ScopeWidget(qw.QWidget):
         for _ in range(qsize):  # process current items in queue
             packet = q.get()
 
-            try:
-                buffer = self.buffers[packet.device_name]
-            except KeyError:
-                # When we select a single sensor,
-                # the device manager will still populate the queue
-                # with packets from the other sensors (not ideal).
-                # Ignore these.
-                continue
+            buffer = self.buffers[packet.device_name]
             buffer.add_packet(packet)
 
         # On successful read from queue, update curves
         now = default_timer()
-        for name in self.dev_names:
-            buf = self.buffers[name]
-            curves = self.plot_handles[name].curves
+
+        for device in self.shown_devices:
+            buf = self.buffers[device]
+            curves = self.plot_handles[device].curves
 
             x = -(now - buf.timestamp)
             for label in self.dm.CHANNEL_LABELS:
@@ -621,25 +666,25 @@ class ScopeWidget(qw.QWidget):
         if self.task_widget:
             tmin, tmax = self.target_range
             bmin, bmax = self.base_range
-            for name in self.dev_names:
-                buffer = self.buffers[name]
-                most_recent_measurement = buffer.data[self.task_widget.selected_channel][-1]
 
-                if self.last_state == TaskState.IN_TARGET:
-                    if not tmin <= most_recent_measurement <= tmax:
-                        self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_TARGET)
-                        self.last_state = TaskState.OUTSIDE
-                elif self.last_state == TaskState.IN_BASE:
-                    if not bmin <= most_recent_measurement <= bmax:
-                        self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_BASE)
-                        self.last_state = TaskState.OUTSIDE
-                else:  # Outside base and target
-                    if tmin <= most_recent_measurement <= tmax:
-                        self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_TARGET)
-                        self.last_state = TaskState.IN_TARGET
-                    elif bmin <= most_recent_measurement <= bmax:
-                        self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_BASE)
-                        self.last_state = TaskState.IN_BASE
+            buffer = self.buffers[self.selected_sensor_name]
+            most_recent_measurement = buffer.data[self.task_widget.selected_channel][-1]
+
+            if self.last_state == TaskState.IN_TARGET:
+                if not tmin <= most_recent_measurement <= tmax:
+                    self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_TARGET)
+                    self.last_state = TaskState.OUTSIDE
+            elif self.last_state == TaskState.IN_BASE:
+                if not bmin <= most_recent_measurement <= bmax:
+                    self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_BASE)
+                    self.last_state = TaskState.OUTSIDE
+            else:  # Outside base and target
+                if tmin <= most_recent_measurement <= tmax:
+                    self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_TARGET)
+                    self.last_state = TaskState.IN_TARGET
+                elif bmin <= most_recent_measurement <= bmax:
+                    self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_BASE)
+                    self.last_state = TaskState.IN_BASE
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         with pg.BusyCursor():

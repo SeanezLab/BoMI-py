@@ -1,19 +1,17 @@
-from functools import partial
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
-from PySide6.QtWidgets import QTabWidget
 
 from bomi.device_managers.yost_manager import YostDeviceManager
-from bomi.device_managers.yost_widget import YostWidget
+from bomi.widgets.yost_widget import YostWidget
 
 from bomi.device_managers.qtm_manager import QtmDeviceManager
-from bomi.device_managers.qtm_widget import QtmWidget
+from bomi.widgets.qtm_widget import QtmWidget
 
-from bomi.start_react_widget import StartReactWidget
-from bomi.window_mixin import WindowMixin
-from bomi.base_widgets import wrap_gb
+from bomi.widgets.start_react_widget import StartReactWidget
+from bomi.widgets.window_mixin import WindowMixin
+from bomi.widgets.base_widgets import wrap_gb
 
-from bomi.device_managers.trigno_widget import TrignoWidget, TrignoClient
+from bomi.widgets.trigno_widget import TrignoWidget, TrignoClient
 
 
 
@@ -77,7 +75,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
 
         ### StartReact manager group
         vbox2.addWidget(
-            wrap_gb("StartReact", StartReactWidget([self.yost_dm, self.qtm_dm], self.trigno_client))
+            wrap_gb("StartReact", StartReactWidget([self.yost_dm, self.qtm_dm, self.trigno_client], self.trigno_client))
         )
    
     def init_actions(self):
@@ -99,7 +97,7 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         self.file_menu.addActions(self.actions())
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
-        self.cursor_control.stop()
+        #self.cursor_control.stop()
         return super().closeEvent(event)
 
 
