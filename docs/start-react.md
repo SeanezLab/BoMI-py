@@ -13,11 +13,7 @@ $ conda activate bomi
 
 The BoMI window will open.
 
-![BoMI Screenshot](./img/bomi-home.png)
-
 ## 2. Connect Yost 3-Space Sensors
-
-![](./img/bomi-yost-discover.png)
 
 Make sure a Yost 3-Space Sensor or a wireless Dongle paired with a wireless sensor is connected via USB to the computer. (Using a USB connection even for a wireless sensor is recommended, as it significantly improves framerate).
 
@@ -29,7 +25,7 @@ Click **"Discover Devices"**. You should see the list of devices.
 
 ### b. Inspect real-time data
 
-Click **"Data Charts"** in the **Yost Device Manager** to bring up a scope and inspect the real-time data.
+Click **"Data charts"** in the **Yost devices** panel  to bring up a scope and inspect the real-time data.
 
 ![](./img/bomi-yost-charts.png)
 
@@ -74,7 +70,7 @@ Now you should see all the sensors that are paired with the Trigno Base Station.
 
 ### c. Inspect real-time data
 
-Click on **"Data Charts"** to open a new window to inspect the real-time data and make sure EMG placement is correct. You can change the muscle names and sides and then reopen the scope to inspect placement. The scope will automatically place different sides of the same muscle on the same row, and different muscles on different rows.
+Click on **"Data charts"** to open a new window to inspect the real-time data and make sure EMG placement is correct. You can change the muscle names and sides and then reopen the scope to inspect placement. The scope will automatically place different sides of the same muscle on the same row, and different muscles on different rows.
 
 ![](./img/bomi-trigno-charts.png)
 ![](./img/bomi-trigno-scope.png)
@@ -83,31 +79,46 @@ Click on **"Data Charts"** to open a new window to inspect the real-time data an
 
 After the Yost 3-Space Sensors and Trigno EMG Sensors are setup, we can configure StartReact.
 
-### a. Adjust volume
+### Main experiment setup
+!["Setup" panel](img/bomi-sr-setup.png)
 
-First, make sure speakers to produce the auditory and startling sound effects are plugged into the computer. Test the tone by clicking on **"Play Tone"**. Make sure you can achieve a ~115 dB sound with the volume at 100, and ~80 dB with the volume at 1.
+In this panel, first select the kind of input to use with the experiment.
 
-![](./img/bomi-sr-playtone.png)
+Then, select the sensor to use from the drop-down of available sensors.
+The experiment will only show and save data from one sensor.
 
-### b. Set StartReact configuration
+Then, select the channel to use from the drop-down of available channels.
+The experiment will use that channel's data to determine when the participant enters the target range.
+However, data from all available channels will be saved.
 
-Click on **"Configure"** to bring up a configuration dialog.
+After the channel has been selected, the Y-min and Y-max fields
+will be filled with the default values for the channel.
+Adjust the fields if necessary.
 
-![](./img/bomi-sr-config-btn.png)
+#### Additional configuration
+
+Additional configuration can be set inside **"Set config..."**.
 
 ![](./img/bomi-sr-config.png)
 
-- **Hold Time**: Amount of time one must hold the angle inside the target to count as success.
+- **Hold Time**: Amount of time one must hold inside the target to count as success.
 - **Pause Min**: Minimum pause between trials.
 - **Pause Random**: Max random pause to add on top of **Pause Min**.
 - **No. Trials per cue**: Number of trials for each cue. Since there are three cues (visual, auditory, startling), there will be 3x this number of trials in total.
-- **Angle Type**: Which angle will be used for the _StartReact_ task metrics. _**Pitch**_ has been a good one to use.
+
+### Audio calibration
+
+![](./img/bomi-sr-audio.png)
+
+Make sure speakers to produce the auditory and startling sound effects are plugged into the computer. Test the tone by clicking on **"Play tone"**. Make sure you can achieve a ~115 dB sound with the volume at 100, and ~80 dB with the volume at 1.
 
 ## 5. Run an experiment
 
-Finally, click on either StartReact task button to open the experiment interface. The interface for **"Precision"** and **"MaxROM"** are basically identical.
+Finally, click on either StartReact task button to open the experiment interface.
+The interface for **"Precision"** and **"MaxROM"** are basically identical;
+they just configure the filename and the target range size.
 
-- **"Precision"**: Precision angle matching task.
+- **"Precision"**: Precision matching task.
 - **"MaxROM"**: Max range of motion (ROM) task.
 
 ![](./img/bomi-sr-begin.png)
@@ -127,6 +138,6 @@ Click **"Ok"** to save the metadata to file.
 
 ### b. Begin Task
 
-Click **"Begin task"** to start the experiment! All raw data will be stored to disk (Yost 3-Space Sensor, Trigno EMG, task events, metadata, and configurations etc.)
+Click **"Begin task"** to start the experiment! All raw data will be stored to disk (main input, Trigno EMG, task events, metadata, and configurations etc.)
 
 ![](./img/bomi-sr-precision-begintask.png)

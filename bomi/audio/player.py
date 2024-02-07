@@ -24,7 +24,7 @@ class TonePlayer(qc.QObject):
     a QSoundEffect. s
     """
 
-    def __init__(self, freq: int = 500, duration_ms: int = 500):
+    def __init__(self, freq: int = 500, duration_ms: int = 50):
         super().__init__()
         self.tmpdir = qc.QTemporaryDir()
         assert self.tmpdir.isValid()
@@ -89,7 +89,7 @@ class AudioCalibrationWidget(qw.QWidget):
 
         self.m_playButton = qw.QPushButton()
         self.m_playButton.clicked.connect(self.play)  # type: ignore
-        self.m_playButton.setText("Play Tone")
+        self.m_playButton.setText("Play tone")
         layout.addWidget(self.m_playButton)
 
     @Slot()  # type: ignore

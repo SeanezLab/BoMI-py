@@ -1,6 +1,6 @@
 {
   "SID-69048": {
-    "muscle_name": "FHB (Flexor Hallicus Brevis)",
+    "muscle_name": "SCM (Sternocleidomastoid)",
     "side": "R"
   },
   "SID-68961": {
@@ -28,15 +28,15 @@
     "side": "R"
   },
   "SID-65658": {
-    "muscle_name": "S (Soleus)",
+    "muscle_name": "TA (Tibialis Anterior)",
     "side": "R"
   },
   "SID-65675": {
-    "muscle_name": "S (Soleus)",
+    "muscle_name": "TA (Tibialis Anterior)",
     "side": "L"
   },
   "SID-68888": {
-    "muscle_name": "FHB (Flexor Hallicus Brevis)",
+    "muscle_name": "SCM (Sternocleidomastoid)",
     "side": "L"
   },
   "SID-65632": {
@@ -48,11 +48,11 @@
     "side": "L"
   },
   "SID-65776": {
-    "muscle_name": "TA (Tibialis Anterior)",
+    "muscle_name": "S (Soleus)",
     "side": "L"
   },
   "SID-65786": {
-    "muscle_name": "TA (Tibialis Anterior)",
+    "muscle_name": "S (Soleus)",
     "side": "R"
   },
   "SID-65809": {

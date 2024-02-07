@@ -5,21 +5,9 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from timeit import default_timer
-from typing import ClassVar, NamedTuple, TextIO, Tuple
+from typing import TextIO, Tuple, Any
 
 import numpy as np
-
-
-class Packet(NamedTuple):
-    """Packet represents one streaming batch from one Yost sensor"""
-
-    pitch: float
-    yaw: float
-    roll: float
-    battery: int
-    t: float  # time
-    name: str  # device nickname
-
 
 DATA_ROOT = Path.home() / "Documents" / "BoMI Data"
 DATA_ROOT.mkdir(exist_ok=True)
@@ -45,71 +33,117 @@ class SubjectMetadata:
         return asdict(self)
 
     def to_disk(self, savedir: Path):
-        "Write metadata to `savedir`"
+        """Write metadata to `savedir`"""
         with (savedir / "meta.json").open("w") as fp:
             json.dump(asdict(self), fp, indent=2)
 
 
-class YostBuffer:
-    """Manage all data (packets) consumed from the queue
-
-    YostBuffer holds data from 1 Yost body sensor
+@dataclass(frozen=True, slots=True)
+class Packet:
+    """
+    Represents a packet of data from an individual sensor.
     """
 
-    LABELS: ClassVar = ("Roll", "Pitch", "Yaw", "abs(roll) + abs(pitch)")
-    NAME_TEMPLATE: ClassVar = "yost_sensor_{name}.csv"
+    time: float
+    """
+    The time that this packet object was created,
+    as returned by timeit.default_timer().
+    """
 
-    def __init__(self, bufsize: int, savedir: Path, name: str):
+    device_name: str
+    """
+    The name of the device that reported the data
+    in this packet.
+    """
+
+    channel_readings: dict[str, Any]
+    """
+    A dictionary of the channel readings,
+    where the keys are the device's channel labels,
+    and the values are the readings.
+    """
+
+
+class MultichannelBuffer:
+    """Manage all data (packets) consumed from the queue
+
+    MultichannelBuffer holds data from an individual sensor
+    """
+    def __init__(self, bufsize: int, savedir: Path, name: str, input_kind: str, channel_labels: list[str]):
         self.bufsize = bufsize
+        self.channel_labels = channel_labels
+
         # 1D array of timestamps
-        self.timestamp: np.ndarray = np.zeros(bufsize)
-        # 2D array of `labels`
-        self.data: np.ndarray = np.zeros((bufsize, len(self.LABELS)))
+        self.timestamp = np.zeros(bufsize)
 
-        fp = open(savedir / self.NAME_TEMPLATE.format(name=name), "w")
+        self._raw_data = np.zeros(
+            shape=(bufsize,),
+            dtype=[
+                (name, np.float64)
+                for name in channel_labels
+            ]
+        )
+        # The publicly exposed data is simply a reference to the raw data; i.e. there is no transformation applied.
+        self.data = self._raw_data
+        """
+        The buffer's data.
+        It's a structured array:
+        this allows you to get a single channel's data by indexing by that channel name,
+        e.g. buffer.data["Roll"].
+        """
 
-        # filepointer to write CSV data to
-        self.sensor_fp: TextIO = fp
+        # file pointer to write CSV data to
+        self.save_file = savedir / f"{input_kind}_{name}.csv"
+        self.sensor_fp = open(self.save_file, "w")
         # name of this device
-        self.name: str = name
+        self.name = name
 
-        self._angle_in_use: int = -1  # idx of the labelled angle in use
-        self.last_angle: float = 0.0  # angle used for task purposes
-
-        self.savedir: Path = savedir
-        header = ",".join(("t", *self.LABELS)) + "\n"
+        self.savedir = savedir
+        header = ",".join(("t", *self.channel_labels)) + "\n"
         self.sensor_fp.write(header)
 
     def __len__(self):
         return len(self.data)
 
     def __del__(self):
-        "Close open file pointers"
+        """Close open file pointers"""
         self.sensor_fp.close()
 
-    def set_angle_type(self, label: str):
-        i = self.LABELS.index(label)
-        self._angle_in_use = i
-
     def add_packet(self, packet: Packet):
-        "Add `Packet` of sensor data"
-        _packet = (
-            packet.roll,
-            packet.pitch,
-            packet.yaw,
-            abs(packet.roll) + abs(packet.pitch),
-        )
+        """Add `Packet` of sensor data"""
+        readings = tuple(packet.channel_readings[key] for key in self.channel_labels)
 
         # Write to file pointer
-        self.sensor_fp.write(",".join((str(v) for v in (packet.t, *_packet))) + "\n")
+        self.sensor_fp.write(",".join((str(v) for v in (packet.time, *readings))) + "\n")
 
-        ### Shift buffer when full, never changing buffer size
-        self.data[:-1] = self.data[1:]
-        self.data[-1] = _packet
+        # Shift buffer when full, never changing buffer size
+        self._raw_data[:-1] = self._raw_data[1:]
+        self._raw_data[-1] = readings
         self.timestamp[:-1] = self.timestamp[1:]
-        self.timestamp[-1] = packet.t
+        self.timestamp[-1] = packet.time
 
-        self.last_angle = _packet[self._angle_in_use]
+
+class AveragedMultichannelBuffer(MultichannelBuffer):
+    DEFAULT_MOVING_AVERAGE_POINTS = 1024
+    """
+    The number of points for the moving average by default.
+    If the buffer is initialized with a size lower than this,
+    the number of points for the moving average will be the size.
+    """
+
+    def __init__(self, bufsize: int, savedir: Path, name: str, input_kind: str, channel_labels: list[str]):
+        super().__init__(bufsize, savedir, name, input_kind, channel_labels)
+        self.data = self._raw_data.copy()
+        self.moving_average_points = min(self.bufsize, self.DEFAULT_MOVING_AVERAGE_POINTS)
+
+    def add_packet(self, packet: Packet):
+        super().add_packet(packet)
+
+        moving_average_slice = self._raw_data[-self.moving_average_points:]
+        averages = tuple(moving_average_slice[col_name].mean() for col_name in moving_average_slice.dtype.names)
+
+        self.data[:-1] = self.data[1:]
+        self.data[-1] = averages
 
 
 class DelsysBuffer:
@@ -127,7 +161,7 @@ class DelsysBuffer:
     def add_packet(self, packet: Tuple[float, ...]):
         # assert len(packet) == 16
 
-        ### Shift buffer when full, never changing buffer size
+        # Shift buffer when full, never changing buffer size
         self.data[:-1] = self.data[1:]
         self.data[-1] = packet
         self.timestamp[:-1] = self.timestamp[1:]
@@ -136,14 +170,10 @@ class DelsysBuffer:
     def add_packets(self, packets: np.ndarray):
         n = len(packets)
 
-        ### Shift buffer when full, never changing buffer size
         self.data[:-n] = self.data[n:]
         self.data[-n:] = packets
         self.timestamp[:-n] = self.timestamp[n:]
         self.timestamp[-n:] = [default_timer()] * n
-
-    
-#TODO: #add class for QTM here?
 
 
 if __name__ == "__main__":

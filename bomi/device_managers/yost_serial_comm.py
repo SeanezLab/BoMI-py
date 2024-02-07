@@ -13,18 +13,31 @@ from typing import Dict, List, Optional, Tuple
 from queue import Queue
 from timeit import default_timer
 import math
+from enum import Enum
 
 from serial import Serial
 import struct
 
-from bomi.datastructure import Packet
 from .yost_cmds import Cmd, Cmds, WLCmds
+from bomi.datastructure import Packet
 
 RAD2DEG = 180 / math.pi
 
 
 def _print(*args):
     print("[Yost custom serial comm]", *args)
+
+
+class PacketField(str, Enum):
+    PITCH = "Pitch"
+    YAW = "Yaw"
+    ROLL = "Roll"
+    BATTERY = "Battery"
+    TIME = "Time"
+    NAME = "Name"
+
+    def __str__(self):
+        return self.value
 
 
 class Dongles:
@@ -107,15 +120,13 @@ class Dongles:
             failed, logical_id, raw = read_dongle_port(port)
             if failed == 0 and raw and len(raw) == self.out_sz:
                 b = struct.unpack(self.out_struct, raw)
-                packet = Packet(
-                    pitch=b[0] * RAD2DEG,
-                    yaw=b[1] * RAD2DEG,
-                    roll=b[2] * RAD2DEG,
-                    battery=b[3],
-                    t=now,
-                    name=wl_mp[logical_id],
-                )
-                queue.put(packet)
+                channel_readings = {
+                    PacketField.PITCH: b[0] * RAD2DEG,
+                    PacketField.YAW: b[1] * RAD2DEG,
+                    PacketField.ROLL: b[2] * RAD2DEG,
+                    PacketField.BATTERY: b[3],
+                }
+                queue.put(Packet(now, wl_mp[logical_id], channel_readings))
                 i += 1
         return i
 
@@ -192,15 +203,13 @@ class WiredSensors:
         for port, name in zip(self.ports, self.names):
             raw = port.read(self.out_sz)
             b = struct.unpack(self.out_struct, raw)
-            packet = Packet(
-                pitch=b[0] * RAD2DEG,
-                yaw=b[1] * RAD2DEG,
-                roll=b[2] * RAD2DEG,
-                battery=b[3],
-                t=now,
-                name=name,
-            )
-            queue.put(packet)
+            channel_readings = {
+                PacketField.PITCH: b[0] * RAD2DEG,
+                PacketField.YAW: b[1] * RAD2DEG,
+                PacketField.ROLL: b[2] * RAD2DEG,
+                PacketField.BATTERY: b[3],
+            }
+            queue.put(Packet(now, name, channel_readings))
             i += 1
         return i
 
