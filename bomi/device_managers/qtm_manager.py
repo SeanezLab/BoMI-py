@@ -8,6 +8,7 @@ from bomi.device_managers.analog_streaming_client import Channel
 
 
 def _print(*args):
+
     print("[QTM]", *args)
 
 
@@ -20,9 +21,12 @@ class QtmDeviceManager(QObject):
     discover_devices_signal = Signal()
 
     CHANNEL_LABELS = [
+
         Channel.TORQUE,
         Channel.VELOCITY,
         Channel.POSITION,
+        Channel.TRIGGER,
+        
     ]
 
     INPUT_KIND = "QTM"
@@ -36,6 +40,8 @@ class QtmDeviceManager(QObject):
                 return "deg/s"
             case Channel.POSITION:
                 return "deg"
+            case Channel.TRIGGER:
+                return "V"
             case _:
                 raise ValueError("Not a valid QTM channel")
 
@@ -47,6 +53,8 @@ class QtmDeviceManager(QObject):
             case Channel.VELOCITY:
                 return -40, 40
             case Channel.POSITION:
+                return -60, 60
+            case Channel.TRIGGER:
                 return -60, 60
             case _:
                 raise ValueError("Not a valid QTM channel")
@@ -117,6 +125,7 @@ class QtmDeviceManager(QObject):
                 ),
             )
             self._thread.start()
+
 
     def stop_stream(self) -> None:
         """

@@ -102,13 +102,22 @@ class MultichannelBuffer:
 
     def add_packet(self, packet: Packet):
         """Add `Packet` of sensor data"""
-        readings = tuple(packet.channel_readings[key] for key in self.channel_labels)
+        #readings = tuple(packet.channel_readings[key] for key in self.channel_labels)
+        #Code below is expanded one line of readings
+        readings = ()
+        for key in self.channel_labels:
+           value = packet.channel_readings[key]
+           readings += (value,)
+        ##
 
         # Write to file pointer
         self.sensor_fp.write(",".join((str(v) for v in (packet.time, *readings))) + "\n")
-
+  
         # Shift buffer when full, never changing buffer size
+        #INSTEAD OF ONE YOU'D SHIFT HOW MANY SAMPLES IN A FRAME, LIKE 128 FOR 100
+        #HOW LONG ARE YYOU
         self.data[:-1] = self.data[1:]
+        #print(self.data[1])
         self.data[-1] = readings
         self.timestamp[:-1] = self.timestamp[1:]
         self.timestamp[-1] = packet.time

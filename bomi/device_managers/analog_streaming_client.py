@@ -16,7 +16,8 @@ class Channel(str, Enum):
     TORQUE = "Torque"
     VELOCITY = "Velocity"
     POSITION = "Position"
-
+    TRIGGER = "Trigger"
+    
     def __str__(self):
         return self.value
 
@@ -35,6 +36,7 @@ class ConversionFactors():
         self.torque_conv = (1/0.0781) * (1.3558179483)
         self.velocity_conv = (1/0.1563)
         self.position_conv = (1/0.0292)
+        self.trigger_conv = 1000 #convert V to mV
 
 def _print(*args):
     print("[QTM]", *args)
@@ -45,17 +47,68 @@ def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: 
     """
     def on_packet(packet):
         """
-        Pulls data from QTM, creates dictionary of packets {Torque:, Velocity, Position, Time}
+        Pulls data from QTM, creates dictionary of packets {Torque, Velocity, Position, Time}
         Converts QTM analog signal to correct units before adding to dictionary
         """
         info, data = packet.get_analog() #get analog data from qtm, from qtm sdk commands
+
         if len(data) > 0:
-            channel_readings = {}
-            for i, channel in enumerate(Channel):
-                channel_readings[channel] = recv_conv(data[i][2][0][0], channel)
-            q_analog.put(Packet(timeit.default_timer(), "QTM", channel_readings))
+            #print("boop----------------------")
+            analog_out = list(data[0][2][0])
+            data_out = {}
+            torque = []
+            velocity = []
+            position = []
+            trigger = []
+            for x,j in enumerate(analog_out):
+                # Modifies sampling rate
+                if x % 1 == 0:
+                    #print("index", x, "value", j) # Outer loop gets the number of readings per frame, x gives the index with a single frame, j gives the value
+                    #for i in channels:
+                    for i, channel in enumerate(Channel):
+                        #i = 0,1,2,3
+                        if i == 0:
+                            data_all = list(data[0][2][0])
+                            data_all_elements = []
+                            
+                            data_all_elements.append(recv_conv(data_all[x], channel))
+                            
+                            if channel == Channel.TORQUE:
+                                torque.append(recv_conv(data_all[x], channel))
+                           
+                        else:
+                            data_all = list(data[i][2][0])
+                            data_all_elements.append(recv_conv(data_all[x], channel))
+
+                            if channel == Channel.VELOCITY:
+                                velocity.append(recv_conv(data_all[x], channel))
+                            if channel == Channel.POSITION:
+                                position.append(recv_conv(data_all[x], channel))
+                            if channel == Channel.TRIGGER:
+                                trigger.append(recv_conv(data_all[x], channel))
+                                                    
+                    keys = [Channel.TORQUE, Channel.POSITION, Channel.VELOCITY, Channel.TRIGGER]
+                    my_dict = dict(zip(keys, data_all_elements))
+
+                    q_analog.put(Packet(timeit.default_timer(), "QTM", my_dict)) 
+                    
+            all_data = [torque, velocity, position, trigger]
+            keys2 = [Channel.TORQUE, Channel.POSITION, Channel.VELOCITY, Channel.TRIGGER]
+            dict2 = dict(zip(keys2, all_data)) #creates dictionary with each value is a list of all values
+
+            #q_analog.put(Packet(timeit.default_timer(), "QTM", dict2))
         else:
             _print("Empty data from packet")
+
+                  
+        # if len(data) > 0:
+        #     channel_readings = {}
+        #     for i, channel in enumerate(Channel):
+        #         #print("CHANNEL", channel)
+        #         channel_readings[channel] = recv_conv(data[i][2][0][0], channel)
+        #     q_analog.put(Packet(timeit.default_timer(), "QTM", channel_readings))
+        # else:
+        #     _print("Empty data from packet")
 
     async def get_frames_from_qtm():
         """
@@ -105,6 +158,8 @@ def recv_conv(data, channel: Channel):
             return data * factors.velocity_conv
         case Channel.POSITION:
             return data * factors.position_conv
+        case Channel.TRIGGER:
+            return data *factors.trigger_conv
         case _:
             raise ValueError("Not a valid QTM channel")
 
@@ -136,8 +191,8 @@ def get_channel_number(IPaddress: str, port: int, version: str):
         param = await connection.get_parameters(parameters=["analog"])
 
         xml = ET.fromstring(param)
-        #print(xml[0][0][2].text) #Gets number of analog channels
-        #print(xml[0][0][5][0].text) #Gets name of channels
+        print(xml[0][0][2].text) #Gets number of analog channels
+        print(xml[0][0][5][0].text) #Gets name of channels
         #Gets name of channels
         channel_list = []
         for x in xml[0][0].findall('Channel'):
