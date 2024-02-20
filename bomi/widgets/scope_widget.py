@@ -226,7 +226,7 @@ class ScopeWidget(qw.QWidget):
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
         self.shown_devices: list[str] = []  # subset of dev_names for shown devices
 
-        self.init_bufsize = 2500  # buffer size
+        self.init_bufsize = 10000  # changed to display more data
         self.buffers: Dict[str, MultichannelBuffer] = {}
         self.meta = SubjectMetadata()
 
@@ -596,7 +596,7 @@ class ScopeWidget(qw.QWidget):
         """
         self.init_data()
 
-        self.dm.start_stream(self.queue)
+        self.dm.start_stream(self.queue, self.savedir)
 
         if self.trigno_client:
             if self.trigno_client != self.dm:
@@ -607,7 +607,7 @@ class ScopeWidget(qw.QWidget):
                 # This works because the packet structure is the same.
                 # However, there must not be a collision between any of the trigno sensor names
                 # and the main input sensor names.
-                self.trigno_client.start_stream(self.queue)
+                self.trigno_client.start_stream(self.queue, self.savedir)
 
             self.trigno_client.save_meta(self.savedir / "trigno_meta.json")
 

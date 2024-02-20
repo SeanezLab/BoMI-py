@@ -319,7 +319,7 @@ class TrignoClient(QObject):
         self.last_frame_time += self.emg_sample_interval
         return struct.unpack("<ffffffffffffffff", buf)
 
-    def start_stream(self, queue: Queue[Packet]):
+    def start_stream(self, queue: Queue[Packet], savedir: Path):
         """
         If `queue` is passed, append data into the queue.
         If `savedir` is passed, write to `savedir/sensor_EMG.csv`.
@@ -332,35 +332,43 @@ class TrignoClient(QObject):
         self._done_streaming.clear()
 
         self._worker_thread = threading.Thread(
-            target=self.stream_worker, args=[queue]
+            target=self.stream_worker, args=(queue, savedir)
         )
         self._worker_thread.start()
 
-    def stream_worker(self, queue: Queue[Packet]):
+    def stream_worker(self, queue: Queue[Packet], savedir: Path = None):
         """
         Stream worker calls `recv_emg` continuously until `self.streaming = False`
         """
         connected_sensors = [sensor for sensor in self.sensors if sensor is not None]
 
-        while not self._done_streaming.is_set():
-            try:
-                emg = self.recv_emg()
-            except struct.error as e:
-                _print("Failed to parse packet", e)
-                continue
+        with open(Path(savedir) / "rawTrigno_emg.csv", "w") as fp:
+            #rawTrigno_emg.csv is unfiltered not rectified raw data
 
-            for sensor in connected_sensors:
-                reading = abs(emg[sensor.start_idx - 1])
+            while not self._done_streaming.is_set():
+                try:
+                    emg = self.recv_emg()
+                except struct.error as e:
+                    _print("Failed to parse packet", e)
+                    continue
+                
+                #THIS SAVES TO rawTrigno_emg.csv
+                fp.write(",".join([str(v) for v in emg]) + "\n")
 
-                packet = Packet(
-                    time=self.last_frame_time,
-                    device_name=str(sensor.start_idx),
-                    channel_readings={
-                        CHANNEL_LABEL: reading
-                    }
-                )
-                queue.put(packet)
+                for sensor in connected_sensors:
+                    #THIS ABS() IS WHAT RECTIFIES THE RAW DATA AND IS SENT TO PLOTTING AND SAVING 'Trigno_1.csv'
+                    reading = abs(emg[sensor.start_idx - 1])
 
+                    packet = Packet(
+                        time=self.last_frame_time,
+                        device_name=str(sensor.start_idx),
+                        channel_readings={
+                            CHANNEL_LABEL: reading
+                        }
+                    )
+                    queue.put(packet)
+
+                
     def close(self):
         self.stop_stream()
         if self.connected:

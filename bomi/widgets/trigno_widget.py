@@ -164,7 +164,7 @@ class EMGScope(qw.QWidget, WindowMixin):
         self.timer.timeout.connect(self.update)  # type: ignore
 
     def showEvent(self, event: qg.QShowEvent) -> None:
-        self.dm.start_stream(self.queue)
+        self.dm.start_stream(self.queue, self.savedir)
         self.dm.save_meta(self.savedir / "trigno_meta.json")
         self.timer.start()
         return super().showEvent(event)
