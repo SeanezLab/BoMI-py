@@ -5,6 +5,7 @@ from typing import Iterable
 from threading import Event, Thread
 from PySide6.QtCore import Signal, QObject
 from bomi.device_managers.qtm_streaming_client import Channel
+from pathlib import Path
 
 
 def _print(*args):
@@ -100,7 +101,7 @@ class QtmDeviceManager(QObject):
         """
         return ["QTM"]
 
-    def start_stream(self, queue: Queue[Packet]) -> None:
+    def start_stream(self, queue: Queue[Packet], savedir: Path = None) -> None:
         """
         Start streaming data to the passed in queue
         """
