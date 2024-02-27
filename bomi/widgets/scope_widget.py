@@ -226,7 +226,7 @@ class ScopeWidget(qw.QWidget):
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
         self.shown_devices: list[str] = []  # subset of dev_names for shown devices
 
-        self.init_bufsize = 10000  # changed to display more data
+        self.init_bufsize = 2500  # changed to display more data
         self.buffers: Dict[str, MultichannelBuffer] = {}
         self.meta = SubjectMetadata()
 
