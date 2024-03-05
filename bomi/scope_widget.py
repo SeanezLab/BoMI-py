@@ -213,11 +213,12 @@ class ScopeWidget(qw.QWidget):
         else:
             self.trigno_client = None
 
+
         self.queue: Queue[Packet] = Queue()
 
         self.dev_names: List[str] = []  # device name/nicknames
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
-        self.init_bufsize = 2500  # buffer size
+        self.init_bufsize = 5000  # buffer size
         self.buffers: Dict[str, MultichannelBuffer] = {}
         self.meta = SubjectMetadata()
 
