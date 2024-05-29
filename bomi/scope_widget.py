@@ -55,6 +55,9 @@ class ScopeConfig:
     target_show: bool = False
     target_range: Tuple[float, float] = (-50, 50)
 
+    prepared_show: bool = False
+    prepared_range: Tuple[float, float] = (-1, 1)
+
     base_show: bool = False
     base_range: Tuple[float, float] = (-6, -3)
 
@@ -70,9 +73,11 @@ class PlotHandle:
     plot: pg.PlotItem | pg.ViewBox
     curves: dict[str, pg.PlotCurveItem | pg.PlotDataItem]
     target: pg.LinearRegionItem | None
+    prepared: pg.LinearRegionItem | None
     base: pg.LinearRegionItem | None
 
     TARGET_NAME = "Target"
+    PREPARED_NAME = "Prepare"
     BASE_NAME = "Rest position"
 
     @classmethod
@@ -81,6 +86,7 @@ class PlotHandle:
         plot: pg.PlotItem,
         channel_labels: Iterable[str],
         target_range: Tuple[float, float] = None,
+        prepared_range: Tuple[float, float] = None,
         base_range: Tuple[float, float] = None,
     ) -> PlotHandle:
         """Create curves on the given plot object"""
@@ -95,13 +101,19 @@ class PlotHandle:
             else None
         )
 
+        prepared = (
+            cls.init_line_region(plot, prepared_range, label=cls.PREPARED_NAME)
+            if target_range
+            else None
+        )
+
         base = (
             cls.init_line_region(plot, base_range, label=cls.BASE_NAME)
             if base_range
             else None
         )
 
-        return PlotHandle(plot=plot, curves=curves, target=target, base=base)
+        return PlotHandle(plot=plot, curves=curves, target=target, prepared= prepared, base=base)
 
     @staticmethod
     def init_line_region(
@@ -140,6 +152,28 @@ class PlotHandle:
         """Remove the 'target' line region"""
         self.plot.removeItem(self.target)
         self.target = None
+
+    ### Target methods]]]
+        
+    ### [[[ Prepared methods
+    def update_prepared(self, prepared_range: Tuple[float, float]):
+        """Update the 'prepared' region's position"""
+        if self.prepared is None:
+            self.prepared = self.init_line_region(
+                self.plot, prepared_range, label=self.PREPARED_NAME
+            )
+        else:
+            self.prepared.lines[0].setValue(prepared_range[0])
+            self.prepared.lines[1].setValue(prepared_range[1])
+
+    def update_prepared_color(self, *args, **argv):
+        if self.prepared:
+            self.prepared.setBrush(*args, **argv)
+
+    def clear_prepared(self):
+        """Remove the 'target' line region"""
+        self.plot.removeItem(self.prepared)
+        self.prepared = None
 
     ### Target methods]]]
 
@@ -288,6 +322,31 @@ class ScopeWidget(qw.QWidget):
                         value=config.base_range[0],
                     ),
                 ],
+            ),
+            dict(
+                name="prepared",
+                title="Prepared",
+                type="group",
+                children=[
+                    dict(
+                        name="pshow",
+                        title="Show",
+                        type="bool",
+                        value=config.target_show,
+                    ),
+                    dict(
+                        name="pmax",
+                        title="Max",
+                        type="float",
+                        value=config.target_range[1],
+                    ),
+                    dict(
+                        name="pmin",
+                        title="Min",
+                        type="float",
+                        value=config.target_range[0],
+                    ),
+                ]
             ),
             dict(
                 name="show",
