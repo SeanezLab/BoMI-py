@@ -46,6 +46,7 @@ class TaskDisplay(qw.QWidget):
     sigTrialEnd: qc.SignalInstance = qc.Signal()  # type: ignore
 
     sigTargetMoved: qc.SignalInstance = qc.Signal(tuple)  # type: ignore
+    sigPreparedMoved: qc.SignalInstance = qc.Signal(tuple)  # type: ignore
     sigBaseMoved: qc.SignalInstance = qc.Signal(tuple)  # type: ignore
 
     # receive input events on state changes

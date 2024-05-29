@@ -103,7 +103,7 @@ class PlotHandle:
 
         prepared = (
             cls.init_line_region(plot, prepared_range, label=cls.PREPARED_NAME)
-            if target_range
+            if prepared_range
             else None
         )
 
@@ -299,6 +299,31 @@ class ScopeWidget(qw.QWidget):
                 ],
             ),
             dict(
+                name="prepared",
+                title="Prepared",
+                type="group",
+                children=[
+                    dict(
+                        name="pshow",
+                        title="Show",
+                        type="bool",
+                        value=config.prepared_show,
+                    ),
+                    dict(
+                        name="pmax",
+                        title="Max",
+                        type="float",
+                        value=config.prepared_range[1],
+                    ),
+                    dict(
+                        name="pmin",
+                        title="Min",
+                        type="float",
+                        value=config.prepared_range[0],
+                    ),
+                ]
+            ),
+            dict(
                 name="base",
                 title="Base",
                 type="group",
@@ -322,31 +347,6 @@ class ScopeWidget(qw.QWidget):
                         value=config.base_range[0],
                     ),
                 ],
-            ),
-            dict(
-                name="prepared",
-                title="Prepared",
-                type="group",
-                children=[
-                    dict(
-                        name="pshow",
-                        title="Show",
-                        type="bool",
-                        value=config.target_show,
-                    ),
-                    dict(
-                        name="pmax",
-                        title="Max",
-                        type="float",
-                        value=config.target_range[1],
-                    ),
-                    dict(
-                        name="pmin",
-                        title="Min",
-                        type="float",
-                        value=config.target_range[0],
-                    ),
-                ]
             ),
             dict(
                 name="show",
@@ -393,6 +393,17 @@ class ScopeWidget(qw.QWidget):
         self.params.child("target", "tmax").sigValueChanged.connect(updateTarget)
         self.params.child("target", "tmin").sigValueChanged.connect(updateTarget)
 
+        def updatePrepared(_, val):
+            # for "tshow", val is bool, for ("tmax", "tmin"), probably a value, but doesn't matter
+            if val:
+                self.update_prepared()
+            else:
+                self.clear_prepared()    
+
+        self.params.child("prepared", "pshow").sigValueChanged.connect(updatePrepared)
+        self.params.child("prepared", "pmax").sigValueChanged.connect(updatePrepared)
+        self.params.child("prepared", "pmin").sigValueChanged.connect(updatePrepared)
+
         def updateBase(_, val):
             if val:
                 self.update_base()
@@ -410,6 +421,14 @@ class ScopeWidget(qw.QWidget):
         self.target_range: Tuple[float, float] = (
             self.param_tmin.value(),
             self.param_tmax.value(),
+        )
+
+        self.param_pshow: Parameter = self.params.child("prepared", "pshow")
+        self.param_pmax: Parameter = self.params.child("prepared", "pmax")
+        self.param_pmin: Parameter = self.params.child("prepared", "pmin")
+        self.prepared_range: Tuple[float, float] = (
+            self.param_pmin.value(),
+            self.param_pmax.value(),
         )
 
         self.param_bshow: Parameter = self.params.child("base", "bshow")
@@ -461,6 +480,34 @@ class ScopeWidget(qw.QWidget):
             self.plot_handles[name].update_target_color(*args, **kwargs)
 
     ### Targets methods ]]]
+            
+    ### [[[ Prepared methods
+    def clear_prepared(self):
+        for name in self.dev_names:
+            plot_handle = self.plot_handles[name]
+            plot_handle.clear_prepared()
+
+    def update_prepared(self):
+        """Handle updating prepared position (range)"""
+        if self.param_pshow.value():
+            prepared_range = (
+                self.param_pmin.value(),
+                self.param_pmax.value(),
+            )
+            self.prepared_range = prepared_range
+
+            if self.task_widget:
+                self.task_widget.sigPreparedMoved.emit(prepared_range)
+
+            for name in self.dev_names:
+                self.plot_handles[name].update_prepared(prepared_range)
+
+    def update_prepared_color(self, *args, **kwargs):
+        """Handle updating prepared color on plot"""
+        for name in self.dev_names:
+            self.plot_handles[name].update_prepared_color(*args, **kwargs)
+
+    ### Prepared methods ]]]
 
     ### [[[ Base methods
     def clear_base(self):
@@ -549,6 +596,7 @@ class ScopeWidget(qw.QWidget):
         self.plot_handles: Dict[str, PlotHandle] = {}
         plot_style = {"color": "k"}  # label style
         for name, sn in zip(self.dev_names, self.dev_sn):
+            print(f"this is name: {name} {sn}")
             plot: pg.PlotItem = glw.addPlot(row=row, col=0)
             row += 1
             plot.showAxis('right', show=True)
@@ -603,6 +651,7 @@ class ScopeWidget(qw.QWidget):
         ### apply other config
         config = self.config
         config.target_show and self.update_targets()
+        config.prepared_show and self.update_prepared()
         config.base_show and self.update_base()
         for channel, is_visible in self.config.input_channels_visibility.items():
             self.show_hide_curve(channel, is_visible)

@@ -527,6 +527,8 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             show_scope_params=True,
             target_show=True,
             target_range=target_range,
+            prepared_show=True,
+            prepared_range=(-1, 1),
             base_show=True,
             yrange=(self.y_min, self.y_max),
         )
