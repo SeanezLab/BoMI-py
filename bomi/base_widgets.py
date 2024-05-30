@@ -54,6 +54,8 @@ class TaskDisplay(qw.QWidget):
     # receive input events on state changes
     sigTaskEventIn: qc.SignalInstance = qc.Signal(TaskEvent)  # type: ignore
 
+    sigColorRegion: qc.SignalInstance = qc.Signal(str, bool)
+
     selected_channel: str
     """
     The channel to use for the task, e.g. Roll.
