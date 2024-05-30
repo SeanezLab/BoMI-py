@@ -729,35 +729,50 @@ class ScopeWidget(qw.QWidget):
         # 2. Check if last measurement is within base range
         if self.task_widget:
             tmin, tmax = self.target_range
+            pmin, pmax = self.prepared_range
             bmin, bmax = self.base_range
             for name in self.dev_names:
                 buffer = self.buffers[name]
                 most_recent_measurement = buffer.data[self.task_widget.selected_channel][-1]
 
+
+                #### Moving from a zone of interest to anywhere outside ####
                 # If recent measurement was in target but is no longer, set state to outside
                 if self.last_state == TaskState.IN_TARGET:
                     if not tmin <= most_recent_measurement <= tmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_TARGET)
                         self.last_state = TaskState.OUTSIDE
+                        print("left target\n")
                 # If recent measurement was in base but is no longer, set state to outside
                 elif self.last_state == TaskState.IN_BASE:
                     if not bmin <= most_recent_measurement <= bmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_BASE)
                         self.last_state = TaskState.OUTSIDE
+                        print("left base\n")
                 # If recent measurement was in prepared but is no longer, set state to outside
                 elif self.last_state == TaskState.IN_PREP:
-                    if not bmin <= most_recent_measurement <= bmax:
-                        self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_BASE)
+                    if not pmin <= most_recent_measurement <= pmax:
+                        self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_PREP)
                         self.last_state = TaskState.OUTSIDE
-                else:  # Outside base and target
+                        print("Left Prep\n")
+
+                #### Moving from outside a zone of interest into one ####
+                else:
                     # Recent mesurement was outside range but is now in target
                     if tmin <= most_recent_measurement <= tmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_TARGET)
                         self.last_state = TaskState.IN_TARGET
+                        print("in target\n")
                     # Recent mesurement was outside range but is now in base
                     elif bmin <= most_recent_measurement <= bmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_BASE)
                         self.last_state = TaskState.IN_BASE
+                        print("in base\n")
+                    # Recent mesurement was outside range but is now in prepared
+                    elif pmin <= most_recent_measurement <= pmax:
+                        self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_PREP)
+                        print("in prep\n")
+                        self.last_state = TaskState.IN_PREP
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
         with pg.BusyCursor():
