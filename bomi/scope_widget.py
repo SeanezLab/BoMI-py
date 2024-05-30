@@ -35,7 +35,8 @@ def _print(*args):
 PENS = [pg.mkPen(clr, width=2) for clr in bcolors.COLORS]
 
 TARGET_BRUSH_BG = pg.mkBrush(qg.QColor(128, 128, 128, 50))
-TARGET_BRUSH_FG = pg.mkBrush(qg.QColor(254, 136, 33, 50))
+GREEN = pg.mkBrush(qg.QColor(0, 255, 0, 60))
+# TARGET_BRUSH_FG = pg.mkBrush(qg.QColor(254, 136, 33, 50))
 
 
 @dataclass
@@ -147,8 +148,12 @@ class PlotHandle:
     def update_target_color(self, is_green, *args, **argv):
         if self.target:
             if is_green:
-                self.target.setBrush(pg.mkBrush(qg.QColor(0, 255, 0, 50)))
+                print("coloring target green")
+
+                self.target.setBrush(GREEN)
             else:
+                print("coloring target gray")
+
                 self.target.setBrush(TARGET_BRUSH_BG)
 
 
@@ -175,8 +180,12 @@ class PlotHandle:
     def update_prepared_color(self, is_green, *args, **argv):
         if self.prepared:
             if is_green:
-                self.prepared.setBrush(pg.mkBrush(qg.QColor(0, 255, 0, 65)))
+                print("coloring prep green")
+
+                self.prepared.setBrush(GREEN)
             else:
+                print("coloring prep gray")
+
                 self.prepared.setBrush(TARGET_BRUSH_BG)
     
     def clear_prepared(self):
@@ -200,9 +209,11 @@ class PlotHandle:
     def update_base_color(self, is_green, *args, **argv):
         if self.base:
             if is_green:
+                print("Coloring base green")
                 self.base.setBrush(pg.mkBrush(qg.QColor(0, 255 , 0, 50)))
             else:
-                self.base.setBrush(TARGET_BRUSH_BG)
+                print("coloring base gray")
+                self.base.setBrush(GREEN)
 
             # self.base.setBrush(*args, **argv)
 
@@ -669,7 +680,8 @@ class ScopeWidget(qw.QWidget):
                 self.flash(bcolors.LIGHT_BLUE)
 
             def _trial_end():
-                self.flash(bcolors.GREEN)
+                pass
+                # self.flash(bcolors.GREEN)
 
             self.task_widget.sigTrialBegin.connect(_trial_begin)
             self.task_widget.sigTrialEnd.connect(_trial_end)
