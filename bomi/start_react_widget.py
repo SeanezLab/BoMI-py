@@ -83,6 +83,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     # States
     IDLE = SRState(color=Qt.lightGray, text="Get ready!")
+    PREP = SRState(color=bcolors.CYAN, text="Prepare!")
     GO = SRState(color=bcolors.LIGHT_BLUE, text="Reach the target!")
     SUCCESS = SRState(color=bcolors.GREEN, text="Success! Return to rest position.")
     WAIT = SRState(color=Qt.lightGray, text="Get ready!")
@@ -157,6 +158,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.timer_one_trial_end = qc.QTimer()
         self.timer_one_trial_end.setSingleShot(True)
         self.timer_one_trial_end.timeout.connect(self.one_trial_end)  # type: ignore
+        self.flex_timer = qc.QTimer()
+        self.flex_timer.setSingleShot(True)
+        self.flex_timer.timeout.connect(self.flex_timeout)  # type: ignore
 
         def _init_tone(tone_player: TonePlayer):
             tone_player.effect.setVolume(0)  # not sure why still hear this
@@ -243,6 +247,10 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.set_state(self.SUCCESS)
         if not self._trials_left:
             self.end_block()
+    
+    @qc.Slot() # type: ignore
+    def flex_timeout(self):
+        self.set_state(self.GO)
 
     def begin_block(self):
         """Begin a block of the precision control task
@@ -265,8 +273,12 @@ class SRDisplay(TaskDisplay, WindowMixin):
         random.shuffle(self._trials_left)
         random.shuffle(self._trials_left)
 
-        self.set_state(self.WAIT)
-        self.timer_one_trial_begin.start(self.get_random_wait_time())
+        if self.is_rest:
+            self.set_state(self.WAIT)
+            # Rest trial begins in rest zone, so it's okay to start timer at start of trial
+            self.timer_one_trial_begin.start(self.get_random_wait_time())
+        else:
+            self.set_state(self.PREP)
 
     def end_block(self):
         """Finish the task, reset widget to initial states"""
@@ -292,7 +304,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
         ### TAsk state indicate where the particiapnt is, taskevent indicates what they've done
         """Receive task events from the ScopeWidget"""
         if self.is_rest:
-            print(f"\nTHIS IS SELF.IS_REST: {self.is_rest}\n")
             if event == TaskEvent.ENTER_TARGET:
                 # start 3 sec timer
                 if self.curr_state == self.GO and not self.timer_one_trial_end.isActive():
@@ -317,34 +328,22 @@ class SRDisplay(TaskDisplay, WindowMixin):
             # elif event == TaskEvent.EXIT_BASE:
             # _print("Exit base")
         else:
-            print("\nNot is rest\n")
-
-            print(f"\nTHIS IS SELF.IS_REST: {self.is_rest}\n")
-            if event == TaskEvent.ENTER_PREP:
-                # start 3 sec timer
-                if self.curr_state == self.GO and not self.timer_one_trial_end.isActive():
-                    self.timer_one_trial_end.start(self.config.HOLD_TIME)
+            if event == TaskEvent.ENTER_PREP and not self.curr_state == self.SUCCESS:
+                if self._trials_left:
+                    self.timer_one_trial_begin.start(self.get_random_wait_time())
                     self.progress_animation.start()
             # _print("Enter target")
+            
+            elif event == TaskEvent.ENTER_TARGET and self.curr_state == self.GO:
+                self.one_trial_end()
 
-            elif event == TaskEvent.EXIT_TARGET:
-                pass
-                # stop timer
-                # self.timer_one_trial_end.stop()
-                # self.progress_animation.stop()
-                # self.progress_bar.setValue(0)
-                # _print("Exit target")
-
-            elif event == TaskEvent.ENTER_BASE:
-                if self.curr_state == self.SUCCESS:
-                    self.set_state(self.WAIT)
-                    if self._trials_left:
-                        self.timer_one_trial_begin.start(self.get_random_wait_time())
+            elif event == TaskEvent.ENTER_BASE and self.curr_state == self.SUCCESS:
+                    self.set_state(self.PREP)
+                    
                 # _print("Enter base")
 
             # elif event == TaskEvent.EXIT_BASE:
             # _print("Exit base")
-
 
     def emit_begin(self, event_name: str):
         self.sigTrialBegin.emit()
