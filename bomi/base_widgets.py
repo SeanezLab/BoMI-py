@@ -33,6 +33,8 @@ class TaskEvent(Enum):
     EXIT_TARGET = 2
     ENTER_BASE = 3
     EXIT_BASE = 4
+    ENTER_PREP = 5
+    EXIT_PREP = 6
 
 
 class TaskDisplay(qw.QWidget):
