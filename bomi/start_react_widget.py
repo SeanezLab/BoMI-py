@@ -460,12 +460,12 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         actions_layout = qw.QVBoxLayout()
         main_layout.addLayout(actions_layout)
 
-        btn1 = qw.QPushButton(text="Precision")
-        btn1.clicked.connect(self.s_precision_task)  # type: ignore
+        btn1 = qw.QPushButton(text="Rest")
+        btn1.clicked.connect(self.s_rest_task)  # type: ignore
         actions_layout.addWidget(btn1)
 
-        btn1 = qw.QPushButton(text="MaxROM")
-        btn1.clicked.connect(self.s_max_rom)  # type: ignore
+        btn1 = qw.QPushButton(text="Active")
+        btn1.clicked.connect(self.s_active_task)  # type: ignore
         actions_layout.addWidget(btn1)
 
         self._scope_widget = None
@@ -549,24 +549,24 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             _print(traceback.format_exc())
             self.dm.stop_stream()
 
-    def s_precision_task(self):
+    def s_rest_task(self):
         """
         Run the ScopeWidget with the precision task view
         """
 
         self.run_startreact(
-            "Precision Control",
-            "Precision",
+            "Rest Task",
+            "Rest",
             (5, 15) #target range set for torque dorsiflexion
         )
 
-    def s_max_rom(self):
+    def s_active_task(self):
         """
         Run the ScopeWidget with the MaxROM task view
         """
 
         self.run_startreact(
-            "Max Range of Motion",
-            "MaxROM",
-            (10, 30) #target range set for torque dorsiflexion
+            "Active Task",
+            "Active",
+            (5, 15) #target range set for torque dorsiflexion
         )
