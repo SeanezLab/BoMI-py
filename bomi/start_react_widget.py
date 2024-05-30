@@ -8,10 +8,12 @@ from pathlib import Path
 from timeit import default_timer
 from typing import Callable, List, NamedTuple, Tuple, Protocol
 
+import pyqtgraph as pg
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
+from PySide6.QtCore import Signal
 
 from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
 from bomi.datastructure import MultichannelBuffer, get_savedir
@@ -85,12 +87,13 @@ class SRDisplay(TaskDisplay, WindowMixin):
     IDLE = SRState(color=Qt.lightGray, text="Get ready!")
     PREP = SRState(color=bcolors.CYAN, text="Prepare!")
     GO = SRState(color=bcolors.LIGHT_BLUE, text="Reach the target!")
-    SUCCESS = SRState(color=bcolors.GREEN, text="Success! Return to rest position.")
+    SUCCESS = SRState(color=bcolors.GREEN, text="Success! Return to rest.")
     WAIT = SRState(color=Qt.lightGray, text="Get ready!")
     TASK_DONE = SRState(color=Qt.lightGray, text="All done!")
 
     BTN_START_TXT = "Begin task"
     BTN_END_TXT = "End task"
+
 
     def __init__(self, task_name: str, savedir: Path, selected_channel: str, config: SRConfig, is_rest: bool):
         "task_name will be displayed at the top of the widget"
@@ -332,13 +335,22 @@ class SRDisplay(TaskDisplay, WindowMixin):
                 if self._trials_left:
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
                     self.progress_animation.start()
+                    self.sigColorRegion.emit("target", True)
+                    self.sigColorRegion.emit("prep", False)
+
             # _print("Enter target")
             
             elif event == TaskEvent.ENTER_TARGET and self.curr_state == self.GO:
                 self.one_trial_end()
+                self.sigColorRegion.emit("base", True)
+                self.sigColorRegion.emit("target", False)
 
             elif event == TaskEvent.ENTER_BASE and self.curr_state == self.SUCCESS:
-                    self.set_state(self.PREP)
+                self.set_state(self.PREP)
+                self.sigColorRegion.emit("prep", True)
+                self.sigColorRegion.emit("base", False)
+
+                # self.sigColorRegion.emit("target", False)
                     
                 # _print("Enter base")
 

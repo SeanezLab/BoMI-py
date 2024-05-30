@@ -34,7 +34,7 @@ def _print(*args):
 
 PENS = [pg.mkPen(clr, width=2) for clr in bcolors.COLORS]
 
-TARGET_BRUSH_BG = pg.mkBrush(qg.QColor(25, 222, 193, 15))
+TARGET_BRUSH_BG = pg.mkBrush(qg.QColor(128, 128, 128, 50))
 TARGET_BRUSH_FG = pg.mkBrush(qg.QColor(254, 136, 33, 50))
 
 
@@ -78,7 +78,7 @@ class PlotHandle:
 
     TARGET_NAME = "Target"
     PREPARED_NAME = "Prepare"
-    BASE_NAME = "Rest position"
+    BASE_NAME = "Rest"
 
     @classmethod
     def init(
@@ -144,9 +144,15 @@ class PlotHandle:
             self.target.lines[0].setValue(target_range[0])
             self.target.lines[1].setValue(target_range[1])
 
-    def update_target_color(self, *args, **argv):
+    def update_target_color(self, is_green, *args, **argv):
         if self.target:
-            self.target.setBrush(*args, **argv)
+            if is_green:
+                self.target.setBrush(pg.mkBrush(qg.QColor(0, 255, 0, 50)))
+            else:
+                self.target.setBrush(TARGET_BRUSH_BG)
+
+
+            # self.target.setBrush(*args, **argv)
 
     def clear_target(self):
         """Remove the 'target' line region"""
@@ -166,10 +172,13 @@ class PlotHandle:
             self.prepared.lines[0].setValue(prepared_range[0])
             self.prepared.lines[1].setValue(prepared_range[1])
 
-    def update_prepared_color(self, *args, **argv):
+    def update_prepared_color(self, is_green, *args, **argv):
         if self.prepared:
-            self.prepared.setBrush(*args, **argv)
-
+            if is_green:
+                self.prepared.setBrush(pg.mkBrush(qg.QColor(0, 255, 0, 65)))
+            else:
+                self.prepared.setBrush(TARGET_BRUSH_BG)
+    
     def clear_prepared(self):
         """Remove the 'target' line region"""
         self.plot.removeItem(self.prepared)
@@ -179,18 +188,24 @@ class PlotHandle:
 
     ### [[[ Base methods
     def update_base(self, base_range: Tuple[float, float]):
-        """Update the 'base' region's position"""
+        """Update the 'prepared' region's position"""
         if self.base is None:
             self.base = self.init_line_region(
                 self.plot, base_range, label=self.BASE_NAME
             )
         else:
-            self.base.lines[0].setValue(base_range[0])
-            self.base.lines[1].setValue(base_range[1])
+            self.prepared.lines[0].setValue(base_range[0])
+            self.prepared.lines[1].setValue(base_range[1])
 
-    def update_base_color(self, *args, **argv):
+    def update_base_color(self, is_green, *args, **argv):
         if self.base:
-            self.base.setBrush(*args, **argv)
+            if is_green:
+                self.base.setBrush(pg.mkBrush(qg.QColor(0, 255 , 0, 50)))
+            else:
+                self.base.setBrush(TARGET_BRUSH_BG)
+
+            # self.base.setBrush(*args, **argv)
+
 
     def clear_base(self):
         """Remove the 'base' line region"""
@@ -260,6 +275,9 @@ class ScopeWidget(qw.QWidget):
         self.last_state = (
             TaskState.OUTSIDE
         )
+
+        
+        self.task_widget.sigColorRegion.connect(self.color_region)
 
         def write_meta():
             print("write_meta", self.meta.dict())
@@ -454,6 +472,15 @@ class ScopeWidget(qw.QWidget):
         self.fps_counter = 0
         self.fps_last_time = default_timer()
 
+    def color_region(self, region, is_green):
+        if region.lower() == "base":
+            self.update_base_color(is_green)
+        elif region.lower() == "prep":
+            self.update_prepared_color(is_green)
+        else:
+            self.update_target_color(is_green)
+
+
     ### [[[ Targets methods
     def clear_targets(self):
         for name in self.dev_names:
@@ -475,10 +502,10 @@ class ScopeWidget(qw.QWidget):
             for name in self.dev_names:
                 self.plot_handles[name].update_target(target_range)
 
-    def update_target_color(self, *args, **kwargs):
+    def update_target_color(self, is_green, *args, **kwargs):
         """Handle updating target color on plot"""
         for name in self.dev_names:
-            self.plot_handles[name].update_target_color(*args, **kwargs)
+            self.plot_handles[name].update_target_color(is_green, *args, **kwargs)
 
     ### Targets methods ]]]
             
@@ -503,10 +530,10 @@ class ScopeWidget(qw.QWidget):
             for name in self.dev_names:
                 self.plot_handles[name].update_prepared(prepared_range)
 
-    def update_prepared_color(self, *args, **kwargs):
+    def update_prepared_color(self, is_green, *args, **kwargs):
         """Handle updating prepared color on plot"""
         for name in self.dev_names:
-            self.plot_handles[name].update_prepared_color(*args, **kwargs)
+            self.plot_handles[name].update_prepared_color(is_green, *args, **kwargs)
 
     ### Prepared methods ]]]
 
@@ -530,10 +557,10 @@ class ScopeWidget(qw.QWidget):
             for name in self.dev_names:
                 self.plot_handles[name].update_base(base_range)
 
-    def update_base_color(self, *args, **kwargs):
+    def update_base_color(self, is_green, *args, **kwargs):
         """Handle updating target color on plot"""
         for name in self.dev_names:
-            self.plot_handles[name].update_base_color(*args, **kwargs)
+            self.plot_handles[name].update_base_color(is_green, *args, **kwargs)
 
     ### Base methods ]]]
 
@@ -742,19 +769,16 @@ class ScopeWidget(qw.QWidget):
                     if not tmin <= most_recent_measurement <= tmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_TARGET)
                         self.last_state = TaskState.OUTSIDE
-                        print("left target\n")
                 # If recent measurement was in base but is no longer, set state to outside
                 elif self.last_state == TaskState.IN_BASE:
                     if not bmin <= most_recent_measurement <= bmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_BASE)
                         self.last_state = TaskState.OUTSIDE
-                        print("left base\n")
                 # If recent measurement was in prepared but is no longer, set state to outside
                 elif self.last_state == TaskState.IN_PREP:
                     if not pmin <= most_recent_measurement <= pmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_PREP)
                         self.last_state = TaskState.OUTSIDE
-                        print("Left Prep\n")
 
                 #### Moving from outside a zone of interest into one ####
                 else:
@@ -762,16 +786,13 @@ class ScopeWidget(qw.QWidget):
                     if tmin <= most_recent_measurement <= tmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_TARGET)
                         self.last_state = TaskState.IN_TARGET
-                        print("in target\n")
                     # Recent mesurement was outside range but is now in base
                     elif bmin <= most_recent_measurement <= bmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_BASE)
                         self.last_state = TaskState.IN_BASE
-                        print("in base\n")
                     # Recent mesurement was outside range but is now in prepared
                     elif pmin <= most_recent_measurement <= pmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_PREP)
-                        print("in prep\n")
                         self.last_state = TaskState.IN_PREP
 
     def closeEvent(self, event: qg.QCloseEvent) -> None:
