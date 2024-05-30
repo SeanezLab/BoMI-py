@@ -91,11 +91,14 @@ class SRDisplay(TaskDisplay, WindowMixin):
     BTN_START_TXT = "Begin task"
     BTN_END_TXT = "End task"
 
-    def __init__(self, task_name: str, savedir: Path, selected_channel: str, config: SRConfig):
+    def __init__(self, task_name: str, savedir: Path, selected_channel: str, config: SRConfig, is_rest: bool):
         "task_name will be displayed at the top of the widget"
         super().__init__(selected_channel)
         self.config = config
         self.savedir = savedir
+
+        # Bool used to determine task set up (rest vs. active task)
+        self.is_rest = is_rest
 
         # filepointer to write task history
         self.task_history = open(savedir / "task_history.txt", "w")
@@ -286,30 +289,62 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     @qc.Slot(TaskEvent)  # type: ignore
     def handle_input_event(self, event: TaskEvent):
+        ### TAsk state indicate where the particiapnt is, taskevent indicates what they've done
         """Receive task events from the ScopeWidget"""
-        if event == TaskEvent.ENTER_TARGET:
-            # start 3 sec timer
-            if self.curr_state == self.GO and not self.timer_one_trial_end.isActive():
-                self.timer_one_trial_end.start(self.config.HOLD_TIME)
-                self.progress_animation.start()
+        if self.is_rest:
+            print(f"\nTHIS IS SELF.IS_REST: {self.is_rest}\n")
+            if event == TaskEvent.ENTER_TARGET:
+                # start 3 sec timer
+                if self.curr_state == self.GO and not self.timer_one_trial_end.isActive():
+                    self.timer_one_trial_end.start(self.config.HOLD_TIME)
+                    self.progress_animation.start()
             # _print("Enter target")
 
-        elif event == TaskEvent.EXIT_TARGET:
-            # stop timer
-            self.timer_one_trial_end.stop()
-            self.progress_animation.stop()
-            self.progress_bar.setValue(0)
-            # _print("Exit target")
+            elif event == TaskEvent.EXIT_TARGET:
+                # stop timer
+                self.timer_one_trial_end.stop()
+                self.progress_animation.stop()
+                self.progress_bar.setValue(0)
+                # _print("Exit target")
 
-        elif event == TaskEvent.ENTER_BASE:
-            if self.curr_state == self.SUCCESS:
-                self.set_state(self.WAIT)
-                if self._trials_left:
-                    self.timer_one_trial_begin.start(self.get_random_wait_time())
-            # _print("Enter base")
+            elif event == TaskEvent.ENTER_BASE:
+                if self.curr_state == self.SUCCESS:
+                    self.set_state(self.WAIT)
+                    if self._trials_left:
+                        self.timer_one_trial_begin.start(self.get_random_wait_time())
+                # _print("Enter base")
 
-        # elif event == TaskEvent.EXIT_BASE:
-        # _print("Exit base")
+            # elif event == TaskEvent.EXIT_BASE:
+            # _print("Exit base")
+        else:
+            print("\nNot is rest\n")
+
+            print(f"\nTHIS IS SELF.IS_REST: {self.is_rest}\n")
+            if event == TaskEvent.ENTER_PREP:
+                # start 3 sec timer
+                if self.curr_state == self.GO and not self.timer_one_trial_end.isActive():
+                    self.timer_one_trial_end.start(self.config.HOLD_TIME)
+                    self.progress_animation.start()
+            # _print("Enter target")
+
+            elif event == TaskEvent.EXIT_TARGET:
+                pass
+                # stop timer
+                # self.timer_one_trial_end.stop()
+                # self.progress_animation.stop()
+                # self.progress_bar.setValue(0)
+                # _print("Exit target")
+
+            elif event == TaskEvent.ENTER_BASE:
+                if self.curr_state == self.SUCCESS:
+                    self.set_state(self.WAIT)
+                    if self._trials_left:
+                        self.timer_one_trial_begin.start(self.get_random_wait_time())
+                # _print("Enter base")
+
+            # elif event == TaskEvent.EXIT_BASE:
+            # _print("Exit base")
+
 
     def emit_begin(self, event_name: str):
         self.sigTrialBegin.emit()
@@ -508,7 +543,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         return True
 
-    def run_startreact(self, task_name: str, file_suffix: str, target_range: tuple[int, int]):
+    def run_startreact(self, task_name: str, file_suffix: str, target_range: tuple[int, int], is_rest: bool):
         """
         Common code for the precision and max ROM tasks
         """
@@ -540,7 +575,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
                 self.dm,
                 selected_sensor_name=self.selected_sensor_name,
                 savedir=savedir,
-                task_widget=SRDisplay(task_name, savedir, self.selected_channel_name, self.config),
+                task_widget=SRDisplay(task_name, savedir, self.selected_channel_name, self.config, is_rest=is_rest),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )
@@ -557,7 +592,8 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Rest Task",
             "Rest",
-            (5, 15) #target range set for torque dorsiflexion
+            (5, 15), #target range set for torque dorsiflexion
+            is_rest=True
         )
 
     def s_active_task(self):
@@ -568,5 +604,6 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Active Task",
             "Active",
-            (5, 15) #target range set for torque dorsiflexion
+            (5, 15), #target range set for torque dorsiflexion
+            is_rest=False
         )
