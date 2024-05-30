@@ -204,6 +204,7 @@ class TaskState(Enum):
     OUTSIDE = 0
     IN_TARGET = 1
     IN_BASE = 2
+    IN_PREP = 3
 
 
 class ScopeWidget(qw.QWidget):
@@ -596,7 +597,6 @@ class ScopeWidget(qw.QWidget):
         self.plot_handles: Dict[str, PlotHandle] = {}
         plot_style = {"color": "k"}  # label style
         for name, sn in zip(self.dev_names, self.dev_sn):
-            print(f"this is name: {name} {sn}")
             plot: pg.PlotItem = glw.addPlot(row=row, col=0)
             row += 1
             plot.showAxis('right', show=True)
@@ -734,18 +734,27 @@ class ScopeWidget(qw.QWidget):
                 buffer = self.buffers[name]
                 most_recent_measurement = buffer.data[self.task_widget.selected_channel][-1]
 
+                # If recent measurement was in target but is no longer, set state to outside
                 if self.last_state == TaskState.IN_TARGET:
                     if not tmin <= most_recent_measurement <= tmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_TARGET)
                         self.last_state = TaskState.OUTSIDE
+                # If recent measurement was in base but is no longer, set state to outside
                 elif self.last_state == TaskState.IN_BASE:
                     if not bmin <= most_recent_measurement <= bmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_BASE)
                         self.last_state = TaskState.OUTSIDE
+                # If recent measurement was in prepared but is no longer, set state to outside
+                elif self.last_state == TaskState.IN_PREP:
+                    if not bmin <= most_recent_measurement <= bmax:
+                        self.task_widget.sigTaskEventIn.emit(TaskEvent.EXIT_BASE)
+                        self.last_state = TaskState.OUTSIDE
                 else:  # Outside base and target
+                    # Recent mesurement was outside range but is now in target
                     if tmin <= most_recent_measurement <= tmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_TARGET)
                         self.last_state = TaskState.IN_TARGET
+                    # Recent mesurement was outside range but is now in base
                     elif bmin <= most_recent_measurement <= bmax:
                         self.task_widget.sigTaskEventIn.emit(TaskEvent.ENTER_BASE)
                         self.last_state = TaskState.IN_BASE
