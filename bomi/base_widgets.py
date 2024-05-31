@@ -55,7 +55,7 @@ class TaskDisplay(qw.QWidget):
     sigTaskEventIn: qc.SignalInstance = qc.Signal(TaskEvent)  # type: ignore
 
     # Toggle the color of a region of interest green or grey
-    sigColorRegion: qc.SignalInstance = qc.Signal(str, bool)
+    sigColorRegion: qc.SignalInstance = qc.Signal(str, str)
 
     # Call screen flash for resetting colored region
     sigFlash: qc.SignalInstance = qc.Signal(object)

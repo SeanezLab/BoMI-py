@@ -484,13 +484,15 @@ class ScopeWidget(qw.QWidget):
         self.fps_counter = 0
         self.fps_last_time = default_timer()
 
-    def color_region(self, region, is_green):
+    def color_region(self, region, color):
+        color = bcolors.COLORS.get(color, None)  
+
         if region.lower() == "base":
-            self.update_base_color(is_green)
+            self.update_base_color(color)
         elif region.lower() == "prep":
-            self.update_prepared_color(is_green)
-        else:
-            self.update_target_color(is_green)        
+            self.update_prepared_color(color)
+        elif region.lower() == "target":
+            self.update_target_color(color)        
 
 
     ### [[[ Targets methods
