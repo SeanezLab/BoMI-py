@@ -56,6 +56,8 @@ class TaskDisplay(qw.QWidget):
 
     sigColorRegion: qc.SignalInstance = qc.Signal(str, bool)
 
+    sigFlash: qc.SignalInstance = qc.Signal(object)
+
     selected_channel: str
     """
     The channel to use for the task, e.g. Roll.
