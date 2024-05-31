@@ -289,6 +289,7 @@ class ScopeWidget(qw.QWidget):
 
         
         self.task_widget.sigColorRegion.connect(self.color_region)
+        self.task_widget.sigFlash.connect(self.flash)
 
         def write_meta():
             print("write_meta", self.meta.dict())
@@ -489,7 +490,7 @@ class ScopeWidget(qw.QWidget):
         elif region.lower() == "prep":
             self.update_prepared_color(is_green)
         else:
-            self.update_target_color(is_green)
+            self.update_target_color(is_green)        
 
 
     ### [[[ Targets methods
