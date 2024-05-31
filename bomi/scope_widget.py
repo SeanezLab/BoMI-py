@@ -210,10 +210,10 @@ class PlotHandle:
         if self.base:
             if is_green:
                 print("Coloring base green")
-                self.base.setBrush(pg.mkBrush(qg.QColor(0, 255 , 0, 50)))
+                self.base.setBrush(GREEN)
             else:
                 print("coloring base gray")
-                self.base.setBrush(GREEN)
+                self.base.setBrush(TARGET_BRUSH_BG)
 
             # self.base.setBrush(*args, **argv)
 
@@ -484,15 +484,13 @@ class ScopeWidget(qw.QWidget):
         self.fps_counter = 0
         self.fps_last_time = default_timer()
 
-    def color_region(self, region, color):
-        color = bcolors.COLORS.get(color, None)  
-
+    def color_region(self, region, is_green):
         if region.lower() == "base":
-            self.update_base_color(color)
+            self.update_base_color(is_green)
         elif region.lower() == "prep":
-            self.update_prepared_color(color)
-        elif region.lower() == "target":
-            self.update_target_color(color)        
+            self.update_prepared_color(is_green)
+        else:
+            self.update_target_color(is_green)
 
 
     ### [[[ Targets methods

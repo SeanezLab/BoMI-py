@@ -240,10 +240,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """
         if self._trials_left:  # check if done
             self._trials_left.pop()()
-        
-        # Color the prep region green at the start of the trial
-        if self.is_rest:
-            self.sigColorRegion.emit("prep", "GREEN")
 
     @qc.Slot()  # type: ignore
     def one_trial_end(self):
@@ -336,28 +332,32 @@ class SRDisplay(TaskDisplay, WindowMixin):
             # _print("Exit base")
         else:
             if event == TaskEvent.ENTER_PREP and not self.curr_state == self.SUCCESS:
+                print("Entered prep")
                 if self._trials_left:
                     # self.sigFlash.emit(None)
+                    print("trials left")
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
                     self.progress_animation.start()
-                    self.sigColorRegion.emit("target", "GREEN")
-                    # self.sigColorRegion.emit("prep", "GREY")
-                    # self.sigColorRegion.emit("base", "GREY")
+                    self.sigColorRegion.emit("target", True)
+                    # self.sigColorRegion.emit("prep", False)
+                    self.sigColorRegion.emit("base", False)
+                    print("Changed color")
 
 
             # _print("Enter target")
             
             elif event == TaskEvent.ENTER_TARGET and self.curr_state == self.GO:
                 self.one_trial_end()
-                self.sigColorRegion.emit("base", "GREEN")
-                self.sigColorRegion.emit("target", "GREY")
+                self.sigColorRegion.emit("base", True)
+                self.sigColorRegion.emit("target", False)
+                self.sigColorRegion.emit("prep", False)
                 self.sigFlash.emit(None)
 
 
             elif event == TaskEvent.ENTER_BASE and self.curr_state == self.SUCCESS:
                 self.set_state(self.PREP)
-                self.sigColorRegion.emit("prep", "GREEN")
-                self.sigColorRegion.emit("base", "GREY")
+                self.sigColorRegion.emit("prep", True)
+                self.sigColorRegion.emit("base", False)
                 self.sigFlash.emit(None)
 
 
