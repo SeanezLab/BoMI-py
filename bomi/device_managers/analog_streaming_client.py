@@ -31,7 +31,7 @@ class ConversionFactors():
         Position Conversion: V*(1 deg/0.0292V)
     **If you change the scaling factors on the Biodex, you need to change the conversion factors here
     """
-    TODO: "Add in all conversion factors for all scaling possiblities" 
+    # TODO: "Add in all conversion factors for all scaling possiblities" 
     def __init__(self):
         self.torque_conv = (1/0.0781) * (1.3558179483)
         self.velocity_conv = (1/0.1563)
@@ -98,7 +98,8 @@ def real_time_stream(q_analog: Queue[Packet], done: threading.Event, IPaddress: 
 
             #q_analog.put(Packet(timeit.default_timer(), "QTM", dict2))
         else:
-            _print("Empty data from packet")
+            pass
+            # _print("Empty data from packet")
 
                   
         # if len(data) > 0:
