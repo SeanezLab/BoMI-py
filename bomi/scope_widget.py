@@ -217,7 +217,6 @@ class PlotHandle:
 
             # self.base.setBrush(*args, **argv)
 
-
     def clear_base(self):
         """Remove the 'base' line region"""
         self.plot.removeItem(self.base)
@@ -489,7 +488,7 @@ class ScopeWidget(qw.QWidget):
             self.update_base_color(is_green)
         elif region.lower() == "prep":
             self.update_prepared_color(is_green)
-        else:
+        elif region.lower() == "target":
             self.update_target_color(is_green)
 
 
