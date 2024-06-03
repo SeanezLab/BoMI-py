@@ -240,6 +240,10 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """
         if self._trials_left:  # check if done
             self._trials_left.pop()()
+        
+        if not self.is_rest:
+            self.sigColorRegion("prep", True)
+            self.sigFlash.emit()
 
     @qc.Slot()  # type: ignore
     def one_trial_end(self):
@@ -304,7 +308,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     @qc.Slot(TaskEvent)  # type: ignore
     def handle_input_event(self, event: TaskEvent):
-        ### TAsk state indicate where the particiapnt is, taskevent indicates what they've done
+        ### TaskEvent indicates what event has occured most recently
         """Receive task events from the ScopeWidget"""
         if self.is_rest:
             if event == TaskEvent.ENTER_TARGET:
