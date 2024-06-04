@@ -148,16 +148,9 @@ class PlotHandle:
     def update_target_color(self, is_green, *args, **argv):
         if self.target:
             if is_green:
-                print("coloring target green")
-
                 self.target.setBrush(GREEN)
             else:
-                print("coloring target gray")
-
                 self.target.setBrush(TARGET_BRUSH_BG)
-
-
-            # self.target.setBrush(*args, **argv)
 
     def clear_target(self):
         """Remove the 'target' line region"""
@@ -180,12 +173,8 @@ class PlotHandle:
     def update_prepared_color(self, is_green, *args, **argv):
         if self.prepared:
             if is_green:
-                print("coloring prep green")
-
                 self.prepared.setBrush(GREEN)
             else:
-                print("coloring prep gray")
-
                 self.prepared.setBrush(TARGET_BRUSH_BG)
     
     def clear_prepared(self):
@@ -209,13 +198,9 @@ class PlotHandle:
     def update_base_color(self, is_green, *args, **argv):
         if self.base:
             if is_green:
-                print("Coloring base green")
                 self.base.setBrush(GREEN)
             else:
-                print("coloring base gray")
                 self.base.setBrush(TARGET_BRUSH_BG)
-
-            # self.base.setBrush(*args, **argv)
 
     def clear_base(self):
         """Remove the 'base' line region"""
@@ -680,6 +665,8 @@ class ScopeWidget(qw.QWidget):
                 if not self.task_widget.is_rest:
                     self.task_widget.sigColorRegion.emit("target", True)
                     self.task_widget.sigColorRegion.emit("prep", False)
+                else:
+                    self.task_widget.sigColorRegion.emit("target", True)
                 self.flash(bcolors.LIGHT_BLUE)
 
             def _trial_end():

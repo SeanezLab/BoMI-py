@@ -250,11 +250,13 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """Execute clean up after a trial
         If there are more cycles remaining, schedule one more
         """
-        # self.sigColorRegion.emit("target", False)
-        # self.sigFlash(None)
 
         self.emit_end()
         self.set_state(self.SUCCESS)
+        self.sigColorRegion.emit("target", False)
+        self.sigColorRegion.emit("base", True)
+        self.sigFlash.emit(None)
+
         if not self._trials_left:
             self.end_block()
     
@@ -321,33 +323,27 @@ class SRDisplay(TaskDisplay, WindowMixin):
                 if self.curr_state == self.GO and not self.timer_one_trial_end.isActive():
                     self.timer_one_trial_end.start(self.config.HOLD_TIME)
                     self.progress_animation.start()
-            # _print("Enter target")
+                    self.sigFlash.emit(None)
 
             elif event == TaskEvent.EXIT_TARGET:
                 # stop timer
                 self.timer_one_trial_end.stop()
                 self.progress_animation.stop()
                 self.progress_bar.setValue(0)
-                # _print("Exit target")
 
-            elif event == TaskEvent.ENTER_BASE:
-                if self.curr_state == self.SUCCESS:
+            elif event == TaskEvent.ENTER_BASE and self.curr_state == self.SUCCESS:
                     self.set_state(self.WAIT)
+                    self.sigColorRegion.emit("base", False)
+                    self.sigFlash.emit(None)
                     if self._trials_left:
                         self.timer_one_trial_begin.start(self.get_random_wait_time())
-                # _print("Enter base")
-
-            # elif event == TaskEvent.EXIT_BASE:
-            # _print("Exit base")
+                    
         else:
             if event == TaskEvent.ENTER_PREP and not self.curr_state == self.SUCCESS:
                 if self._trials_left:
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
                     self.progress_animation.start()
                     self.sigColorRegion.emit("base", False)
-
-
-            # _print("Enter target")
             
             elif event == TaskEvent.ENTER_TARGET and self.curr_state == self.GO:
                 self.one_trial_end()
@@ -356,20 +352,11 @@ class SRDisplay(TaskDisplay, WindowMixin):
                 self.sigColorRegion.emit("prep", False)
                 self.sigFlash.emit(None)
 
-
             elif event == TaskEvent.ENTER_BASE and self.curr_state == self.SUCCESS:
                 self.set_state(self.PREP)
                 self.sigColorRegion.emit("prep", True)
                 self.sigColorRegion.emit("base", False)
                 self.sigFlash.emit(None)
-
-
-                # self.sigColorRegion.emit("target", False)
-                    
-                # _print("Enter base")
-
-            # elif event == TaskEvent.EXIT_BASE:
-            # _print("Exit base")
 
     def emit_begin(self, event_name: str):
         self.sigTrialBegin.emit()
@@ -587,7 +574,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             show_scope_params=True,
             target_show=True,
             target_range=target_range,
-            prepared_show=True,
+            prepared_show= not is_rest,
             prepared_range=(-1, 1),
             base_show=True,
             yrange=(self.y_min, self.y_max),
