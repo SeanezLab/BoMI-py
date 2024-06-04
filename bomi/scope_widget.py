@@ -677,6 +677,9 @@ class ScopeWidget(qw.QWidget):
             layout.addWidget(self.task_widget, 1)
 
             def _trial_begin():
+                if not self.task_widget.is_rest:
+                    self.task_widget.sigColorRegion.emit("target", True)
+                    self.task_widget.sigColorRegion.emit("prep", False)
                 self.flash(bcolors.LIGHT_BLUE)
 
             def _trial_end():
@@ -697,6 +700,7 @@ class ScopeWidget(qw.QWidget):
         self.start_stream()
 
     def flash(self, color="green", duration_ms=500):
+        print("Flashing")
         self.glw.setBackground(color)
         qc.QTimer.singleShot(duration_ms, lambda: self.glw.setBackground("white"))
 

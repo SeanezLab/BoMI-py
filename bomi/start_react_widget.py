@@ -241,15 +241,18 @@ class SRDisplay(TaskDisplay, WindowMixin):
         if self._trials_left:  # check if done
             self._trials_left.pop()()
         
-        if not self.is_rest:
-            self.sigColorRegion("prep", True)
-            self.sigFlash.emit()
+        # if not self.is_rest:
+            # self.sigColorRegion.emit("target", True)
+            # self.sigFlash.emit(None)
 
     @qc.Slot()  # type: ignore
     def one_trial_end(self):
         """Execute clean up after a trial
         If there are more cycles remaining, schedule one more
         """
+        # self.sigColorRegion.emit("target", False)
+        # self.sigFlash(None)
+
         self.emit_end()
         self.set_state(self.SUCCESS)
         if not self._trials_left:
@@ -286,6 +289,8 @@ class SRDisplay(TaskDisplay, WindowMixin):
             self.timer_one_trial_begin.start(self.get_random_wait_time())
         else:
             self.set_state(self.PREP)
+            self.sigColorRegion.emit("prep", True)
+            self.sigFlash.emit(None)
 
     def end_block(self):
         """Finish the task, reset widget to initial states"""
@@ -336,16 +341,10 @@ class SRDisplay(TaskDisplay, WindowMixin):
             # _print("Exit base")
         else:
             if event == TaskEvent.ENTER_PREP and not self.curr_state == self.SUCCESS:
-                print("Entered prep")
                 if self._trials_left:
-                    # self.sigFlash.emit(None)
-                    print("trials left")
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
                     self.progress_animation.start()
-                    self.sigColorRegion.emit("target", True)
-                    # self.sigColorRegion.emit("prep", False)
                     self.sigColorRegion.emit("base", False)
-                    print("Changed color")
 
 
             # _print("Enter target")
