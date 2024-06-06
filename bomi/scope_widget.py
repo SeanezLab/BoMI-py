@@ -687,7 +687,6 @@ class ScopeWidget(qw.QWidget):
         self.start_stream()
 
     def flash(self, color="green", duration_ms=500):
-        print("Flashing")
         self.glw.setBackground(color)
         qc.QTimer.singleShot(duration_ms, lambda: self.glw.setBackground("white"))
 
