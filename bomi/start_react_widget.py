@@ -346,13 +346,13 @@ class SRDisplay(TaskDisplay, WindowMixin):
             if event == TaskEvent.ENTER_PREP and self.curr_state == self.PREP:
                 if self._trials_left:
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
-                    self.progress_animation.start()
+                    # self.progress_animation.start()
                     self.sigColorRegion.emit("base", False)
             
             elif event == TaskEvent.EXIT_PREP and self.curr_state == self.PREP:
                 self.timer_one_trial_begin.stop()
-                self.progress_animation.stop()
-                self.progress_bar.setValue(0)
+                # self.progress_animation.stop()
+                # self.progress_bar.setValue(0)
             
             elif event == TaskEvent.ENTER_TARGET and self.curr_state == self.GO:
                 self.one_trial_end()
