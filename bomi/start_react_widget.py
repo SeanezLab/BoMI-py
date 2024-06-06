@@ -47,14 +47,19 @@ class SRConfig:
     """
     Configuration for a StartReact task
     """
+    # Hold time determines how long the progress bar takes to complete
+    # and the amount of time required before the clean up method is called
+    # not sure the purpose of the latter. It's meant to determine how long
+    # the participant should stay in the target or prep regions, but the 
+    # pause constants are what really has an effect on that duration
     HOLD_TIME: int = field(
         default=250, metadata=dict(range=(50, 5000), name="Hold Time (ms)")
     )  # msec
     PAUSE_MIN: int = field(
-        default=2000, metadata=dict(range=(500, 5000), name="Pause Min (ms)")
+        default=1500, metadata=dict(range=(500, 3000), name="Pause Min (ms)")
     )  # msec
     PAUSE_RANDOM: int = field(
-        default=1000, metadata=dict(range=(0, 5000), name="Pause Random (ms)")
+        default=1500, metadata=dict(range=(0, 3000), name="Pause Random (ms)")
     )  # msec
     N_TRIALS: int = field(
         default=10, metadata=dict(range=(1, 40), name="No. Trials per cue")
@@ -211,7 +216,10 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def get_random_wait_time(self) -> int:
         "Calculate random wait time in msec"
-        return int(self.config.PAUSE_MIN + (self.config.PAUSE_RANDOM) * random.random())
+        num = int(self.config.PAUSE_MIN + (self.config.PAUSE_RANDOM) * random.random())
+        print(num)
+        return num
+        # return int(self.config.PAUSE_MIN + (self.config.PAUSE_RANDOM) * random.random())
 
     def send_visual_signal(self):
         self.emit_begin("visual")
@@ -240,10 +248,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """
         if self._trials_left:  # check if done
             self._trials_left.pop()()
-        
-        # if not self.is_rest:
-            # self.sigColorRegion.emit("target", True)
-            # self.sigFlash.emit(None)
 
     @qc.Slot()  # type: ignore
     def one_trial_end(self):
@@ -339,11 +343,16 @@ class SRDisplay(TaskDisplay, WindowMixin):
                         self.timer_one_trial_begin.start(self.get_random_wait_time())
                     
         else:
-            if event == TaskEvent.ENTER_PREP and not self.curr_state == self.SUCCESS:
+            if event == TaskEvent.ENTER_PREP and self.curr_state == self.PREP:
                 if self._trials_left:
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
                     self.progress_animation.start()
                     self.sigColorRegion.emit("base", False)
+            
+            elif event == TaskEvent.EXIT_PREP and self.curr_state == self.PREP:
+                self.timer_one_trial_begin.stop()
+                self.progress_animation.stop()
+                self.progress_bar.setValue(0)
             
             elif event == TaskEvent.ENTER_TARGET and self.curr_state == self.GO:
                 self.one_trial_end()
