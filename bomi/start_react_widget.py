@@ -211,7 +211,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
     def set_state(self, s: SRState):
         self.curr_state = s
         self.state_bg_timer.start()
-        self.setPalette(s.color)
+        # self.setPalette(s.color)
         self.center_label.setText(s.text)
 
     def get_random_wait_time(self) -> int:
