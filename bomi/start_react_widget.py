@@ -109,6 +109,13 @@ class SRDisplay(TaskDisplay, WindowMixin):
         # Bool used to determine task set up (rest vs. active task)
         self.is_rest = is_rest
 
+        # Rest timer is only used in active tasks (to avoid muscle fatigue)
+        if not self.is_rest:
+            self.rest_timer = qc.QTimer()
+            self.rest_timer.setSingleShot(True)
+            self.rest_timer.timeout.connect(self.rest_timeout) 
+            self.rest_timer.setInterval(3000)
+
         # filepointer to write task history
         self.task_history = open(savedir / "task_history.txt", "w")
         self._task_stack: List[str] = []
@@ -249,6 +256,17 @@ class SRDisplay(TaskDisplay, WindowMixin):
         if self._trials_left:  # check if done
             self._trials_left.pop()()
 
+    @qc.Slot()
+    def rest_timeout(self):
+        """This method is called when the rest_timer times out.
+        (active task only)
+        """
+        self.sigColorRegion.emit("prep", True)
+        self.sigColorRegion.emit("base", False)
+        self.sigFlash.emit(None)
+        self.set_state(self.PREP)
+
+
     @qc.Slot()  # type: ignore
     def one_trial_end(self):
         """Execute clean up after a trial
@@ -346,13 +364,10 @@ class SRDisplay(TaskDisplay, WindowMixin):
             if event == TaskEvent.ENTER_PREP and self.curr_state == self.PREP:
                 if self._trials_left:
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
-                    # self.progress_animation.start()
                     self.sigColorRegion.emit("base", False)
             
             elif event == TaskEvent.EXIT_PREP and self.curr_state == self.PREP:
                 self.timer_one_trial_begin.stop()
-                # self.progress_animation.stop()
-                # self.progress_bar.setValue(0)
             
             elif event == TaskEvent.ENTER_TARGET and self.curr_state == self.GO:
                 self.one_trial_end()
@@ -362,10 +377,10 @@ class SRDisplay(TaskDisplay, WindowMixin):
                 self.sigFlash.emit(None)
 
             elif event == TaskEvent.ENTER_BASE and self.curr_state == self.SUCCESS:
-                self.set_state(self.PREP)
-                self.sigColorRegion.emit("prep", True)
-                self.sigColorRegion.emit("base", False)
-                self.sigFlash.emit(None)
+                self.rest_timer.start()
+
+            elif event == TaskEvent.EXIT_BASE and self.curr_state == self.SUCCESS:
+                self.rest_timer.stop()
 
     def emit_begin(self, event_name: str):
         self.sigTrialBegin.emit()
