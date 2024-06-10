@@ -186,14 +186,14 @@ class PlotHandle:
 
     ### [[[ Base methods
     def update_base(self, base_range: Tuple[float, float]):
-        """Update the 'prepared' region's position"""
+        """Update the 'base' region's position"""
         if self.base is None:
             self.base = self.init_line_region(
                 self.plot, base_range, label=self.BASE_NAME
             )
         else:
-            self.prepared.lines[0].setValue(base_range[0])
-            self.prepared.lines[1].setValue(base_range[1])
+            self.base.lines[0].setValue(base_range[0])
+            self.base.lines[1].setValue(base_range[1])
 
     def update_base_color(self, is_green, *args, **argv):
         if self.base:
