@@ -52,6 +52,9 @@ class SRConfig:
     # not sure the purpose of the latter. It's meant to determine how long
     # the participant should stay in the target or prep regions, but the 
     # pause constants are what really has an effect on that duration
+    REST_TIME: int = field(
+        default=3000, metadata=dict(range=(0, 5000), name="Rest Time (ms)")
+    )
     HOLD_TIME: int = field(
         default=250, metadata=dict(range=(50, 5000), name="Hold Time (ms)")
     )  # msec
@@ -115,7 +118,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
             self.rest_timer = qc.QTimer()
             self.rest_timer.setSingleShot(True)
             self.rest_timer.timeout.connect(self.rest_timeout) 
-            self.rest_timer.setInterval(3000)
+            self.rest_timer.setInterval(self.config.REST_TIME)
 
         # filepointer to write task history
         self.task_history = open(savedir / "task_history.txt", "w")
@@ -310,10 +313,8 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
         if self.is_rest:
             self.set_state(self.IDLE)
-            # Rest trial begins in rest zone, so it's okay to start timer at start of trial
             self.sigColorRegion.emit("base", True)
             self.sigFlash.emit("white")
-            # self.timer_one_trial_begin.start(self.get_random_wait_time())
         else:
             self.set_state(self.PREP)
             self.sigColorRegion.emit("prep", True)
@@ -342,21 +343,11 @@ class SRDisplay(TaskDisplay, WindowMixin):
     def handle_input_event(self, event: TaskEvent):
         ### TaskEvent indicates what event has occured most recently
         """Receive task events from the ScopeWidget"""
+        # Rest Task
         if self.is_rest:
             if event == TaskEvent.ENTER_TARGET:
-                # start 3 sec timer (no longer used as of 6/11/2024 - ZS)
                 if self.curr_state == self.GO and not self.timer_one_trial_end.isActive():
                     self.one_trial_end()
-
-                    # self.timer_one_trial_end.start(self.config.HOLD_TIME)
-                    # self.progress_animation.start()
-                    # self.sigFlash.emit(None)
-
-            # elif event == TaskEvent.EXIT_TARGET:
-                # stop timer
-                # self.timer_one_trial_end.stop()
-                # self.progress_animation.stop()
-                # self.progress_bar.setValue(0)
 
             elif event == TaskEvent.ENTER_BASE:
                 # Initally entering base
@@ -370,14 +361,13 @@ class SRDisplay(TaskDisplay, WindowMixin):
                 # Re-entering base if left during resting period
                 elif self.curr_state == self.REST:
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
-                
 
             elif event == TaskEvent.EXIT_BASE and self.timer_one_trial_begin.isActive():
                 self.timer_one_trial_begin.stop()
-
-            
-                    
+    
+        # Active Task       
         else:
+            # Enter prep from base
             if event == TaskEvent.ENTER_PREP and self.curr_state == self.PREP:
                 if self._trials_left:
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
@@ -386,6 +376,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
             elif event == TaskEvent.EXIT_PREP and self.curr_state == self.PREP:
                 self.timer_one_trial_begin.stop()
             
+            # Enter target from prep
             elif event == TaskEvent.ENTER_TARGET and self.curr_state == self.GO:
                 self.one_trial_end()
                 self.sigColorRegion.emit("base", True)
@@ -393,10 +384,13 @@ class SRDisplay(TaskDisplay, WindowMixin):
                 self.sigColorRegion.emit("prep", False)
                 self.sigFlash.emit("white")
 
-            elif event == TaskEvent.ENTER_BASE and self.curr_state == self.SUCCESS:
+            # Enter base from target
+            elif event == TaskEvent.ENTER_BASE:
+                if self.curr_state == self.SUCCESS:
+                    self.set_state(self.REST)
                 self.rest_timer.start()
 
-            elif event == TaskEvent.EXIT_BASE and self.curr_state == self.SUCCESS:
+            elif event == TaskEvent.EXIT_BASE and self.rest_timer.isActive():
                 self.rest_timer.stop()
 
     def emit_begin(self, event_name: str):
