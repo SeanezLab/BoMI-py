@@ -668,6 +668,7 @@ class ScopeWidget(qw.QWidget):
                     self.task_widget.sigColorRegion.emit("prep", False)
                 else:
                     self.task_widget.sigColorRegion.emit("target", True)
+                    self.task_widget.sigColorRegion.emit("base", False)
                 self.flash(bcolors.GREEN)
 
             def _trial_end():

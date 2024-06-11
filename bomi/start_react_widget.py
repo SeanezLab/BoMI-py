@@ -341,22 +341,22 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """Receive task events from the ScopeWidget"""
         if self.is_rest:
             if event == TaskEvent.ENTER_TARGET:
-                # start 3 sec timer
+                # start 3 sec timer (no longer used as of 6/11/2024 - ZS)
                 if self.curr_state == self.GO and not self.timer_one_trial_end.isActive():
-                    self.timer_one_trial_end.start(self.config.HOLD_TIME)
-                    self.progress_animation.start()
-                    self.sigFlash.emit(None)
+                    self.one_trial_end()
 
-            elif event == TaskEvent.EXIT_TARGET:
+                    # self.timer_one_trial_end.start(self.config.HOLD_TIME)
+                    # self.progress_animation.start()
+                    # self.sigFlash.emit(None)
+
+            # elif event == TaskEvent.EXIT_TARGET:
                 # stop timer
-                self.timer_one_trial_end.stop()
-                self.progress_animation.stop()
-                self.progress_bar.setValue(0)
+                # self.timer_one_trial_end.stop()
+                # self.progress_animation.stop()
+                # self.progress_bar.setValue(0)
 
             elif event == TaskEvent.ENTER_BASE and self.curr_state == self.SUCCESS:
                     self.set_state(self.WAIT)
-                    self.sigColorRegion.emit("base", False)
-                    self.sigFlash.emit(None)
                     if self._trials_left:
                         self.timer_one_trial_begin.start(self.get_random_wait_time())
                     
