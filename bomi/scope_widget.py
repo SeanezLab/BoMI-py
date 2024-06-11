@@ -272,8 +272,9 @@ class ScopeWidget(qw.QWidget):
         )
 
         
-        self.task_widget.sigColorRegion.connect(self.color_region)
-        self.task_widget.sigFlash.connect(self.flash)
+        if self.task_widget:
+            self.task_widget.sigColorRegion.connect(self.color_region)
+            self.task_widget.sigFlash.connect(self.flash)
 
         def write_meta():
             print("write_meta", self.meta.dict())
