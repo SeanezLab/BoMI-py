@@ -227,10 +227,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def get_random_wait_time(self) -> int:
         "Calculate random wait time in msec"
-        num = int(self.config.PAUSE_MIN + (self.config.PAUSE_RANDOM) * random.random())
-        print(num)
-        return num
-        # return int(self.config.PAUSE_MIN + (self.config.PAUSE_RANDOM) * random.random())
+        return int(self.config.PAUSE_MIN + (self.config.PAUSE_RANDOM) * random.random())
 
     def send_visual_signal(self):
         self.emit_begin("visual")
