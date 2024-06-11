@@ -93,7 +93,8 @@ class SRDisplay(TaskDisplay, WindowMixin):
     PREP = SRState(color=bcolors.CYAN, text="Prepare!")
     GO = SRState(color=bcolors.LIGHT_BLUE, text="Reach the target!")
     SUCCESS = SRState(color=bcolors.GREEN, text="Success! Return to rest.")
-    WAIT = SRState(color=Qt.lightGray, text="Get ready!")
+    # WAIT = SRState(color=Qt.lightGray, text="Return to Rest")
+    REST = SRState(color=Qt.lightGray, text="Rest")
     TASK_DONE = SRState(color=Qt.lightGray, text="All done!")
 
     BTN_START_TXT = "Begin task"
@@ -263,7 +264,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         """
         self.sigColorRegion.emit("prep", True)
         self.sigColorRegion.emit("base", False)
-        self.sigFlash.emit(None)
+        self.sigFlash.emit("white")
         self.set_state(self.PREP)
 
 
@@ -277,7 +278,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.set_state(self.SUCCESS)
         self.sigColorRegion.emit("target", False)
         self.sigColorRegion.emit("base", True)
-        self.sigFlash.emit(None)
+        self.sigFlash.emit("white")
 
         if not self._trials_left:
             self.end_block()
@@ -308,13 +309,15 @@ class SRDisplay(TaskDisplay, WindowMixin):
         random.shuffle(self._trials_left)
 
         if self.is_rest:
-            self.set_state(self.WAIT)
+            self.set_state(self.IDLE)
             # Rest trial begins in rest zone, so it's okay to start timer at start of trial
-            self.timer_one_trial_begin.start(self.get_random_wait_time())
+            self.sigColorRegion.emit("base", True)
+            self.sigFlash.emit("white")
+            # self.timer_one_trial_begin.start(self.get_random_wait_time())
         else:
             self.set_state(self.PREP)
             self.sigColorRegion.emit("prep", True)
-            self.sigFlash.emit(None)
+            self.sigFlash.emit("white")
 
     def end_block(self):
         """Finish the task, reset widget to initial states"""
@@ -355,10 +358,24 @@ class SRDisplay(TaskDisplay, WindowMixin):
                 # self.progress_animation.stop()
                 # self.progress_bar.setValue(0)
 
-            elif event == TaskEvent.ENTER_BASE and self.curr_state == self.SUCCESS:
-                    self.set_state(self.WAIT)
+            elif event == TaskEvent.ENTER_BASE:
+                # Initally entering base
+                if self.curr_state == self.IDLE:
+                    self.timer_one_trial_begin.start(self.get_random_wait_time())
+                # Entering base from target after successful trial
+                elif self.curr_state == self.SUCCESS:    
+                    self.set_state(self.REST)
                     if self._trials_left:
                         self.timer_one_trial_begin.start(self.get_random_wait_time())
+                # Re-entering base if left during resting period
+                elif self.curr_state == self.REST:
+                    self.timer_one_trial_begin.start(self.get_random_wait_time())
+                
+
+            elif event == TaskEvent.EXIT_BASE and self.timer_one_trial_begin.isActive():
+                self.timer_one_trial_begin.stop()
+
+            
                     
         else:
             if event == TaskEvent.ENTER_PREP and self.curr_state == self.PREP:
@@ -374,7 +391,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
                 self.sigColorRegion.emit("base", True)
                 self.sigColorRegion.emit("target", False)
                 self.sigColorRegion.emit("prep", False)
-                self.sigFlash.emit(None)
+                self.sigFlash.emit("white")
 
             elif event == TaskEvent.ENTER_BASE and self.curr_state == self.SUCCESS:
                 self.rest_timer.start()
