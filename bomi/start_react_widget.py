@@ -240,7 +240,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
     # (Done) Rest region (-5,-7) for default rest range for both tasks
     # (Done) green in target after flash
     # click buttons twice sometimes (reconnecting to qtm using disocover buttons works)
-    # change rest time to active rest time, verify it's only on active
+    # (Done) change rest time to active rest time, verify it's only on active
     # (Done) combine pause randomization into wait min and wait max
     # select save dir
 
@@ -301,7 +301,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.sigColorRegion.emit("base", True)
         self.sigFlash.emit("white")
 
+        print(self._trials_left)
         if not self._trials_left:
+            print("ending")
             self.end_block()
     
     @qc.Slot() # type: ignore
@@ -344,12 +346,18 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.task_history.write(f"end_block t={default_timer()}\n")
         self.task_history.flush()
         self._task_stack.clear()
+        self.gray_out_regions()
 
         self.start_stop_btn.setText(self.BTN_START_TXT)
         self._trials_left = []
         self.progress_animation.stop()
         self.progress_bar.setValue(0)
         self.set_state(self.TASK_DONE)
+
+    def gray_out_regions(self):
+        self.sigColorRegion.emit("base", None)
+        self.sigColorRegion.emit("target", None)
+        self.sigColorRegion.emit("prep", None)
 
     def toggle_start_stop(self):
         if self.start_stop_btn.text() == self.BTN_START_TXT:
@@ -398,16 +406,20 @@ class SRDisplay(TaskDisplay, WindowMixin):
             # Enter target from prep
             elif event == TaskEvent.ENTER_TARGET and self.curr_state == self.GO:
                 self.one_trial_end()
-                self.sigColorRegion.emit("base", True)
-                self.sigColorRegion.emit("target", False)
-                self.sigColorRegion.emit("prep", False)
-                self.sigFlash.emit("white")
+                
+                if self._trials_left:
+                    self.sigColorRegion.emit("base", True)
+                    self.sigColorRegion.emit("target", False)
+                    self.sigColorRegion.emit("prep", False)
+                    self.sigFlash.emit("white")
 
             # Enter base from target
             elif event == TaskEvent.ENTER_BASE:
                 if self.curr_state == self.SUCCESS:
                     self.set_state(self.REST)
-                self.rest_timer.start()
+
+                if self._trials_left:
+                    self.rest_timer.start()
 
             elif event == TaskEvent.EXIT_BASE and self.rest_timer.isActive():
                 self.rest_timer.stop()
