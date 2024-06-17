@@ -52,24 +52,24 @@ class SRConfig:
     # not sure the purpose of the latter. It's meant to determine how long
     # the participant should stay in the target or prep regions, but the 
     # pause constants are what really has an effect on that duration
-    REST_TIME: int = field(
-        default=3000, metadata=dict(range=(0, 5000), name="Rest Time (ms)")
+    REST_TIME: float = field(
+        default=1, metadata=dict(range=(0, 5), name="Active Task Rest Time (s)")
     )
-    HOLD_TIME: int = field(
-        default=250, metadata=dict(range=(50, 5000), name="Hold Time (ms)")
+    HOLD_TIME: float = field(
+        default=0.250, metadata=dict(range=(0.05, 5), name="Hold Time (s)")
     )  # msec
-    PAUSE_MIN: int = field(
-        default=1500, metadata=dict(range=(500, 3000), name="Pause Min (ms)")
+    WAIT_MIN: float = field(
+        default=0.5, metadata=dict(range=(0, 5), name="Wait Min (s)")
     )  # msec
-    PAUSE_RANDOM: int = field(
-        default=1500, metadata=dict(range=(0, 3000), name="Pause Random (ms)")
+    WAIT_MAX: float = field(
+        default=2, metadata=dict(range=(0, 10), name="Wait Max (s)")
     )  # msec
     N_TRIALS: int = field(
         default=10, metadata=dict(range=(1, 40), name="No. Trials per cue")
     )
 
-    tone_duration: int = field(
-        default=50, metadata=dict(range=(10, 500), name="Tone Duration (ms) ")
+    tone_duration: float = field(
+        default=0.05, metadata=dict(range=(0.01, 0.5), name="Tone Duration (s) ")
     )
 
     tone_frequency: int = field(
@@ -118,7 +118,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
             self.rest_timer = qc.QTimer()
             self.rest_timer.setSingleShot(True)
             self.rest_timer.timeout.connect(self.rest_timeout) 
-            self.rest_timer.setInterval(self.config.REST_TIME)
+            self.rest_timer.setInterval(self.config.REST_TIME*1000)
 
         # filepointer to write task history
         self.task_history = open(savedir / "task_history.txt", "w")
@@ -146,7 +146,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(False)
         self.progress_animation = qc.QPropertyAnimation(self, b"pval")
-        self.progress_animation.setDuration(self.config.HOLD_TIME)
+        self.progress_animation.setDuration(self.config.HOLD_TIME*1000)
         self.progress_animation.setStartValue(0)
         self.progress_animation.setEndValue(100)
         main_layout.addWidget(self.progress_bar, 5, 0)
@@ -164,7 +164,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.state_bg_timer.timeout.connect(lambda: self.setPalette(Qt.lightGray))  # type: ignore
         self.state_bg_timer.setInterval(500)
 
-        self.set_state(self.IDLE)
+        # self.set_state(self.IDLE)
 
         # Connect task signals and slots
         self.sigTaskEventIn.connect(self.handle_input_event)
@@ -187,11 +187,11 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
         # tone sound
         self.auditory_tone = TonePlayer(
-            self.config.tone_frequency, self.config.tone_duration
+            self.config.tone_frequency, (self.config.tone_duration*1000)
         )
         _init_tone(self.auditory_tone)
         self.startle_tone = TonePlayer(
-            self.config.tone_frequency, self.config.tone_duration
+            self.config.tone_frequency, (self.config.tone_duration*1000)
         )
         _init_tone(self.startle_tone)
 
@@ -227,7 +227,28 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def get_random_wait_time(self) -> int:
         "Calculate random wait time in msec"
-        return int(self.config.PAUSE_MIN + (self.config.PAUSE_RANDOM) * random.random())
+        rando = random.uniform(self.config.WAIT_MIN, self.config.WAIT_MAX) * 1000
+        print(rando)
+        return rando
+    
+    # TODO: THESE TASKS
+
+    # (Done) decrease random wait time
+    # active taks should say all done for longer
+    # active task isn't connected to set confgi nubmer of cues
+    # (Done) When starting in a task zone, it's okay to start task (rest task culprit)
+    # (Done) Rest region (-5,-7) for default rest range for both tasks
+    # (Done) green in target after flash
+    # click buttons twice sometimes (reconnecting to qtm using disocover buttons works)
+    # change rest time to active rest time, verify it's only on active
+    # (Done) combine pause randomization into wait min and wait max
+    # select save dir
+
+
+
+
+
+        
 
     def send_visual_signal(self):
         self.emit_begin("visual")
@@ -309,7 +330,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
         random.shuffle(self._trials_left)
 
         if self.is_rest:
-            self.set_state(self.IDLE)
+            self.timer_one_trial_begin.start(self.get_random_wait_time())
             self.sigColorRegion.emit("base", True)
             self.sigFlash.emit("white")
         else:
@@ -348,6 +369,7 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
             elif event == TaskEvent.ENTER_BASE:
                 # Initally entering base
+                print(self.curr_state)
                 if self.curr_state == self.IDLE:
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
                 # Entering base from target after successful trial
@@ -429,7 +451,9 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         """
         super().__init__()
         self.available_device_managers = device_managers
-        self.dm = device_managers[0]
+        # Yost is first in device manager list but isn't used often
+        # Set QTM as default device manager instead
+        self.dm = device_managers[1] 
         self.selected_sensor_name = None
         self.selected_channel_name = self.dm.CHANNEL_LABELS[0]
         self.y_min, self.y_max = self.dm.get_channel_default_range(self.selected_channel_name)
@@ -450,7 +474,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         input_button_group = qw.QButtonGroup(self)
         for i, dm in enumerate(self.available_device_managers):
             input_button_group.addButton(qw.QRadioButton(dm.INPUT_KIND), id=i)
-        input_button_group.buttons()[0].click()  # Set the default choice as the first
+        input_button_group.buttons()[1].click()  # Set the default choice as QTM
 
         def update_selected_dm(dm_button):
             self.set_device_manager(
