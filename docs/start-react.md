@@ -130,9 +130,12 @@ Use the **Edit Metadata** box to enter data about the subject.
 ![](./img/bomi-sr-precision-meta.png)
 
 - **Subject Id**: De-identified ID of the subject.
+- **Timepoint**: Timepoint of the task (e.g., "pre" for tasks occurring before training).
+- **Stim**: Check this box if electrical stimulation is used for this task.
+
+**Removed Metadata items**
 - **Joint**: Name of the joint (e.g., "Ankle L" for left ankle).
 - **Max ROM**: Max ROM of the subject. Ask the subject to test their max ROM and record it here.
-- **Stim**: Check this box if electrical stimulation is used for this task.
 
 Click **"Ok"** to save the metadata to file.
 
