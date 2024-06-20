@@ -24,9 +24,6 @@ def get_savedir(task_name: str, mkdir=True) -> Path:
 @dataclass
 class SubjectMetadata:
     subject_id: str = "Enter S00#"
-    joint: str = "Enter TaskJointSide"
-    max_rom: int = -1
-    sham: str = "Enter 'sham' or 'none'" 
     stim: bool = False
 
     def dict(self):
