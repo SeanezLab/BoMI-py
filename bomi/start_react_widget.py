@@ -7,6 +7,7 @@ import traceback
 from pathlib import Path
 from timeit import default_timer
 from typing import Callable, List, NamedTuple, Tuple, Protocol
+from datetime import datetime
 
 import pyqtgraph as pg
 import PySide6.QtCore as qc
@@ -15,7 +16,7 @@ import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
 from PySide6.QtCore import Signal
 
-from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb
+from bomi.base_widgets import TaskDisplay, TaskEvent, generate_edit_form, wrap_gb, ConfirmationDialog
 from bomi.datastructure import MultichannelBuffer, get_savedir
 from bomi.device_managers.protocols import SupportsHasSensors, HasDiscoverDevicesSignal, SupportsGetChannelMetadata
 from bomi.scope_widget import ScopeConfig, ScopeWidget
@@ -227,28 +228,9 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
     def get_random_wait_time(self) -> int:
         "Calculate random wait time in msec"
-        rando = random.uniform(self.config.WAIT_MIN, self.config.WAIT_MAX) * 1000
-        print(rando)
-        return rando
-    
-    # TODO: THESE TASKS
+        return random.uniform(self.config.WAIT_MIN, self.config.WAIT_MAX) * 1000
 
-    # (Done) decrease random wait time
-    # active taks should say all done for longer
-    # active task isn't connected to set confgi nubmer of cues
-    # (Done) When starting in a task zone, it's okay to start task (rest task culprit)
-    # (Done) Rest region (-5,-7) for default rest range for both tasks
-    # (Done) green in target after flash
-    # click buttons twice sometimes (reconnecting to qtm using disocover buttons works)
-    # (Done) change rest time to active rest time, verify it's only on active
-    # (Done) combine pause randomization into wait min and wait max
     # select save dir
-
-
-
-
-
-        
 
     def send_visual_signal(self):
         self.emit_begin("visual")
@@ -303,7 +285,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
         print(self._trials_left)
         if not self._trials_left:
-            print("ending")
             self.end_block()
     
     @qc.Slot() # type: ignore
@@ -377,7 +358,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
 
             elif event == TaskEvent.ENTER_BASE:
                 # Initally entering base
-                print(self.curr_state)
                 if self.curr_state == self.IDLE:
                     self.timer_one_trial_begin.start(self.get_random_wait_time())
                 # Entering base from target after successful trial
@@ -456,12 +436,13 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         and support the discover_devices signal.
         """
 
-    def __init__(self, device_managers: list[StartReactDeviceManager], trigno_client: TrignoClient):
+    def __init__(self, save_dir: Path, device_managers: list[StartReactDeviceManager], trigno_client: TrignoClient):
         """
         @param device_managers A list of compatible device managers
         @param trigno_client A Trigno (EMG) client.
         """
         super().__init__()
+        self.save_dir = save_dir
         self.available_device_managers = device_managers
         # Yost is first in device manager list but isn't used often
         # Set QTM as default device manager instead
@@ -472,6 +453,11 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.trigno_client = trigno_client
 
         self.config = SRConfig()
+
+        # Values below are only used to name the task directory
+        self.muscle = None 
+        self.timepoint = None 
+        self.is_practice = False
 
         ### Init UI
         main_layout = qw.QVBoxLayout(self)
@@ -648,14 +634,14 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             yrange=(self.y_min, self.y_max),
         )
 
-        savedir = get_savedir(file_suffix)  # savedir to write all data
+        save_dir = self.get_task_dir(file_suffix)
 
         try:
             self._scope_widget = ScopeWidget(
                 self.dm,
                 selected_sensor_name=self.selected_sensor_name,
-                savedir=savedir,
-                task_widget=SRDisplay(task_name, savedir, self.selected_channel_name, self.config, is_rest=is_rest),
+                savedir=save_dir,
+                task_widget=SRDisplay(task_name, save_dir, self.selected_channel_name, self.config, is_rest=is_rest),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )
@@ -664,14 +650,27 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             _print(traceback.format_exc())
             self.dm.stop_stream()
 
+    def prompt_for_task_dir_name(self):
+        confirmation_dialog = ConfirmationDialog(parent=self, is_task=True)
+        confirmation_dialog.sig_task.connect(self.on_confirmation)
+        confirmation_dialog.exec()
+
+    def on_confirmation(self, muscle, timepoint, is_practice):
+        self.is_practice = is_practice
+        if muscle.lower() == "tibialis anterior":
+            self.muscle = "TA"
+        else:
+            self.muscle = "MG"
+        self.timepoint = timepoint
+
     def s_rest_task(self):
         """
         Run the ScopeWidget with the precision task view
         """
-
+        self.prompt_for_task_dir_name()
         self.run_startreact(
             "Rest Task",
-            "Rest",
+            self.get_task_suffix(is_rest=True),
             (5, 15), #target range set for torque dorsiflexion
             is_rest=True
         )
@@ -680,10 +679,31 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         """
         Run the ScopeWidget with the MaxROM task view
         """
-
+        self.prompt_for_task_dir_name()
         self.run_startreact(
             "Active Task",
-            "Active",
+            self.get_task_suffix(is_rest=False),
             (5, 15), #target range set for torque dorsiflexion
             is_rest=False
         )
+
+    def get_task_suffix(self, is_rest=False):
+        datestr = datetime.now().strftime("%Y-%m-%d %H-%M-%S-%f")
+
+        if is_rest:
+            suffix = f"Rest_{self.muscle}_{self.timepoint}_{datestr}"
+        else:
+            suffix = f"Active_{self.muscle}_{self.timepoint}_{datestr}"
+
+        if self.is_practice:
+            suffix += "_practice"
+        return Path(suffix)
+    
+    def get_task_dir(self, suffix: Path, mkdir: bool=True):
+        save_path = self.save_dir / suffix
+        if mkdir:
+            save_path.mkdir(parents=True, exist_ok=True)
+
+        return save_path
+
+
