@@ -821,10 +821,13 @@ class ScopeWidget(qw.QWidget):
             with open(path) as f:
                 print(f"\t{path.name}:")
                 array = genfromtxt(path, delimiter=",", names=True)
-                for channel in self.dm.CHANNEL_LABELS:
-                    max_magnitude = max(array[channel], key=abs)
-                    print(f"\t\t{channel}: {max_magnitude}")
-                print()
+                try:
+                    for channel in self.dm.CHANNEL_LABELS:
+                        max_magnitude = max(array[channel], key=abs)
+                        print(f"\t\t{channel}: {max_magnitude}")
+                        print()
+                except ValueError as e:
+                    print(f"Value Error: {e}")
 
 
 class _DummyQueue(Queue):
