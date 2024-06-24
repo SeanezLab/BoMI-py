@@ -7,6 +7,7 @@ import pyqtgraph as pg
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 from PySide6.QtCore import Qt
+from pathlib import Path
 
 from bomi.datastructure import get_savedir
 from bomi.device_managers.table_model import (
@@ -78,12 +79,14 @@ class YostWidget(qw.QWidget, WindowMixin):
     Can be used standalone or embedded as a widget
     """
 
-    def __init__(self, yost_device_manager: YostDeviceManager):
+    def __init__(self, save_dir: Path, yost_device_manager: YostDeviceManager):
         super().__init__()
         self.yost_dm = yost_device_manager
+        self.save_dir = save_dir
         self.setWindowTitle("Yost devices")
         self.setMinimumSize(350, 200)
         self.setSizePolicy(qw.QSizePolicy.Expanding, qw.QSizePolicy.Fixed)
+
 
         main_layout = qw.QHBoxLayout(self)
 
@@ -176,7 +179,7 @@ class YostWidget(qw.QWidget, WindowMixin):
         try:
             self._sw = ScopeWidget(
                 self.yost_dm,
-                get_savedir("Scope"),
+                get_savedir(self.save_dir, "Scope"),
                 ScopeConfig({channel: True for channel in self.yost_dm.CHANNEL_LABELS})
             )
             self._sw.showMaximized()
