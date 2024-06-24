@@ -9,15 +9,12 @@ from typing import TextIO, Tuple, Any
 
 import numpy as np
 
-DATA_ROOT = Path.home() / "Documents" / "BoMI Data"
-DATA_ROOT.mkdir(exist_ok=True)
-
-
-def get_savedir(task_name: str, mkdir=True) -> Path:
+def get_savedir(data_root: Path, task_name: str, mkdir=True) -> Path:
     datestr = datetime.now().strftime("%Y-%m-%d %H-%M-%S-%f")
-    savedir = DATA_ROOT / "_".join((datestr, task_name))
+
+    savedir = data_root / "_".join((datestr, task_name))
     if mkdir:
-        savedir.mkdir()
+        savedir.mkdir(parents=True, exist_ok=True)
     return savedir
 
 
