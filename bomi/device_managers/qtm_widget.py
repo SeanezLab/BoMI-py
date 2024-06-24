@@ -3,6 +3,7 @@ from __future__ import annotations
 import traceback
 from typing import Final, Tuple
 
+from pathlib import Path
 import pyqtgraph as pg
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
@@ -55,10 +56,10 @@ class QtmWidget(qw.QWidget, WindowMixin):
     Can be used standalone or embedded as a widget
     """
 
-    def __init__(self, qtm_device_manager: QtmDeviceManager):
+    def __init__(self, save_dir: Path, qtm_device_manager: QtmDeviceManager):
         super().__init__()
         self._sw = None
-
+        self.save_dir = save_dir
         self.qtm_dm = qtm_device_manager
         self.setWindowTitle("Qtm devices")
         self.setMinimumSize(350, 200)
@@ -109,7 +110,8 @@ class QtmWidget(qw.QWidget, WindowMixin):
         try:
             self._sw = ScopeWidget(
                 self.qtm_dm,
-                get_savedir("Scope"),
+                get_savedir(self.save_dir,
+                            "Scope"),
                 ScopeConfig({channel: True for channel in self.qtm_dm.CHANNEL_LABELS}),
             )
 

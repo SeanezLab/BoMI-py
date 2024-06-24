@@ -273,8 +273,9 @@ class TrignoWidget(qw.QWidget, WindowMixin):
     A GUI for the Trigno SDK Client
     """
 
-    def __init__(self, trigno_client: TrignoClient = None):
+    def __init__(self, save_dir: Path, trigno_client: TrignoClient = None):
         super().__init__()
+        self.save_dir = save_dir
         self.setWindowTitle("Trigno SDK Client")
         self.setMinimumSize(680, 390)
 
@@ -415,7 +416,9 @@ class TrignoWidget(qw.QWidget, WindowMixin):
             )
 
         try:
-            self.scope = EMGScope(self.trigno_client, get_savedir("EMGScope"))
+            self.scope = EMGScope(self.trigno_client,
+                                  get_savedir(self.save_dir,
+                                              "EMGScope"))
             self.scope.show()
         except EMGLayoutError as e:
             self.error_dialog(str(e))
