@@ -5,6 +5,7 @@ from typing import Callable, Dict, List, Tuple, TypeVar
 import PySide6.QtWidgets as qw
 import PySide6.QtCore as qc
 from dataclasses import Field
+from pathlib import Path
 
 
 T = TypeVar("T", qw.QSpinBox, qw.QDoubleSpinBox)
@@ -274,3 +275,102 @@ def wrap_gb(name: str, *widgets: qw.QWidget):
         layout.addWidget(widget)
     gb.setLayout(layout)
     return gb
+
+
+class ConfirmationDialog(qw.QDialog):
+    sig_task = qc.Signal(str, str, bool)
+    sig_save = qc.Signal(Path)
+
+    def __init__(self, parent=None, is_task=False):
+        super().__init__(parent)
+        self.is_task = is_task
+
+        if self.is_task:
+            self.init_task_widget()
+        else:
+            self.init_session_widget()
+
+    def init_session_widget(self):
+        self.setWindowTitle("Enter Subject ID and Select Directory")
+
+        self.subject_id_label = qw.QLabel("Subject ID:")
+        self.subject_id_edit = qw.QLineEdit()
+
+        self.selected_dir_label = qw.QLabel("Selected Directory:")
+        self.select_dir_button = qw.QPushButton("Select Save Directory")
+        self.select_dir_button.clicked.connect(self.select_directory)
+
+        self.ok_button = qw.QPushButton("OK")
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button = qw.QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.reject)
+
+        button_layout = qw.QHBoxLayout()
+        button_layout.addWidget(self.ok_button)
+        button_layout.addWidget(self.cancel_button)
+
+        main_layout = qw.QVBoxLayout(self)
+        main_layout.addWidget(self.subject_id_label)
+        main_layout.addWidget(self.subject_id_edit)
+        main_layout.addWidget(self.selected_dir_label)
+        main_layout.addWidget(self.select_dir_button)
+        main_layout.addLayout(button_layout)
+
+    def init_task_widget(self):
+        self.setWindowTitle("Select Task Details")
+
+        self.muscle_label = qw.QLabel("Select Muscle:")
+        self.muscle_combo = qw.QComboBox()
+        self.muscle_combo.addItems(["Tibialis Anterior", "Medial Gastrocnemius"])
+        self.muscle_combo.setCurrentIndex(0)
+
+        self.timepoint_label = qw.QLabel("Select Timepoint:")
+        self.timepoint_combo = qw.QComboBox()
+        self.timepoint_combo.addItems(["Pre", "Post"])
+        self.timepoint_combo.setCurrentIndex(0)
+
+        self.ok_button = qw.QPushButton("OK")
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button = qw.QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.reject)
+
+        self.practice_run = qw.QCheckBox("Practice Run?")
+
+        button_layout = qw.QHBoxLayout()
+        button_layout.addWidget(self.ok_button)
+        button_layout.addWidget(self.cancel_button)
+
+        main_layout = qw.QVBoxLayout(self)
+        main_layout.addWidget(self.muscle_label)
+        main_layout.addWidget(self.muscle_combo)
+        main_layout.addWidget(self.timepoint_label)
+        main_layout.addWidget(self.timepoint_combo)
+        main_layout.addLayout(button_layout)
+        main_layout.addWidget(self.practice_run)
+
+    def accept(self):
+        if self.is_task:
+            muscle = self.muscle_combo.currentText()
+            timepoint = self.timepoint_combo.currentText()
+            is_saved = self.practice_run.isChecked()
+            self.sig_task.emit(muscle, timepoint, is_saved)
+        else:
+            subject_id = self.subject_id_edit.text()
+            selected_dir_text = self.selected_dir_label.text().replace("Selected Directory:", "")
+
+            if not subject_id or not selected_dir_text:
+                qw.QMessageBox.warning(self, "Missing Information", "Please enter subject ID and select a save directory.")
+                return
+
+            selected_dir = Path(selected_dir_text)
+            save_dir = Path(selected_dir / subject_id)  # Construct the save directory path
+
+            # will fail for OSs that use a different path separator
+            self.sig_save.emit(save_dir)
+
+        super().accept() 
+
+    def select_directory(self):
+        directory = qw.QFileDialog.getExistingDirectory(self, "Select Directory")
+        if directory:
+            self.selected_dir_label.setText(f"Selected Directory: {directory}")
