@@ -283,7 +283,6 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.sigColorRegion.emit("base", True)
         self.sigFlash.emit("white")
 
-        print(self._trials_left)
         if not self._trials_left:
             self.end_block()
     
