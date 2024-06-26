@@ -190,11 +190,11 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.auditory_tone = TonePlayer(
             self.config.tone_frequency, (self.config.tone_duration*1000)
         )
-        _init_tone(self.auditory_tone)
+        # _init_tone(self.auditory_tone)
         self.startle_tone = TonePlayer(
             self.config.tone_frequency, (self.config.tone_duration*1000)
         )
-        _init_tone(self.startle_tone)
+        # _init_tone(self.startle_tone)
 
         self.auditory_tone.effect.setVolume(self.config.auditory_volume / 100)
         self.startle_tone.effect.setVolume(self.config.startle_volume / 100)
@@ -690,9 +690,9 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         datestr = datetime.now().strftime("%Y-%m-%d %H-%M-%S-%f")
 
         if is_rest:
-            suffix = f"Rest_{self.muscle}_{self.timepoint}_{datestr}"
+            suffix = f"{self.timepoint}_{self.muscle}_Rest__{datestr}"
         else:
-            suffix = f"Active_{self.muscle}_{self.timepoint}_{datestr}"
+            suffix = f"{self.timepoint}_{self.muscle}_Active_{datestr}"
 
         if self.is_practice:
             suffix += "_practice"
