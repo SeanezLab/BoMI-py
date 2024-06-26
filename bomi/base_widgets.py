@@ -356,7 +356,7 @@ class ConfirmationDialog(qw.QDialog):
             self.sig_task.emit(muscle, timepoint, is_saved)
         else:
             subject_id = self.subject_id_edit.text()
-            selected_dir_text = self.selected_dir_label.text().replace("Selected Directory:", "")
+            selected_dir_text = self.selected_dir_label.text().replace("Selected Directory: ", "")
 
             if not subject_id or not selected_dir_text:
                 qw.QMessageBox.warning(self, "Missing Information", "Please enter subject ID and select a save directory.")
