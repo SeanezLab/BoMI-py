@@ -493,6 +493,9 @@ class ScopeWidget(qw.QWidget):
             )
             self.target_range = target_range
 
+            # Remember these values throughout the session
+            self.config.target_range = self.target_range
+
             if self.task_widget:
                 self.task_widget.sigTargetMoved.emit(target_range)
 
@@ -521,6 +524,9 @@ class ScopeWidget(qw.QWidget):
             )
             self.prepared_range = prepared_range
 
+            # Remember these values throughout the session
+            self.config.prepared_range = self.prepared_range
+
             if self.task_widget:
                 self.task_widget.sigPreparedMoved.emit(prepared_range)
 
@@ -541,12 +547,17 @@ class ScopeWidget(qw.QWidget):
             plot_handle.clear_base()
 
     def update_base(self):
-        """Handle updating target position (range)"""
+        """Handle updating base position (range)"""
         if self.param_bshow.value():
             self.base_range = base_range = (
                 self.param_bmin.value(),
                 self.param_bmax.value(),
             )
+
+            self.base_range = base_range
+
+            # Remember these values throughout the session
+            self.config.base_range = self.base_range
 
             if self.task_widget:
                 self.task_widget.sigBaseMoved.emit(base_range)
