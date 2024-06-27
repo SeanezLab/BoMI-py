@@ -688,11 +688,14 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
     def get_task_suffix(self, is_rest=False):
         datestr = datetime.now().strftime("%Y-%m-%d %H-%M-%S-%f")
+        if self.timepoint.lower() == "training":
+            suffix=f"{self.timepoint}_{datestr}"
 
-        if is_rest:
-            suffix = f"{self.timepoint}_{self.muscle}_Rest__{datestr}"
         else:
-            suffix = f"{self.timepoint}_{self.muscle}_Active_{datestr}"
+            if is_rest:
+                suffix = f"{self.timepoint}_{self.muscle}_Rest__{datestr}"
+            else:
+                suffix = f"{self.timepoint}_{self.muscle}_Active_{datestr}"
 
         if self.is_practice:
             suffix += "_practice"
