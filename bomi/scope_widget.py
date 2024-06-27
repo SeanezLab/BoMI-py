@@ -240,6 +240,7 @@ class ScopeWidget(qw.QWidget):
         self,
         dm: ScopeWidgetDeviceManager,
         savedir: Path,
+        subject_id: str,
         config: ScopeConfig,
         selected_sensor_name: str | Ellipsis = ...,
         task_widget: TaskDisplay = None,
@@ -249,6 +250,7 @@ class ScopeWidget(qw.QWidget):
         self.setWindowTitle(config.window_title)
         self.dm = dm
         self.savedir = savedir
+        self.subject_id = subject_id
         self.selected_sensor_name = selected_sensor_name
         self.task_widget = task_widget
         self.config = config
@@ -265,7 +267,7 @@ class ScopeWidget(qw.QWidget):
         self.dev_sn: List[str] = []  # device serial numbers (hex str)
         self.init_bufsize = 5000  # buffer size
         self.buffers: Dict[str, MultichannelBuffer] = {}
-        self.meta = SubjectMetadata()
+        self.meta = SubjectMetadata(subject_id=self.subject_id)
 
         self.last_state = (
             TaskState.OUTSIDE
