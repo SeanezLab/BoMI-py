@@ -29,10 +29,14 @@ class MainWindow(qw.QMainWindow, WindowMixin):
         self.yost_dm = YostDeviceManager()
         self.trigno_client = TrignoClient()
         self.qtm_dm = QtmDeviceManager()
+        self.save_dir = None
 
-        self.prompt_for_save_dir_name()
+        while not self.save_dir:
+            self.prompt_for_save_dir_name()
+
         self.init_ui()
         self.init_actions()
+        
         # menu bar overlaps with the device manager on Windows
         # self.init_menus()
 
