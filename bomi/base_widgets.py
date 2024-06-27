@@ -326,7 +326,7 @@ class ConfirmationDialog(qw.QDialog):
 
         self.timepoint_label = qw.QLabel("Select Timepoint:")
         self.timepoint_combo = qw.QComboBox()
-        self.timepoint_combo.addItems(["Pre", "Post"])
+        self.timepoint_combo.addItems(["Pre", "Post", "Training"])
         self.timepoint_combo.setCurrentIndex(0)
 
         self.ok_button = qw.QPushButton("OK")
