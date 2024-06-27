@@ -633,14 +633,15 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             yrange=(self.y_min, self.y_max),
         )
 
-        save_dir = self.get_task_dir(file_suffix)
+        savedir = self.get_task_dir(file_suffix)
 
         try:
             self._scope_widget = ScopeWidget(
                 self.dm,
                 selected_sensor_name=self.selected_sensor_name,
-                savedir=save_dir,
-                task_widget=SRDisplay(task_name, save_dir, self.selected_channel_name, self.config, is_rest=is_rest),
+                savedir=savedir,
+                subject_id = self.save_dir.parts[-1],
+                task_widget=SRDisplay(task_name, savedir, self.selected_channel_name, self.config, is_rest=is_rest),
                 config=scope_config,
                 trigno_client=self.trigno_client,
             )
@@ -707,5 +708,3 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             save_path.mkdir(parents=True, exist_ok=True)
 
         return save_path
-
-
