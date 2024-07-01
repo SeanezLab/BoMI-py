@@ -296,6 +296,11 @@ class ConfirmationDialog(qw.QDialog):
         self.subject_id_label = qw.QLabel("Subject ID:")
         self.subject_id_edit = qw.QLineEdit()
 
+        self.training_type_label = qw.QLabel("Training Type:")
+        self.training_type_combo = qw.QComboBox()
+        self.training_type_combo.addItems(["Motor Skill", "Resistance"])
+        self.training_type_combo.setCurrentIndex(0)
+
         self.selected_dir_label = qw.QLabel("Selected Directory:")
         self.select_dir_button = qw.QPushButton("Select Save Directory")
         self.select_dir_button.clicked.connect(self.select_directory)
@@ -313,6 +318,8 @@ class ConfirmationDialog(qw.QDialog):
         main_layout.addWidget(self.subject_id_label)
         main_layout.addWidget(self.subject_id_edit)
         main_layout.addWidget(self.selected_dir_label)
+        main_layout.addWidget(self.training_type_label)
+        main_layout.addWidget(self.training_type_combo)
         main_layout.addWidget(self.select_dir_button)
         main_layout.addLayout(button_layout)
 
@@ -356,6 +363,7 @@ class ConfirmationDialog(qw.QDialog):
             self.sig_task.emit(muscle, timepoint, is_saved)
         else:
             subject_id = self.subject_id_edit.text()
+            training_type = self.training_type_combo.currentText()
             selected_dir_text = self.selected_dir_label.text().replace("Selected Directory: ", "")
 
             if not subject_id or not selected_dir_text:
@@ -363,7 +371,7 @@ class ConfirmationDialog(qw.QDialog):
                 return
 
             selected_dir = Path(selected_dir_text)
-            save_dir = Path(selected_dir / subject_id)  # Construct the save directory path
+            save_dir = Path(selected_dir / subject_id / training_type)  # Construct the save directory path
 
             # will fail for OSs that use a different path separator
             self.sig_save.emit(save_dir)
