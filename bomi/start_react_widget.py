@@ -640,7 +640,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
                 self.dm,
                 selected_sensor_name=self.selected_sensor_name,
                 savedir=savedir,
-                subject_id = self.save_dir.parts[-1],
+                subject_id = self.save_dir.parts[-2],
                 task_widget=SRDisplay(task_name, savedir, self.selected_channel_name, self.config, is_rest=is_rest),
                 config=scope_config,
                 trigno_client=self.trigno_client,
