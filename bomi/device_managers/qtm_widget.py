@@ -60,6 +60,7 @@ class QtmWidget(qw.QWidget, WindowMixin):
         super().__init__()
         self._sw = None
         self.save_dir = save_dir
+        self.subject_id = self.save_dir.parts[-2]
         self.qtm_dm = qtm_device_manager
         self.setWindowTitle("Qtm devices")
         self.setMinimumSize(350, 200)
@@ -112,6 +113,7 @@ class QtmWidget(qw.QWidget, WindowMixin):
                 self.qtm_dm,
                 get_savedir(self.save_dir,
                             "Scope"),
+                self.subject_id,
                 ScopeConfig({channel: True for channel in self.qtm_dm.CHANNEL_LABELS}),
             )
 
