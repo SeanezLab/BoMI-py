@@ -190,11 +190,11 @@ class SRDisplay(TaskDisplay, WindowMixin):
         self.auditory_tone = TonePlayer(
             self.config.tone_frequency, (self.config.tone_duration*1000)
         )
-        _init_tone(self.auditory_tone)
+        # _init_tone(self.auditory_tone)
         self.startle_tone = TonePlayer(
             self.config.tone_frequency, (self.config.tone_duration*1000)
         )
-        _init_tone(self.startle_tone)
+        # _init_tone(self.startle_tone)
 
         self.auditory_tone.effect.setVolume(self.config.auditory_volume / 100)
         self.startle_tone.effect.setVolume(self.config.startle_volume / 100)
