@@ -451,6 +451,15 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.y_min, self.y_max = self.dm.get_channel_default_range(self.selected_channel_name)
         self.trigno_client = trigno_client
 
+        # These will be populated with range values entered by the user
+        # so that the boxes will remember the entered values between tasks.
+        # Since scope config is reinitialized each time the run_start_react
+        # method is called, it is always initialized with default values.
+        # This is a lazy way of overriding that behavior.
+        self.target_range = (5, 15)
+        self.prepared_range = (-1, 1)
+        self.base_range = (-7, -5)
+
         self.config = SRConfig()
 
         # Values below are only used to name the task directory
@@ -608,7 +617,7 @@ class StartReactWidget(qw.QWidget, WindowMixin):
 
         return True
 
-    def run_startreact(self, task_name: str, file_suffix: str, target_range: tuple[int, int], is_rest: bool):
+    def run_startreact(self, task_name: str, file_suffix: str, is_rest: bool):
         """
         Common code for the precision and max ROM tasks
         """
@@ -626,10 +635,11 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             window_title=task_name,
             show_scope_params=True,
             target_show=True,
-            target_range=target_range,
+            target_range=self.target_range,
             prepared_show= not is_rest,
-            prepared_range=(-1, 1),
+            prepared_range=self.prepared_range,
             base_show=True,
+            base_range=self.base_range,
             yrange=(self.y_min, self.y_max),
         )
 
@@ -646,10 +656,22 @@ class StartReactWidget(qw.QWidget, WindowMixin):
                 trigno_client=self.trigno_client,
             )
             self._scope_widget.showMaximized()
+            self._scope_widget.sig_range_updated.connect(self.update_range)
+
         except Exception:
             _print(traceback.format_exc())
             self.dm.stop_stream()
 
+    def update_range(self, range_name, range_values):
+        if range_name.lower() == "base":
+            self.base_range = range_values
+        
+        elif range_name.lower() == "prepared":
+            self.prepared_range = range_values
+        
+        elif range_name.lower() == "target":
+            self.target_range = range_values
+        
     def prompt_for_task_dir_name(self):
         confirmation_dialog = ConfirmationDialog(parent=self, is_task=True)
         confirmation_dialog.sig_task.connect(self.on_confirmation)
@@ -671,7 +693,6 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Rest Task",
             self.get_task_suffix(is_rest=True),
-            (5, 15), #target range set for torque dorsiflexion
             is_rest=True
         )
 
@@ -683,7 +704,6 @@ class StartReactWidget(qw.QWidget, WindowMixin):
         self.run_startreact(
             "Active Task",
             self.get_task_suffix(is_rest=False),
-            (5, 15), #target range set for torque dorsiflexion
             is_rest=False
         )
 
