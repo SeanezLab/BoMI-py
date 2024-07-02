@@ -236,6 +236,11 @@ class ScopeWidget(qw.QWidget):
         """
         pass
 
+    # Used to inform start_react_widget that user has updated range values.
+    # start_react_widget then populate fields with those values next time.
+    # str = name of region, tuple = region min, max
+    sig_range_updated = qc.Signal(str, tuple)
+
     def __init__(
         self,
         dm: ScopeWidgetDeviceManager,
@@ -496,7 +501,7 @@ class ScopeWidget(qw.QWidget):
             self.target_range = target_range
 
             # Remember these values throughout the session
-            self.config.target_range = self.target_range
+            self.sig_range_updated.emit("target", target_range)
 
             if self.task_widget:
                 self.task_widget.sigTargetMoved.emit(target_range)
@@ -527,7 +532,7 @@ class ScopeWidget(qw.QWidget):
             self.prepared_range = prepared_range
 
             # Remember these values throughout the session
-            self.config.prepared_range = self.prepared_range
+            self.sig_range_updated.emit("prepared", self.prepared_range)
 
             if self.task_widget:
                 self.task_widget.sigPreparedMoved.emit(prepared_range)
@@ -559,7 +564,7 @@ class ScopeWidget(qw.QWidget):
             self.base_range = base_range
 
             # Remember these values throughout the session
-            self.config.base_range = self.base_range
+            self.sig_range_updated.emit("base", self.base_range)
 
             if self.task_widget:
                 self.task_widget.sigBaseMoved.emit(base_range)
