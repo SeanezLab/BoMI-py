@@ -657,6 +657,9 @@ class StartReactWidget(qw.QWidget, WindowMixin):
             )
             self._scope_widget.showMaximized()
             self._scope_widget.sig_range_updated.connect(self.update_range)
+            self._scope_widget.meta.task = task_name
+            self._scope_widget.meta.muscle = self.muscle
+            self._scope_widget.meta.timepont = self.timepoint
 
         except Exception:
             _print(traceback.format_exc())

@@ -502,6 +502,7 @@ class ScopeWidget(qw.QWidget):
 
             # Remember these values throughout the session
             self.sig_range_updated.emit("target", target_range)
+            self.meta.target_range = self.target_range
 
             if self.task_widget:
                 self.task_widget.sigTargetMoved.emit(target_range)
@@ -533,6 +534,7 @@ class ScopeWidget(qw.QWidget):
 
             # Remember these values throughout the session
             self.sig_range_updated.emit("prepared", self.prepared_range)
+            self.meta.prepared_range = self.prepared_range
 
             if self.task_widget:
                 self.task_widget.sigPreparedMoved.emit(prepared_range)
