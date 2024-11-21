@@ -22,8 +22,10 @@ def get_savedir(data_root: Path, task_name: str, mkdir=True) -> Path:
 class SubjectMetadata:
     subject_id: str = "Enter S00#"
     stim: bool = False
-    target_range: tuple[float, float] = (None, None)
-    prepared_range: tuple[float, float] = (None, None)
+    target_range_min: float = 0.0
+    target_range_max: float = 0.0
+    prepared_range_min: float = 0.0
+    prepared_range_max: float = 0.0
     task: str = None
     muscle: str = None
     timepont: str = None
